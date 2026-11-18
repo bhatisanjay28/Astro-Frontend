@@ -1,16 +1,18 @@
-# Astro-Frontend — Vyotish-Astro website (Vite + React)
-# Multi-stage: build with Node, serve static dist with nginx
+# Astro-Frontend — Vyotish-Astro website (Astro 5, static output)
+# Multi-stage: build with Bun, serve static dist with nginx.
+# (Cloudflare production deploy happens via the Cloudflare build pipeline;
+#  this image is local parity only — DECISIONS.md D2.)
 
 # ---- Build stage ----
-FROM node:22-alpine AS build
+FROM oven/bun:1.4.4-slim AS build
 
 WORKDIR /app
 
-COPY package.json package-lock.json* ./
-RUN npm ci || npm install
+COPY package.json bun.lock ./
+RUN bun install --frozen-lockfile
 
 COPY . .
-RUN npm run build
+RUN bun run build
 
 # ---- Serve stage ----
 FROM nginx:1.27-alpine

@@ -1,0 +1,35 @@
+name: Frontend CI (build only — never deploys)
+
+# The frontend stays LOCAL until the owner approves the build (DECISIONS.md D8).
+# This workflow is a correctness gate only. If it ever starts deploying, that
+# change requires explicit owner sign-off.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.4.4"
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Astro check (types)
+        run: bun run check
+
+      - name: Lint
+        run: bun run lint
+
+      - name: Build (static output)
+        run: bun run build

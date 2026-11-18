@@ -1,0 +1,13 @@
+{
+  // Static-asset deploy option (wrangler). The live site currently auto-builds
+  // via the Cloudflare pipeline on push to main — see meta repo docs/plan/epics.md.
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "astro-frontend",
+  "compatibility_date": "2026-01-14",
+  "assets": {
+    "directory": "./dist"
+  },
+  "observability": {
+    "enabled": true
+  }
+}

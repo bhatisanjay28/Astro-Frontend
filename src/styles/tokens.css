@@ -1,0 +1,43 @@
+/*
+ * Vyotish design tokens — Epic 0.3 (PRD §9).
+ * Values are the approved Coming-Soon palette (1:1 with vyotish.com).
+ * Extend, don't redefine: new surfaces must consume these variables.
+ */
+:root {
+  /* Night-sky surfaces */
+  --bg-night: #0b0d17;
+  --bg-night-glow: #1d2340;
+
+  /* Gold accents */
+  --gold: #d4af37;
+  --gold-bright: #e9c96a;
+  --gold-glow: rgba(212, 175, 55, 0.45);
+  --gold-shadow: rgba(212, 175, 55, 0.35);
+  --border-gold-soft: rgba(212, 175, 55, 0.28);
+
+  /* Ivory / starlight */
+  --ivory: #f3ead7;
+  --starlight: #f5e9c8;
+
+  /* Text scale */
+  --text-primary: #ffffff;
+  --text-body: #e8e6f0;
+  --text-muted: #b9bdd0;
+  --text-dim: #9aa0b8;
+  --text-faint: #8a90a8;
+  --text-footer: #6f7490;
+  --ink-on-gold: #10121e;
+
+  /* Glass surfaces */
+  --surface-glass: rgba(255, 255, 255, 0.03);
+  --surface-chip: rgba(255, 255, 255, 0.04);
+  --border-faint: rgba(255, 255, 255, 0.12);
+
+  /* Typography */
+  --font-display: "Cormorant Garamond", serif;
+  --font-body: "Inter", system-ui, sans-serif;
+
+  /* Shape */
+  --radius-card: 12px;
+  --radius-pill: 999px;
+}

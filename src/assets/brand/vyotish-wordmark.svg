@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 56" role="img" aria-labelledby="wordmark-title">
+  <!--
+    PLACEHOLDER WORDMARK (docs/placeholders.md P1) — original dummy mark, owner
+    supplies the final logo later. Keep this the single swappable file.
+  -->
+  <title id="wordmark-title">Vyotish — placeholder wordmark</title>
+  <g fill="none">
+    <!-- star symbol: eight-pointed Vedic star -->
+    <g stroke="#d4af37" stroke-width="2">
+      <path d="M28 6 L32 20 L46 24 L32 28 L28 42 L24 28 L10 24 L24 20 Z" fill="#d4af37" stroke="none" opacity="0.92"/>
+      <circle cx="28" cy="24" r="18" stroke-opacity="0.55"/>
+      <circle cx="28" cy="24" r="23" stroke-opacity="0.25"/>
+    </g>
+    <!-- wordmark -->
+    <text x="62" y="34" font-family="Cormorant Garamond, Georgia, serif" font-size="30" font-weight="600" letter-spacing="1.5" fill="#f3ead7">Vyotish</text>
+    <text x="63" y="48" font-family="Inter, system-ui, sans-serif" font-size="9" letter-spacing="4" fill="#9aa0b8">VEDIC ASTROLOGY</text>
+  </g>
+</svg>
