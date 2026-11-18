@@ -1,0 +1,315 @@
+---
+/**
+ * /kundli — Free Kundli page (Epic 4.2): form → LIVE /api/v1/kundli →
+ * North/South Indian SVG charts (printable), planetary table, Vimshottari,
+ * basic dosha notes. No signup, no storage.
+ */
+import Base from "../layouts/Base.astro";
+
+const apiBase = import.meta.env.PUBLIC_API_BASE_URL ?? "https://astro-backend.vyotish.workers.dev";
+const CITIES = [
+  ["28.6139", "77.209", "Asia/Kolkata", "New Delhi"],
+  ["19.076", "72.8777", "Asia/Kolkata", "Mumbai"],
+  ["12.9716", "77.5946", "Asia/Kolkata", "Bengaluru"],
+  ["22.5726", "88.3639", "Asia/Kolkata", "Kolkata"],
+  ["13.0827", "80.2707", "Asia/Kolkata", "Chennai"],
+  ["17.385", "78.4867", "Asia/Kolkata", "Hyderabad"],
+];
+---
+
+<Base
+  title="Free Kundli (Janam Kundali) — No Signup | Vyotish"
+  description="Free online Kundli with North/South Indian charts, planetary positions, Navamsha, Vimshottari Dasha and dosha notes. No signup; birth data never stored."
+  langPath="/kundli"
+>
+  <section class="kl">
+    <h1>Free Kundli</h1>
+    <p class="lede">
+      Enter birth details — the chart computes live on our engine. No signup; birth
+      data is processed for this request and never stored.
+    </p>
+
+    <form data-k-form>
+      <div class="row">
+        <label>Birth date <input type="date" name="date" required /></label>
+        <label>Birth time <input type="time" name="time" required value="10:00" /></label>
+        <label>City
+          <select name="city">
+            {CITIES.map((c) => <option value={`${c[0]},${c[1]},${c[2]}`}>{c[3]}</option>)}
+          </select>
+        </label>
+        <label>Chart style
+          <select name="style">
+            <option value="north">North Indian</option>
+            <option value="south">South Indian</option>
+          </select>
+        </label>
+      </div>
+      <button type="submit">Generate Kundli</button>
+    </form>
+
+    <div class="k-error" data-k-error hidden>Could not generate the Kundli — please check the inputs.</div>
+  </section>
+
+  <section class="k-out" data-k-out hidden aria-live="polite">
+    <div class="charts">
+      <figure data-chart-wrap>
+        <figcaption>Chart (<span data-style-label>North Indian</span>) — printable SVG</figcaption>
+        <div data-chart-svg></div>
+      </figure>
+    </div>
+
+    <div class="summary" data-summary></div>
+
+    <h2>Planetary positions</h2>
+    <div class="table-wrap"><table data-planets></table></div>
+
+    <h2>Vimshottari Dasha (Maha-dashas)</h2>
+    <div class="table-wrap"><table data-dasha></table></div>
+
+    <h2>Dosha notes</h2>
+    <div class="doshas" data-doshas></div>
+
+    <p class="fine">
+      Interpretations arrive with Epic 4 completion. Always cross-check major
+      decisions with a qualified astrologer.
+    </p>
+  </section>
+</Base>
+
+<script is:inline define:vars={{ apiBase }}>
+  (function () {
+    var SIGNS = ["Aries", "Taurus", "Gemini", "Cancer", "Leo", "Virgo", "Libra", "Scorpio", "Sagittarius", "Capricorn", "Aquarius", "Pisces"];
+    var SIGN_SHORT = { Aries: "Ar", Taurus: "Ta", Gemini: "Ge", Cancer: "Cn", Leo: "Le", Virgo: "Vi", Libra: "Li", Scorpio: "Sc", Sagittarius: "Sg", Capricorn: "Cp", Aquarius: "Aq", Pisces: "Pi" };
+    var ABBR = { Sun: "Su", Moon: "Mo", Mars: "Ma", Mercury: "Me", Jupiter: "Ju", Venus: "Ve", Saturn: "Sa", Rahu: "Ra", Ketu: "Ke" };
+
+    var form = document.querySelector("[data-k-form]");
+    var out = document.querySelector("[data-k-out]");
+    var errEl = document.querySelector("[data-k-error]");
+    var chartWrap = document.querySelector("[data-chart-svg]");
+    var styleLabel = document.querySelector("[data-style-label]");
+    var summaryEl = document.querySelector("[data-summary]");
+    var planetsEl = document.querySelector("[data-planets]");
+    var dashaEl = document.querySelector("[data-dasha]");
+    var doshasEl = document.querySelector("[data-doshas]");
+    var lastData = null;
+
+    /* ---------- SVG charts ---------- */
+    function housePlants(grahas, houses) {
+      // planet → house; used for NIndian diamond placement
+      var byHouse = {};
+      grahas.forEach(function (g) {
+        var h = houses[g.planet];
+        (byHouse[h] = byHouse[h] || []).push(ABBR[g.planet] + (g.retrograde ? "*" : ""));
+      });
+      return byHouse;
+    }
+    function signPlanets(grahas) {
+      var bySign = {};
+      grahas.forEach(function (g) {
+        (bySign[g.signIndex] = bySign[g.signIndex] || []).push(ABBR[g.planet] + (g.retrograde ? "*" : ""));
+      });
+      return bySign;
+    }
+    function planetText(list, x, y) {
+      return "<text x='" + x + "' y='" + y + "' class='pt'>" + (list || []).join(" ") + "</text>";
+    }
+
+    function northSVG(lagnaSign, byHouse) {
+      // North Indian: fixed house diamonds; house 1 top-center diamond.
+      var W = 320, H = 320;
+      var s = "<svg viewBox='0 0 " + W + " " + H + "' width='320' height='320' role='img' aria-label='North Indian chart'>";
+      s += "<rect x='4' y='4' width='" + (W - 8) + "' height='" + (H - 8) + "' fill='none' stroke='currentColor' stroke-width='1.5'/>";
+      var cx = W / 2, cy = H / 2;
+      // diagonals + inner diamond
+      s += "<line x1='4' y1='4' x2='" + (W - 4) + "' y2='" + (H - 4) + "' stroke='currentColor'/>";
+      s += "<line x1='" + (W - 4) + "' y1='4' x2='4' y2='" + (H - 4) + "' stroke='currentColor'/>";
+      s += "<polygon points='" + cx + ",4 " + (W - 4) + "," + cy + " " + cx + "," + (H - 4) + " 4," + cy + "' fill='none' stroke='currentColor'/>";
+      // label positions per house (house1 top-center diamond etc.)
+      var P = {
+        1: [cx, 40], 2: [W - 80, 40], 3: [W - 60, cy - 60], 4: [W - 80, cy + 8], 5: [W - 60, cy + 70], 6: [W - 80, H - 36],
+        7: [cx, H - 30], 8: [80, H - 36], 9: [60, cy + 70], 10: [80, cy + 8], 11: [60, cy - 60], 12: [80, 40],
+      };
+      for (var h = 1; h <= 12; h++) {
+        var signNum = ((lagnaSign + h - 1) % 12) + 1;
+        var p = P[h];
+        s += "<text x='" + p[0] + "' y='" + (p[1] - 14) + "' class='hn'>" + signNum + "</text>";
+        s += planetText(byHouse[h], p[0], p[1] + 4);
+      }
+      return s + "</svg>";
+    }
+
+    function southSVG(bySign) {
+      // South Indian: fixed 4×4 grid; signs placed clockwise from Pisces/Aries corners.
+      var W = 320, H = 320, u = 80;
+      var layout = [ // [col,row] per signIndex 0..11 (Aries at second cell of top row)
+        [1, 0], [2, 0], [3, 0], [3, 1], [3, 2], [3, 3],
+        [2, 3], [1, 3], [0, 3], [0, 2], [0, 1], [0, 0],
+      ];
+      var s = "<svg viewBox='0 0 " + W + " " + H + "' width='320' height='320' role='img' aria-label='South Indian chart'>";
+      for (var i = 0; i < 4; i++) {
+        s += "<line x1='" + (i * u) + "' y1='0' x2='" + (i * u) + "' y2='" + H + "' stroke='currentColor'/>";
+        s += "<line x1='0' y1='" + (i * u) + "' x2='" + W + "' y2='" + (i * u) + "' stroke='currentColor'/>";
+      }
+      s += "<rect x='0.75' y='0.75' width='" + (W - 1.5) + "' height='" + (H - 1.5) + "' fill='none' stroke='currentColor' stroke-width='1.5'/>";
+      for (var sign = 0; sign < 12; sign++) {
+        var pos = layout[sign];
+        var x = pos[0] * u, y = pos[1] * u;
+        s += "<text x='" + (x + 8) + "' y='" + (y + 16) + "' class='hn'>" + SIGN_SHORT[SIGNS[sign]] + "</text>";
+        s += planetText(bySign[sign], x + 10, y + 40);
+      }
+      return s + "</svg>";
+    }
+
+    /* ---------- doshas (basic, from birth chart) ---------- */
+    function doshaNotes(grahas, houses, lagnaLon) {
+      var notes = [];
+      var marsH = houses["Mars"];
+      var manglikHouses = [1, 2, 4, 7, 8, 12];
+      var fromLagna = manglikHouses.indexOf(marsH) >= 0;
+      // from Moon
+      var moonLon = (grahas.filter(function (g) { return g.planet === "Moon"; })[0] || {}).lon ?? 0;
+      var lagnaSign = Math.floor(((lagnaLon % 360) + 360) % 360 / 30);
+      var moonSign = Math.floor(((moonLon % 360) + 360) % 360 / 30);
+      var marsLon = (grahas.filter(function (g) { return g.planet === "Mars"; })[0] || {}).lon ?? 0;
+      var marsSign = Math.floor(((marsLon % 360) + 360) % 360 / 30);
+      var marsFromMoon = ((marsSign - moonSign + 12) % 12) + 1;
+      var fromMoon = manglikHouses.indexOf(marsFromMoon) >= 0;
+      notes.push({
+        name: "Mangal Dosha (basic house check)",
+        verdict: fromLagna || fromMoon ? "Present (from " + (fromLagna ? "Lagna" : "") + (fromLagna && fromMoon ? " and " : "") + (fromMoon ? "Moon" : "") + ")" : "Not indicated",
+        detail: "Mars in houses 1/2/4/7/8/12 from Lagna or Moon. Cancellation rules and nuance need an astrologer — this is a mechanical check only.",
+      });
+      // Kaal Sarp: all 7 planets between Rahu→Ketu arc
+      var rahuLon = (grahas.filter(function (g) { return g.planet === "Rahu"; })[0] || {}).lon ?? 0;
+      var others = grahas.filter(function (g) { return g.planet !== "Rahu" && g.planet !== "Ketu"; });
+      var inArc = others.every(function (g) {
+        var d = ((g.lon - rahuLon) % 360 + 360) % 360;
+        return d > 0 && d < 180;
+      });
+      var inArc2 = others.every(function (g) {
+        var d = ((g.lon - rahuLon) % 360 + 360) % 360;
+        return d > 180 && d < 360;
+      });
+      notes.push({
+        name: "Kaal Sarp (axis check)",
+        verdict: inArc || inArc2 ? "All planets on one side of the Rahu–Ketu axis" : "Not indicated",
+        detail: "Mechanical placement check only; classical analysis requires an astrologer.",
+      });
+      notes.push({
+        name: "Shani Sade Sati",
+        verdict: "Coming with Epic 4 (needs Saturn transit tables)",
+        detail: "Requires current Saturn transit vs natal Moon sign — engine support planned.",
+      });
+      return notes;
+    }
+
+    /* ---------- render ---------- */
+    function render(d, style) {
+      styleLabel.textContent = style === "south" ? "South Indian" : "North Indian";
+      var byHouse = housePlants(d.grahas, d.houses);
+      var bySign = signPlanets(d.grahas);
+      chartWrap.innerHTML = style === "south" ? southSVG(bySign) : northSVG(d.lagna.signIndex, byHouse);
+
+      summaryEl.innerHTML =
+        '<div class="s-grid">' +
+        '<div class="s"><div class="k">Lagna</div><div class="v">' + d.lagna.sign + " · " + d.lagna.nakshatra + " pada " + d.lagna.pada + "</div></div>" +
+        '<div class="s"><div class="k">Birth (local)</div><div class="v">' + d.birth.date + " " + d.birth.time + " · " + d.birth.timezone + "</div></div>" +
+        '<div class="s"><div class="k">Current Maha-dasha</div><div class="v">' + d.dasha.mahadashas[0].lord + "</div></div>" +
+        "</div>";
+
+      planetsEl.innerHTML =
+        "<thead><tr><th>Planet</th><th>Longitude</th><th>Sign</th><th>Nakshatra (pada)</th><th>Motion</th></tr></thead><tbody>" +
+        d.grahas.map(function (g) {
+          return "<tr><td>" + g.planet + "</td><td>" + g.lon.toFixed(2) + "°</td><td>" + g.sign + "</td><td>" + g.nakshatra + " (" + g.pada + ")</td><td>" + (g.retrograde ? "Retrograde*" : "Direct") + "</td></tr>";
+        }).join("") +
+        "</tbody>";
+
+      dashaEl.innerHTML =
+        "<thead><tr><th>Lord</th><th>Start</th><th>End</th><th>Years</th></tr></thead><tbody>" +
+        d.dasha.mahadashas.map(function (m) {
+          return "<tr><td>" + m.lord + "</td><td>" + new Date(m.start).toLocaleDateString() + "</td><td>" + new Date(m.end).toLocaleDateString() + "</td><td>" + m.years + "</td></tr>";
+        }).join("") +
+        "</tbody>";
+
+      doshasEl.innerHTML = doshaNotes(d.grahas, d.houses, d.lagna.lon).map(function (n) {
+        return '<div class="d"><div class="dn">' + n.name + ': <strong>' + n.verdict + "</strong></div><div class=" + '"dd"' + ">" + n.detail + "</div></div>";
+      }).join("");
+
+      out.removeAttribute("hidden");
+    }
+
+    form.addEventListener("submit", function (e) {
+      e.preventDefault();
+      errEl.setAttribute("hidden", "");
+      var f = new FormData(form);
+      var city = String(f.get("city")).split(",");
+      var style = String(f.get("style") || "north");
+      fetch(apiBase + "/api/v1/kundli", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ date: f.get("date"), time: f.get("time"), lat: parseFloat(city[0]), lng: parseFloat(city[1]), tz: city[2] }),
+      })
+        .then(function (r) { if (!r.ok) throw new Error("bad"); return r.json(); })
+        .then(function (j) { lastData = j.data; render(j.data, style); })
+        .catch(function () { errEl.removeAttribute("hidden"); });
+
+      // re-render when style changes after a successful run
+      var styleSel = form.querySelector("select[name=style]");
+      styleSel.onchange = function () { if (lastData) render(lastData, styleSel.value); };
+    });
+  })();
+</script>
+
+<style>
+  .kl { max-width: 860px; margin: 0 auto; padding: var(--space-7) var(--space-4) var(--space-5); }
+  h1 { font-family: var(--font-display); color: var(--ivory); font-size: 34px; }
+  .lede { color: var(--text-muted); font-size: 14.5px; margin-top: var(--space-2); line-height: 1.6; }
+  form { display: grid; gap: var(--space-3); margin-top: var(--space-5); }
+  .row { display: flex; gap: var(--space-3); flex-wrap: wrap; }
+  label { flex: 1; min-width: 170px; display: grid; gap: var(--space-1); color: var(--text-dim); font-size: 13px; }
+  input, select {
+    min-height: var(--target-min);
+    background: var(--bg-raised);
+    border: 1px solid var(--border-faint);
+    border-radius: var(--radius-card);
+    color: var(--text-body);
+    padding: 0 var(--space-3);
+  }
+  button {
+    min-height: var(--target-min);
+    background: linear-gradient(135deg, var(--gold-bright), var(--gold));
+    border: none;
+    border-radius: var(--radius-pill);
+    color: var(--ink-on-gold);
+    font-weight: 500;
+    cursor: pointer;
+    justify-self: start;
+    padding: 0 var(--space-6);
+  }
+  .k-error { color: #e07a5f; margin-top: var(--space-3); }
+  .k-out { max-width: 860px; margin: 0 auto; padding: 0 var(--space-4) var(--space-8); }
+  .charts { display: flex; gap: var(--space-5); flex-wrap: wrap; margin-top: var(--space-5); }
+  figure { margin: 0; }
+  figcaption { color: var(--text-dim); font-size: 13px; margin-bottom: var(--space-2); }
+  [data-chart-svg] { color: var(--text-dim); background: var(--bg-raised); border: 1px solid var(--border-gold-soft); border-radius: var(--radius-card); padding: var(--space-3); }
+  [data-chart-svg] .hn { fill: var(--gold); font-size: 12px; }
+  [data-chart-svg] .pt { fill: var(--text-body); font-size: 13px; font-weight: 600; }
+  .summary { margin-top: var(--space-5); }
+  .s-grid { display: grid; gap: var(--space-3); grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+  .s { background: var(--bg-raised); border: 1px solid var(--border-faint); border-radius: var(--radius-card); padding: var(--space-3) var(--space-4); }
+  .s .k { font-size: 10.5px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--text-dim); }
+  .s .v { font-family: var(--font-display); font-size: 18px; color: var(--ivory); margin-top: 2px; }
+  h2 { font-family: var(--font-display); color: var(--ivory); font-size: 22px; margin: var(--space-6) 0 var(--space-3); }
+  .table-wrap { overflow-x: auto; border: 1px solid var(--border-faint); border-radius: var(--radius-card); }
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  th, td { text-align: left; padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--border-faint); color: var(--text-body); }
+  th { color: var(--text-dim); font-size: 11px; text-transform: uppercase; letter-spacing: 0.12em; }
+  tr:last-child td { border-bottom: none; }
+  .doshas { display: grid; gap: var(--space-3); }
+  .d { background: var(--bg-raised); border: 1px solid var(--border-faint); border-radius: var(--radius-card); padding: var(--space-3) var(--space-4); }
+  .d .dn { color: var(--text-body); font-size: 14px; }
+  .d .dn strong { color: var(--ivory); }
+  .d .dd { color: var(--text-faint); font-size: 12.5px; margin-top: var(--space-1); line-height: 1.6; }
+  .fine { color: var(--text-faint); font-size: 12.5px; margin-top: var(--space-6); }
+</style>
