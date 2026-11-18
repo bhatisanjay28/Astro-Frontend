@@ -1,21 +1,32 @@
 ---
 /**
- * Base HTML shell. Fonts are currently hotlinked from Google Fonts for 1:1
- * Coming-Soon parity — must be self-hosted + subsetted before launch
- * (docs/placeholders.md P3/P13).
+ * Base HTML shell — Epic 2.1/2.4.
+ * Theme: no-flash inline script (localStorage → prefers-color-scheme).
+ * i18n: hreflang alternates when `langPath` provided (PRD §11).
+ * Fonts: hotlinked for Coming-Soon parity — self-host before launch (P3).
  */
 import "../styles/tokens.css";
+import Footer from "../components/Footer.astro";
+import Header from "../components/Header.astro";
 
 interface Props {
   title: string;
   description: string;
+  lang?: "en" | "hi";
+  /** e.g. "/" → hreflang pair / ↔ /hi/ */
+  langPath?: string;
+  /** lock the night-sky look (Coming-Soon page) */
+  lockDark?: boolean;
+  /** render header/footer chrome (off for the pixel-parity Coming-Soon page) */
+  chrome?: boolean;
 }
 
-const { title, description } = Astro.props;
+const { title, description, lang = "en", langPath, lockDark = false, chrome = true } = Astro.props;
+const themeLock = lockDark ? "dark" : null;
 ---
 
 <!doctype html>
-<html lang="en">
+<html lang={lang} data-theme={themeLock}>
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -23,26 +34,88 @@ const { title, description } = Astro.props;
     <meta name="generator" content={Astro.generator} />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>{title}</title>
+    {
+      langPath && (
+        <link rel="alternate" hreflang="en" href={`https://vyotish.com${langPath}`} />
+      )
+    }
+    {
+      langPath && (
+        <link rel="alternate" hreflang="hi" href={`https://vyotish.com/hi${langPath}`} />
+      )
+    }
+    {
+      langPath && (
+        <link rel="alternate" hreflang="x-default" href={`https://vyotish.com${langPath}`} />
+      )
+    }
+    <script is:inline>
+      // No-flash theme bootstrap (respects reduced-JS environments by defaulting)
+      (function () {
+        var locked = document.documentElement.getAttribute("data-theme") === "dark";
+        if (locked) return;
+        try {
+          var saved = localStorage.getItem("vyotish-theme");
+          var theme = saved || (window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark");
+          document.documentElement.setAttribute("data-theme", theme);
+        } catch (e) {
+          document.documentElement.setAttribute("data-theme", "dark");
+        }
+      })();
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Inter:wght@300;400;500;600&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Inter:wght@300;400;500;600&family=Noto+Sans+Devanagari:wght@400;600&display=swap"
       rel="stylesheet"
     />
   </head>
   <body>
-    <slot />
+    <a class="skip-link" href="#main-content">Skip to main content</a>
+    {
+      chrome && <Header currentPath={Astro.url.pathname} />
+    }
+    <main id="main-content">
+      <slot />
+    </main>
+    {chrome && <Footer />}
+    <style is:global>
+      html {
+        background: var(--bg-page);
+      }
+      body {
+        background: var(--bg-page);
+        color: var(--text-body);
+        font-family: var(--font-body);
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+      }
+      main {
+        flex: 1;
+      }
+      :where(a, button, input, select, textarea, [tabindex]):focus-visible {
+        outline: none;
+        box-shadow: var(--focus-ring);
+        border-radius: 4px;
+      }
+      .skip-link {
+        position: absolute;
+        left: -9999px;
+        top: 0;
+        z-index: 100;
+        background: var(--gold);
+        color: var(--ink-on-gold);
+        padding: var(--space-2) var(--space-4);
+        border-radius: 0 0 var(--radius-card) 0;
+      }
+      .skip-link:focus-visible {
+        left: 0;
+      }
+      [lang="hi"] .hi-text,
+      .hi-text {
+        font-family: "Noto Sans Devanagari", var(--font-body);
+      }
+    </style>
   </body>
 </html>
-
-<style is:global>
-  * {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-  }
-  html,
-  body {
-    min-height: 100%;
-  }
-</style>

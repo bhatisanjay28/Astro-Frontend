@@ -1,0 +1,69 @@
+---
+import Base from "../../layouts/Base.astro";
+
+const TIER1 = [
+  { name: "Rashi (Moon sign)", desc: "Your Vedic moon sign and nakshatra", href: "#", ready: true },
+  { name: "Nakshatra", desc: "Birth star and pada", href: "#", ready: true },
+  { name: "Sun sign", desc: "Western tropical sun sign", href: "#", ready: true },
+  {
+    name: "Rising sign (Lagna)",
+    desc: "Sidereal ascendant for your birth time",
+    href: "#",
+    ready: true,
+  },
+  { name: "Birth chart (Kundli)", desc: "Full chart, houses and dashas", href: "#", ready: true },
+  { name: "Mangal Dosha", desc: "Mars-based dosha check", href: "#", ready: false },
+  { name: "Kaal Sarp Dosha", desc: "Planetary-axis dosha check", href: "#", ready: false },
+  { name: "Shani Sade Sati", desc: "Saturn's 7.5-year transit overview", href: "#", ready: false },
+  { name: "Moon phase", desc: "Phase on any date", href: "#", ready: true },
+  { name: "Numerology", desc: "Mulank, Destiny and Name numbers", href: "#", ready: true },
+];
+---
+
+<Base
+  title="Free Calculators | Vyotish"
+  description="Free astrology and numerology calculators — Rashi, Nakshatra, Lagna, Kundli, Dasha, Dosha checks and more. No signup."
+  langPath="/calculators"
+>
+  <section class="calc-index">
+    <h1>Free calculators</h1>
+    <p class="lede">One shared template: input → result → plain-language explanation → FAQ. No login anywhere.</p>
+    <div class="grid">
+      {
+        TIER1.map((c) => (
+          <a class={`card ${c.ready ? "ready" : "soon"}`} href={c.ready ? "/" : undefined} aria-disabled={!c.ready}>
+            <span class="name">{c.name}</span>
+            <span class="desc">{c.desc}</span>
+            <span class="tag">{c.ready ? "Engine ready" : "Arriving"}</span>
+          </a>
+        ))
+      }
+    </div>
+    <p class="note">
+      "Engine ready" tools already compute on our live API — their dedicated pages and
+      the shared result template arrive with Epic 4.4. Fun tools will always be labelled
+      <em>"for fun"</em>.
+    </p>
+  </section>
+</Base>
+
+<style>
+  .calc-index { max-width: 900px; margin: 0 auto; padding: var(--space-8) var(--space-4); }
+  h1 { font-family: var(--font-display); color: var(--ivory); font-size: 34px; }
+  .lede { color: var(--text-muted); font-size: 14.5px; margin-top: var(--space-2); }
+  .grid { display: grid; gap: var(--space-3); grid-template-columns: 1fr; margin-top: var(--space-5); }
+  .card {
+    display: flex; flex-direction: column; gap: 4px;
+    border: 1px solid var(--border-faint);
+    border-radius: var(--radius-card);
+    padding: var(--space-4);
+    text-decoration: none;
+  }
+  .card.ready { border-color: var(--border-gold-soft); }
+  .card.soon { opacity: 0.65; }
+  .name { color: var(--ivory); font-weight: 500; font-size: 15px; }
+  .desc { color: var(--text-dim); font-size: 13px; }
+  .tag { color: var(--gold); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; margin-top: 6px; }
+  .note { color: var(--text-faint); font-size: 13px; margin-top: var(--space-5); line-height: 1.6; }
+  @media (min-width: 640px) { .grid { grid-template-columns: repeat(2, 1fr); } }
+</style>

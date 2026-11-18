@@ -1,0 +1,47 @@
+---
+/** Shared stub for tabs whose stories land in later epics (honest state). */
+import Base from "../layouts/Base.astro";
+
+interface Props {
+  title: string;
+  tabLabel: string;
+  description: string;
+  epic: string;
+}
+const { title, tabLabel, description, epic } = Astro.props;
+---
+
+<Base title={title} description={description}>
+  <section class="stub">
+    <h1>{tabLabel}</h1>
+    <p>{description}</p>
+    <div class="notice">
+      <strong>Under construction.</strong> This section ships in {epic}.
+      The engine and APIs behind it are already live — see the
+      <a href="/">home page</a> for what works today.
+    </div>
+    <a class="back" href="/">← Back to home</a>
+  </section>
+</Base>
+
+<style>
+  .stub {
+    max-width: 680px;
+    margin: 0 auto;
+    padding: var(--space-8) var(--space-4);
+    text-align: center;
+  }
+  h1 { font-family: var(--font-display); color: var(--ivory); font-size: 36px; }
+  .stub > p { color: var(--text-muted); margin-top: var(--space-3); font-size: 15px; }
+  .notice {
+    margin-top: var(--space-5);
+    border: 1px dashed var(--border-gold-soft);
+    border-radius: var(--radius-card);
+    padding: var(--space-4);
+    color: var(--text-dim);
+    font-size: 14px;
+    line-height: 1.6;
+  }
+  .notice a { color: var(--gold); }
+  .back { display: inline-block; margin-top: var(--space-5); color: var(--gold); text-decoration: none; min-height: var(--target-min); line-height: var(--target-min); }
+</style>

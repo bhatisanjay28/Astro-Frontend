@@ -1,0 +1,141 @@
+---
+/**
+ * Site footer (Epic 2.1): all tabs, calculators teaser, legal links,
+ * newsletter signup (placeholder — backend form lands later), social
+ * placeholders (P15).
+ */
+import { LEGAL_LINKS, NAV_TABS } from "../data/navigation";
+---
+
+<footer class="site-footer">
+  <div class="footer-inner">
+    <div class="col brand-col">
+      <a href="/" aria-label="Vyotish — home" class="f-brand">Vyotish</a>
+      <p>
+        Ancient Vedic wisdom for modern life. Free tools and authentic guidance —
+        calculations validated against known Panchang values.
+      </p>
+      <div class="social" aria-label="Social links (placeholders)">
+        <span title="Social links are placeholders (P15)">WhatsApp</span>
+        <span>Instagram</span>
+        <span>YouTube</span>
+      </div>
+    </div>
+
+    <nav class="col" aria-label="Footer sections">
+      <h3>Explore</h3>
+      {NAV_TABS.map((t) => <a href={t.href}>{t.label}</a>)}
+    </nav>
+
+    <nav class="col" aria-label="Legal">
+      <h3>Company</h3>
+      {LEGAL_LINKS.map((l) => <a href={l.href}>{l.label}</a>)}
+    </nav>
+
+    <div class="col">
+      <h3>Newsletter</h3>
+      <p>Be the first to know when we launch.</p>
+      <form class="newsletter" data-newsletter>
+        <input type="email" name="email" required placeholder="you@example.com" aria-label="Email address" />
+        <button type="submit">Notify Me</button>
+      </form>
+      <p class="note" data-newsletter-note hidden>Thank you — you are on the list. (Placeholder: backend form lands with Epic 7.)</p>
+      <p class="privacy-line">
+        We never ask for OTPs or passwords. Birth details you share are used only for
+        your request — see our Privacy Policy.
+      </p>
+    </div>
+  </div>
+
+  <div class="legal-line">
+    <p>© {new Date().getFullYear()} Vyotish · vyotish.com — Astrology content is for guidance and information; outcomes are not guaranteed.</p>
+  </div>
+</footer>
+
+<script is:inline>
+  document.querySelectorAll("[data-newsletter]").forEach(function (form) {
+    form.addEventListener("submit", function (e) {
+      e.preventDefault();
+      var note = form.parentElement && form.parentElement.querySelector("[data-newsletter-note]");
+      if (note) note.removeAttribute("hidden");
+      form.reset();
+    });
+  });
+</script>
+
+<style>
+  .site-footer {
+    border-top: 1px solid var(--border-faint);
+    background: var(--surface-glass);
+    margin-top: var(--space-8);
+  }
+  .footer-inner {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: var(--space-7) var(--space-4);
+    display: grid;
+    gap: var(--space-6);
+    grid-template-columns: 1fr;
+  }
+  .col h3 {
+    font-family: var(--font-display);
+    color: var(--gold);
+    font-size: 18px;
+    margin-bottom: var(--space-3);
+  }
+  .col a {
+    display: block;
+    min-height: 32px;
+    line-height: 32px;
+    color: var(--text-muted);
+    text-decoration: none;
+    font-size: 14px;
+  }
+  .col a:hover { color: var(--gold); }
+  .f-brand {
+    font-family: var(--font-display);
+    font-size: 26px;
+    color: var(--ivory);
+    text-decoration: none;
+  }
+  .brand-col p { color: var(--text-dim); font-size: 14px; margin-top: var(--space-3); }
+  .social { display: flex; gap: var(--space-3); margin-top: var(--space-4); }
+  .social span {
+    color: var(--text-dim);
+    font-size: 13px;
+    border: 1px solid var(--border-faint);
+    border-radius: var(--radius-pill);
+    padding: 6px 12px;
+  }
+  .newsletter { display: flex; gap: var(--space-2); }
+  .newsletter input {
+    flex: 1;
+    min-height: var(--target-min);
+    background: var(--bg-raised);
+    border: 1px solid var(--border-faint);
+    border-radius: var(--radius-card);
+    color: var(--text-body);
+    padding: 0 var(--space-3);
+  }
+  .newsletter button {
+    min-height: var(--target-min);
+    padding: 0 var(--space-4);
+    background: linear-gradient(135deg, var(--gold-bright), var(--gold));
+    border: none;
+    border-radius: var(--radius-card);
+    color: var(--ink-on-gold);
+    font-weight: 500;
+    cursor: pointer;
+  }
+  .note { color: var(--gold); font-size: 13px; margin-top: var(--space-2); }
+  .privacy-line { color: var(--text-faint); font-size: 12px; margin-top: var(--space-3); max-width: 320px; }
+  .legal-line {
+    border-top: 1px solid var(--border-faint);
+    padding: var(--space-4);
+    text-align: center;
+  }
+  .legal-line p { color: var(--text-footer); font-size: 12px; }
+  @media (min-width: 768px) {
+    .footer-inner { grid-template-columns: 2fr 1fr 1fr 1.5fr; }
+  }
+</style>

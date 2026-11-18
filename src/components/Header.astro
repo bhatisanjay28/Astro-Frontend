@@ -1,0 +1,206 @@
+---
+import { NAV_TABS } from "../data/navigation";
+/**
+ * Site header (Epic 2.1): wordmark top-left, 9 tabs, EN/HI switch, theme
+ * toggle, primary CTA; mobile drawer + sticky bottom CTA (PRD §4).
+ * Touch targets ≥44px (PRD §13).
+ */
+import Wordmark from "./Wordmark.astro";
+
+interface Props {
+  currentPath?: string;
+}
+const { currentPath = "/" } = Astro.props;
+---
+
+<header class="site-header">
+  <div class="header-inner">
+    <a class="brand" href="/" aria-label="Vyotish — home">
+      <Wordmark />
+    </a>
+
+    <nav class="tabs" aria-label="Primary">
+      {NAV_TABS.map((t) => <a href={t.href} aria-current={currentPath === t.href ? "page" : undefined}>{t.label}</a>)}
+    </nav>
+
+    <div class="actions">
+      <a class="lang" href="/hi/" lang="hi" aria-label="Switch to Hindi">हिं</a>
+      <button class="theme-toggle" type="button" data-theme-toggle aria-label="Toggle light/dark theme">◐</button>
+      <a class="cta" href="/consultations">Talk to an Astrologer</a>
+      <button class="drawer-btn" type="button" data-drawer-toggle aria-label="Open menu" aria-expanded="false">☰</button>
+    </div>
+  </div>
+
+  <div class="drawer" id="mobile-drawer" hidden>
+    <nav aria-label="Mobile">
+      {NAV_TABS.map((t) => <a href={t.href}> <span aria-hidden="true">{t.icon}</span> {t.label} <span class="hi-mini">{t.label_hi}</span></a>)}
+    </nav>
+  </div>
+</header>
+
+<div class="sticky-cta-mobile">
+  <a href="/consultations">Talk to an Astrologer</a>
+</div>
+
+<script is:inline>
+  (function () {
+    // theme toggle
+    var toggle = document.querySelector("[data-theme-toggle]");
+    if (toggle) {
+      toggle.addEventListener("click", function () {
+        var current = document.documentElement.getAttribute("data-theme") || "dark";
+        var next = current === "dark" ? "light" : "dark";
+        document.documentElement.setAttribute("data-theme", next);
+        try { localStorage.setItem("vyotish-theme", next); } catch (e) {}
+      });
+    }
+    // drawer
+    var btn = document.querySelector("[data-drawer-toggle]");
+    var drawer = document.getElementById("mobile-drawer");
+    if (btn && drawer) {
+      btn.addEventListener("click", function () {
+        var open = drawer.hasAttribute("hidden");
+        if (open) drawer.removeAttribute("hidden");
+        else drawer.setAttribute("hidden", "");
+        btn.setAttribute("aria-expanded", String(open));
+        btn.setAttribute("aria-label", open ? "Close menu" : "Open menu");
+      });
+    }
+  })();
+</script>
+
+<style>
+  .site-header {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: var(--bg-header);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--border-faint);
+  }
+  .header-inner {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: var(--space-3) var(--space-4);
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+  }
+  .brand :global(.wordmark) {
+    height: 40px;
+    width: auto;
+  }
+  .brand {
+    display: inline-flex;
+    min-height: var(--target-min);
+    align-items: center;
+  }
+  .tabs {
+    display: none;
+    gap: var(--space-1);
+    flex: 1;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .tabs a {
+    padding: 10px 12px;
+    min-height: var(--target-min);
+    display: inline-flex;
+    align-items: center;
+    font-size: 14px;
+    color: var(--text-body);
+    text-decoration: none;
+    border-radius: var(--radius-card);
+  }
+  .tabs a:hover,
+  .tabs a[aria-current="page"] {
+    color: var(--gold);
+    background: var(--surface-glass);
+  }
+  .actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin-left: auto;
+  }
+  .lang,
+  .theme-toggle,
+  .drawer-btn {
+    min-width: var(--target-min);
+    min-height: var(--target-min);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: 1px solid var(--border-faint);
+    border-radius: var(--radius-card);
+    color: var(--text-body);
+    cursor: pointer;
+    font-size: 15px;
+    text-decoration: none;
+  }
+  .cta {
+    display: none;
+    align-items: center;
+    min-height: var(--target-min);
+    padding: 0 var(--space-5);
+    background: linear-gradient(135deg, var(--gold-bright), var(--gold));
+    color: var(--ink-on-gold);
+    font-weight: 500;
+    font-size: 14px;
+    border-radius: var(--radius-pill);
+    text-decoration: none;
+  }
+  .drawer {
+    border-top: 1px solid var(--border-faint);
+    background: var(--bg-page);
+  }
+  .drawer nav {
+    display: grid;
+  }
+  .drawer a {
+    min-height: var(--target-min);
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-3) var(--space-5);
+    color: var(--text-body);
+    text-decoration: none;
+    border-bottom: 1px solid var(--border-faint);
+  }
+  .drawer .hi-mini {
+    margin-left: auto;
+    color: var(--text-dim);
+    font-size: 13px;
+  }
+  .sticky-cta-mobile {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 40;
+    padding: var(--space-2) var(--space-4) calc(var(--space-2) + env(safe-area-inset-bottom, 0px));
+    background: var(--bg-header);
+    backdrop-filter: blur(8px);
+    border-top: 1px solid var(--border-faint);
+  }
+  .sticky-cta-mobile a {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: var(--target-min);
+    background: linear-gradient(135deg, var(--gold-bright), var(--gold));
+    color: var(--ink-on-gold);
+    font-weight: 500;
+    border-radius: var(--radius-pill);
+    text-decoration: none;
+  }
+  @media (min-width: 1024px) {
+    .tabs { display: flex; }
+    .cta { display: inline-flex; }
+    .drawer-btn, .sticky-cta-mobile { display: none; }
+  }
+  @media (max-width: 1023px) {
+    .sticky-cta-mobile { display: block; }
+  }
+</style>

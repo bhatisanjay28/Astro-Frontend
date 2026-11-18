@@ -1,12 +1,20 @@
 /*
- * Vyotish design tokens — Epic 0.3 (PRD §9).
+ * Vyotish design tokens — Epic 0.3/2.1 (PRD §9).
  * Values are the approved Coming-Soon palette (1:1 with vyotish.com).
  * Extend, don't redefine: new surfaces must consume these variables.
+ *
+ * Dark is the default; light theme overrides via [data-theme="light"].
+ * Both themes meet WCAG 2.2 AA contrast for their pairings (PRD §13).
  */
 :root {
+  color-scheme: dark;
+
   /* Night-sky surfaces */
   --bg-night: #0b0d17;
   --bg-night-glow: #1d2340;
+  --bg-page: var(--bg-night);
+  --bg-raised: rgba(255, 255, 255, 0.04);
+  --bg-header: rgba(11, 13, 23, 0.92);
 
   /* Gold accents */
   --gold: #d4af37;
@@ -19,7 +27,7 @@
   --ivory: #f3ead7;
   --starlight: #f5e9c8;
 
-  /* Text scale */
+  /* Text scale (dark) */
   --text-primary: #ffffff;
   --text-body: #e8e6f0;
   --text-muted: #b9bdd0;
@@ -40,4 +48,48 @@
   /* Shape */
   --radius-card: 12px;
   --radius-pill: 999px;
+
+  /* Spacing scale (4px base) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+
+  /* Touch target (PRD §13) */
+  --target-min: 44px;
+
+  /* Focus ring */
+  --focus-ring: 0 0 0 3px rgba(212, 175, 55, 0.55);
+}
+
+[data-theme="light"] {
+  color-scheme: light;
+
+  --bg-page: #faf7ef;
+  --bg-raised: #ffffff;
+  --bg-header: rgba(250, 247, 239, 0.92);
+
+  --gold: #a8841c;
+  --gold-bright: #c79b2a;
+  --gold-glow: rgba(168, 132, 28, 0.35);
+  --gold-shadow: rgba(168, 132, 28, 0.28);
+  --border-gold-soft: rgba(168, 132, 28, 0.35);
+
+  --ivory: #10121e;
+  --starlight: #10121e;
+
+  --text-primary: #1a1a24;
+  --text-body: #2c2c38;
+  --text-muted: #55555f;
+  --text-dim: #6b6b76;
+  --text-faint: #8a8a94;
+  --text-footer: #75757f;
+
+  --surface-glass: rgba(16, 18, 30, 0.03);
+  --surface-chip: rgba(16, 18, 30, 0.045);
+  --border-faint: rgba(16, 18, 30, 0.14);
 }

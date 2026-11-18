@@ -1,0 +1,49 @@
+---
+import Base from "../layouts/Base.astro";
+---
+
+<Base title="404 — Page not found | Vyotish" description="The page you were looking for does not exist.">
+  <section class="nf">
+    <div class="glyph" aria-hidden="true">✧</div>
+    <h1>Lost among the stars</h1>
+    <p>The page you were looking for does not exist — but your path home is clear.</p>
+    <div class="links">
+      <a class="primary" href="/">Back to home</a>
+      <a class="secondary" href="/panchang">Today's Panchang</a>
+      <a class="secondary" href="/calculators">Free calculators</a>
+    </div>
+  </section>
+</Base>
+
+<style>
+  .nf {
+    min-height: 70vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: var(--space-6);
+    background: radial-gradient(ellipse at 50% -20%, var(--bg-night-glow) 0%, var(--bg-night) 60%);
+  }
+  .glyph { font-size: 44px; color: var(--gold); }
+  h1 {
+    font-family: var(--font-display);
+    color: var(--ivory);
+    font-size: clamp(30px, 6vw, 44px);
+    margin-top: var(--space-4);
+  }
+  p { color: var(--text-muted); margin-top: var(--space-3); font-size: 15px; }
+  .links { display: flex; gap: var(--space-3); flex-wrap: wrap; justify-content: center; margin-top: var(--space-6); }
+  .links a {
+    min-height: var(--target-min);
+    display: inline-flex;
+    align-items: center;
+    padding: 0 var(--space-5);
+    border-radius: var(--radius-pill);
+    text-decoration: none;
+    font-size: 14px;
+  }
+  .primary { background: linear-gradient(135deg, var(--gold-bright), var(--gold)); color: var(--ink-on-gold); }
+  .secondary { border: 1px solid var(--border-gold-soft); color: var(--ivory); }
+</style>

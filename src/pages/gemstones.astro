@@ -1,0 +1,48 @@
+---
+/**
+ * Gemstones — "Coming soon..!" (PRD §5.8). Driven by the GEMSTONES_SITE_URL
+ * site setting: while empty this page shows; once set, the tab links out to
+ * the separate site (frontend reads public.* settings once the API contract
+ * for settings lands with Epic 5.4).
+ */
+import Base from "../layouts/Base.astro";
+---
+
+<Base
+  title="Gemstones — Coming soon..! | Vyotish"
+  description="Vyotish gemstones recommendations are coming soon."
+  langPath="/gemstones"
+  lockDark
+>
+  <section class="gem">
+    <div class="om" aria-hidden="true">💎</div>
+    <h1>Coming soon..!</h1>
+    <p>
+      Our gemstone recommendations are being crafted with the same care as the rest
+      of Vyotish — traditional guidance, honest sourcing, no exaggerated claims.
+    </p>
+    <a class="back" href="/">← Back to home</a>
+  </section>
+</Base>
+
+<style>
+  .gem {
+    min-height: 70vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: var(--space-6);
+    background: radial-gradient(ellipse at 50% -20%, var(--bg-night-glow) 0%, var(--bg-night) 55%);
+  }
+  .om { font-size: 48px; }
+  h1 {
+    font-family: var(--font-display);
+    color: var(--ivory);
+    font-size: clamp(32px, 6vw, 52px);
+    margin-top: var(--space-4);
+  }
+  p { color: var(--text-muted); max-width: 460px; line-height: 1.7; margin-top: var(--space-4); font-size: 15px; }
+  .back { margin-top: var(--space-6); color: var(--gold); text-decoration: none; min-height: var(--target-min); line-height: var(--target-min); }
+</style>

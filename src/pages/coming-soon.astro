@@ -1,0 +1,338 @@
+---
+/**
+ * Coming-Soon page — 1:1 reproduction of the live vyotish.com page (Epic 0.3,
+ * D1 migration gate: "no regression on vyotish.com").
+ * Source: the original Vite+React SPA (src/main.jsx), ported to Astro.
+ * Palette values reference design tokens (src/styles/tokens.css).
+ */
+import Base from "../layouts/Base.astro";
+
+const LAUNCH_DATE = "2027-01-01T00:00:00+05:30";
+
+const services = [
+  { icon: "✦", label: "Janam Kundli Analysis" },
+  { icon: "♥", label: "Kundli Matching" },
+  { icon: "☀", label: "Horoscope & Predictions" },
+  { icon: "◷", label: "Muhurat Guidance", clock: true },
+  { icon: "✦", label: "Career & Finance" },
+  { icon: "⌂", label: "Vastu Consultation" },
+];
+---
+
+<Base
+  title="Coming Soon | Vedic Astrology Consultation"
+  description="Authentic Vedic astrology consultations. Kundli analysis, matchmaking, muhurat guidance & more. Launching soon."
+  lockDark
+  chrome={false}
+>
+  <div class="page">
+    <style is:global>
+      .page {
+        position: relative;
+        min-height: 100vh;
+        background: radial-gradient(ellipse at 50% -20%, var(--bg-night-glow) 0%, var(--bg-night) 55%);
+        color: var(--text-body);
+        font-family: var(--font-body);
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        padding: 48px 24px 40px;
+      }
+      .stars {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+      }
+      .star {
+        position: absolute;
+        background: var(--starlight);
+        border-radius: 50%;
+        animation: twinkle 4s ease-in-out infinite;
+      }
+      @keyframes twinkle {
+        0%,
+        100% {
+          opacity: 0.15;
+        }
+        50% {
+          opacity: 0.9;
+        }
+      }
+      /* PRD §9: subtle motion only — honour reduced-motion */
+      @media (prefers-reduced-motion: reduce) {
+        .star {
+          animation: none;
+          opacity: 0.5;
+        }
+      }
+      .content {
+        position: relative;
+        z-index: 1;
+        max-width: 760px;
+        width: 100%;
+      }
+      .om {
+        font-size: 44px;
+        color: var(--gold);
+        text-shadow: 0 0 24px var(--gold-glow);
+        margin-bottom: 10px;
+      }
+      .brand {
+        font-family: var(--font-display);
+        font-size: clamp(34px, 6vw, 52px);
+        font-weight: 600;
+        letter-spacing: 0.06em;
+        color: var(--ivory);
+      }
+      .brand-sub {
+        font-size: 13px;
+        letter-spacing: 0.35em;
+        text-transform: uppercase;
+        color: var(--text-dim);
+        margin-top: 6px;
+      }
+      .divider {
+        width: 72px;
+        height: 1px;
+        background: linear-gradient(90deg, transparent, var(--gold), transparent);
+        margin: 28px auto;
+      }
+      h1 {
+        font-family: var(--font-display);
+        font-size: clamp(30px, 5.4vw, 46px);
+        font-weight: 600;
+        line-height: 1.2;
+        color: var(--text-primary);
+      }
+      h1 .gold {
+        color: var(--gold);
+        font-style: italic;
+      }
+      .lede {
+        margin: 18px auto 0;
+        max-width: 560px;
+        font-size: 15px;
+        font-weight: 300;
+        line-height: 1.75;
+        color: var(--text-muted);
+      }
+      .countdown {
+        display: flex;
+        gap: 14px;
+        justify-content: center;
+        margin: 36px 0 8px;
+        flex-wrap: wrap;
+      }
+      .count-cell {
+        min-width: 86px;
+        padding: 14px 10px;
+        border: 1px solid var(--border-gold-soft);
+        border-radius: var(--radius-card);
+        background: var(--surface-glass);
+        backdrop-filter: blur(4px);
+      }
+      .count-value {
+        font-family: var(--font-display);
+        font-size: 34px;
+        font-weight: 700;
+        color: var(--ivory);
+        font-variant-numeric: tabular-nums;
+      }
+      .count-label {
+        margin-top: 2px;
+        font-size: 11px;
+        letter-spacing: 0.22em;
+        text-transform: uppercase;
+        color: var(--text-dim);
+      }
+      .launch-note {
+        font-size: 12px;
+        color: var(--text-faint);
+        margin-top: 4px;
+      }
+      .services {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        justify-content: center;
+        margin: 34px 0 0;
+      }
+      .chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 9px 16px;
+        font-size: 13px;
+        color: #d9dbe8;
+        border: 1px solid var(--border-faint);
+        border-radius: var(--radius-pill);
+        background: var(--surface-chip);
+      }
+      .chip .icon {
+        color: var(--gold);
+        font-size: 14px;
+      }
+      .chip .icon_clock {
+        color: var(--gold);
+        font-size: 13px;
+      }
+      .notify {
+        margin: 38px auto 0;
+        max-width: 440px;
+        width: 100%;
+      }
+      .notify-label {
+        font-size: 13px;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: var(--text-dim);
+        margin-bottom: 14px;
+      }
+      .notify-btn {
+        display: inline-block;
+        padding: 13px 34px;
+        font-size: 14px;
+        font-weight: 500;
+        letter-spacing: 0.04em;
+        color: var(--ink-on-gold);
+        background: linear-gradient(135deg, var(--gold-bright), var(--gold));
+        border: none;
+        border-radius: var(--radius-pill);
+        cursor: pointer;
+        text-decoration: none;
+        transition:
+          transform 0.15s ease,
+          box-shadow 0.15s ease;
+      }
+      .notify-btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 8px 28px var(--gold-shadow);
+      }
+      .contact {
+        margin-top: 26px;
+        font-size: 13px;
+        color: var(--text-dim);
+      }
+      .contact a {
+        color: var(--gold);
+        text-decoration: none;
+      }
+      footer {
+        position: relative;
+        z-index: 1;
+        margin-top: 44px;
+        font-size: 12px;
+        color: var(--text-footer);
+        letter-spacing: 0.08em;
+      }
+      @media (max-width: 520px) {
+        .page {
+          padding: 36px 16px 32px;
+        }
+        .count-cell {
+          min-width: 70px;
+          padding: 10px 8px;
+        }
+        .count-value {
+          font-size: 27px;
+        }
+      }
+    </style>
+
+    <div class="stars" id="stars" aria-hidden="true"></div>
+
+    <div class="content">
+      <div class="om">ॐ</div>
+      <div class="brand">Vedic Astrology</div>
+      <div class="brand-sub">Consultation</div>
+      <div class="divider"></div>
+      <h1>
+        The stars are aligning.<br />
+        <span class="gold">Something divine is coming soon&hellip;</span>
+      </h1>
+      <p class="lede">
+        We are crafting a space where ancient Vedic wisdom meets modern life — authentic
+        guidance on your career, relationships, and life path, from experienced astrologers.
+      </p>
+
+      <div class="countdown" id="countdown" data-launch={LAUNCH_DATE}>
+        <div class="count-cell"><div class="count-value" id="cd-d">--</div><div class="count-label">Days</div></div>
+        <div class="count-cell"><div class="count-value" id="cd-h">--</div><div class="count-label">Hours</div></div>
+        <div class="count-cell"><div class="count-value" id="cd-m">--</div><div class="count-label">Minutes</div></div>
+        <div class="count-cell"><div class="count-value" id="cd-s">--</div><div class="count-label">Seconds</div></div>
+      </div>
+      <div class="launch-note">Launching January 1, 2027</div>
+
+      <div class="services">
+        {
+          services.map((s) => (
+            <span class="chip">
+              <span class={s.clock ? "icon_clock" : "icon"}>{s.icon}</span>
+              {s.label}
+            </span>
+          ))
+        }
+      </div>
+
+      <div class="notify">
+        <div class="notify-label">Be the first to know</div>
+        <a class="notify-btn" href="mailto:vyotish@gmail.com?subject=Notify%20me%20when%20you%20launch">Notify Me</a>
+        <div class="contact">
+          Or write to us at <a href="mailto:vyotish@gmail.com">vyotish@gmail.com</a>
+        </div>
+      </div>
+    </div>
+    <footer>© <span id="footer-year">2026</span> · vyotish.com</footer>
+  </div>
+
+  <script is:inline>
+    // Client-side behaviour ported 1:1 from the original SPA (random star field +
+    // live countdown). Stars differ per load exactly as before.
+    (function () {
+      var starsEl = document.getElementById("stars");
+      if (starsEl) {
+        for (var i = 0; i < 80; i++) {
+          var s = document.createElement("span");
+          s.className = "star";
+          var top = Math.random() * 100;
+          var left = Math.random() * 100;
+          var size = Math.random() * 2 + 1;
+          var opacity = Math.random() * 0.7 + 0.2;
+          var delay = (Math.random() * 4).toFixed(1);
+          s.style.top = top + "%";
+          s.style.left = left + "%";
+          s.style.width = size + "px";
+          s.style.height = size + "px";
+          s.style.opacity = opacity;
+          s.style.animationDelay = delay + "s";
+          starsEl.appendChild(s);
+        }
+      }
+
+      var LAUNCH = new Date("2027-01-01T00:00:00+05:30").getTime();
+      var el = {
+        d: document.getElementById("cd-d"),
+        h: document.getElementById("cd-h"),
+        m: document.getElementById("cd-m"),
+        s: document.getElementById("cd-s"),
+      };
+      function pad(n) {
+        return String(n).padStart(2, "0");
+      }
+      function tick() {
+        var diff = Math.max(0, LAUNCH - Date.now());
+        el.d.textContent = pad(Math.floor(diff / 86400000));
+        el.h.textContent = pad(Math.floor((diff / 3600000) % 24));
+        el.m.textContent = pad(Math.floor((diff / 60000) % 60));
+        el.s.textContent = pad(Math.floor((diff / 1000) % 60));
+      }
+      tick();
+      setInterval(tick, 1000);
+
+      var y = document.getElementById("footer-year");
+      if (y) y.textContent = String(new Date().getFullYear());
+    })();
+  </script>
+</Base>

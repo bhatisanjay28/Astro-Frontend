@@ -1,0 +1,44 @@
+---
+/**
+ * Legal/page skeleton component (Epic 2.3) — placeholder copy per PRD §15/§20;
+ * final drafts + DPDP statements land in Epic 7.3 (P7).
+ */
+import Base from "../layouts/Base.astro";
+
+interface Props {
+  title: string;
+  heading: string;
+  intro: string;
+  body: string[];
+}
+const { title, heading, intro, body } = Astro.props;
+---
+
+<Base title={`${heading} | Vyotish`} description={intro}>
+  <article class="legal">
+    <h1>{heading}</h1>
+    <p class="intro">{intro}</p>
+    {body.map((para) => <p>{para}</p>)}
+    <div class="placeholder-note">
+      <strong>Placeholder text (P7).</strong> Final legal wording arrives with Epic 7.3
+      after entity details are supplied and legal review (DPDP Act 2023).
+    </div>
+    <a class="back" href="/">← Back to home</a>
+  </article>
+</Base>
+
+<style>
+  .legal { max-width: 720px; margin: 0 auto; padding: var(--space-8) var(--space-4); }
+  h1 { font-family: var(--font-display); color: var(--ivory); font-size: 34px; }
+  .intro { color: var(--text-muted); font-size: 15.5px; line-height: 1.7; margin-top: var(--space-4); }
+  .legal > p:not(.intro) { color: var(--text-body); font-size: 14.5px; line-height: 1.8; margin-top: var(--space-4); }
+  .placeholder-note {
+    margin-top: var(--space-6);
+    border: 1px dashed var(--border-gold-soft);
+    border-radius: var(--radius-card);
+    padding: var(--space-4);
+    color: var(--text-dim);
+    font-size: 13px;
+  }
+  .back { display: inline-block; margin-top: var(--space-5); color: var(--gold); text-decoration: none; min-height: var(--target-min); line-height: var(--target-min); }
+</style>

@@ -1,0 +1,143 @@
+---
+/**
+ * Quick Kundli form (PRD §6) — client island POSTing to the LIVE
+ * /api/v1/kundli. Renders a summary (Lagna, Moon sign, nakshatra, current
+ * Dasha). No signup, no storage (the API is no-PII — stated in the UI).
+ */
+interface Props {
+  apiBase: string;
+}
+const { apiBase } = Astro.props;
+---
+
+<section class="qk" aria-labelledby="qk-h">
+  <h2 id="qk-h">Free Kundli — no signup</h2>
+  <p class="lede">Enter birth details; results are computed live and never stored.</p>
+
+  <form class="qk-form" data-qk-form>
+    <div class="row">
+      <label>Birth date <input type="date" name="date" required /></label>
+      <label>Birth time <input type="time" name="time" required value="10:00" /></label>
+    </div>
+    <div class="row">
+      <label>
+        City (preset)
+        <select name="city">
+          <option value="28.6139,77.209,Asia/Kolkata">New Delhi</option>
+          <option value="19.076,72.8777,Asia/Kolkata">Mumbai</option>
+          <option value="12.9716,77.5946,Asia/Kolkata">Bengaluru</option>
+          <option value="22.5726,88.3639,Asia/Kolkata">Kolkata</option>
+          <option value="13.0827,80.2707,Asia/Kolkata">Chennai</option>
+          <option value="17.385,78.4867,Asia/Kolkata">Hyderabad</option>
+        </select>
+      </label>
+    </div>
+    <button type="submit">Generate Kundli</button>
+  </form>
+
+  <div class="qk-error" data-qk-error hidden>Something went wrong — please check the inputs and try again.</div>
+
+  <div class="qk-result" data-qk-result hidden aria-live="polite"></div>
+</section>
+
+<script is:inline define:vars={{ apiBase }}>
+  (function () {
+    var form = document.querySelector("[data-qk-form]");
+    var errEl = document.querySelector("[data-qk-error]");
+    var out = document.querySelector("[data-qk-result]");
+    if (!form) return;
+
+    function signOf(lon) {
+      var signs = ["Aries","Taurus","Gemini","Cancer","Leo","Virgo","Libra","Scorpio","Sagittarius","Capricorn","Aquarius","Pisces"];
+      return signs[Math.floor(((lon % 360) + 360) % 360 / 30)] || "—";
+    }
+
+    form.addEventListener("submit", function (e) {
+      e.preventDefault();
+      errEl.setAttribute("hidden", "");
+      var f = new FormData(form);
+      var city = String(f.get("city")).split(",");
+      fetch(apiBase + "/api/v1/kundli", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          date: f.get("date"),
+          time: f.get("time"),
+          lat: parseFloat(city[0]),
+          lng: parseFloat(city[1]),
+          tz: city[2],
+        }),
+      })
+        .then(function (r) { if (!r.ok) throw new Error("bad status"); return r.json(); })
+        .then(function (j) {
+          var d = j.data;
+          var moon = d.grahas.filter(function (g) { return g.planet === "Moon"; })[0];
+          var current = d.dasha.mahadashas[0];
+          out.innerHTML =
+            '<div class="res-grid">' +
+            '<div class="res"><div class="k">Lagna</div><div class="v">' + d.lagna.sign + " · " + d.lagna.nakshatra + "</div></div>" +
+            '<div class="res"><div class="k">Moon sign (Rashi)</div><div class="v">' + moon.sign + " · " + moon.nakshatra + " pada " + moon.pada + "</div></div>" +
+            '<div class="res"><div class="k">Current Maha-dasha</div><div class="v">' + current.lord + " (till " + new Date(current.end).toLocaleDateString() + ")</div></div>" +
+            "</div>" +
+            '<p class="fine">Charts (North/South Indian SVG) and interpretations arrive with Epic 4. Birth data is processed for this request only — never stored.</p>';
+          out.removeAttribute("hidden");
+        })
+        .catch(function () {
+          out.setAttribute("hidden", "");
+          errEl.removeAttribute("hidden");
+        });
+    });
+  })();
+</script>
+
+<style>
+  .qk {
+    max-width: 760px;
+    margin: 0 auto var(--space-8);
+    padding: var(--space-6);
+    background: var(--bg-raised);
+    border: 1px solid var(--border-gold-soft);
+    border-radius: var(--radius-card);
+  }
+  h2 {
+    font-family: var(--font-display);
+    color: var(--ivory);
+    font-size: 26px;
+    margin-bottom: var(--space-2);
+  }
+  .lede { color: var(--text-muted); font-size: 14px; margin-bottom: var(--space-5); }
+  .qk-form { display: grid; gap: var(--space-4); }
+  .row { display: flex; gap: var(--space-3); flex-wrap: wrap; }
+  label {
+    flex: 1;
+    min-width: 200px;
+    display: grid;
+    gap: var(--space-1);
+    color: var(--text-dim);
+    font-size: 13px;
+  }
+  input, select {
+    min-height: var(--target-min);
+    background: var(--bg-page);
+    border: 1px solid var(--border-faint);
+    border-radius: var(--radius-card);
+    color: var(--text-body);
+    padding: 0 var(--space-3);
+  }
+  button {
+    min-height: var(--target-min);
+    background: linear-gradient(135deg, var(--gold-bright), var(--gold));
+    border: none;
+    border-radius: var(--radius-pill);
+    color: var(--ink-on-gold);
+    font-weight: 500;
+    cursor: pointer;
+  }
+  .qk-error { color: #e07a5f; margin-top: var(--space-3); font-size: 14px; }
+  .qk-result { margin-top: var(--space-5); }
+  .res-grid { display: grid; gap: var(--space-3); grid-template-columns: 1fr; }
+  .res { background: var(--surface-glass); border: 1px solid var(--border-faint); border-radius: var(--radius-card); padding: var(--space-3) var(--space-4); }
+  .res .k { font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--text-dim); }
+  .res .v { font-family: var(--font-display); font-size: 20px; color: var(--ivory); margin-top: 2px; }
+  .fine { color: var(--text-faint); font-size: 12px; margin-top: var(--space-3); }
+</style>
