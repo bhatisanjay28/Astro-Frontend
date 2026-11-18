@@ -1,10 +1,45 @@
 ---
-import TabStub from "../../components/TabStub.astro";
+import { CITIES } from "../../data/cities";
+/** /panchang/ — city picker landing (Epic 3.2). */
+import Base from "../../layouts/Base.astro";
 ---
 
-<TabStub
-  title="Panchang | Vyotish"
-  tabLabel="Panchang"
-  description="Daily Vedic calendar per city: five limbs, sunrise-based day, Rahu Kaal and more."
-  epic="Epic 3.2 (engine + API already live)"
-/>
+<Base
+  title="Panchang by City | Vyotish"
+  description="Daily Vedic Panchang for your city — five limbs with start/end times, sunrise-based day, Rahu Kaal and more."
+  langPath="/panchang"
+>
+  <section class="pl">
+    <h1>Panchang</h1>
+    <p class="lede">Choose a city — every city has its own page, computed in its own timezone.</p>
+    <div class="grid">
+      {
+        CITIES.map((c) => (
+          <a class="card" href={`/panchang/${c.slug}`}>
+            <span class="name">{c.name}</span>
+            <span class="hi hi-text">{c.name_hi}</span>
+          </a>
+        ))
+      }
+    </div>
+  </section>
+</Base>
+
+<style>
+  .pl { max-width: 1000px; margin: 0 auto; padding: var(--space-8) var(--space-4); }
+  h1 { font-family: var(--font-display); color: var(--ivory); font-size: 34px; }
+  .lede { color: var(--text-muted); margin-top: var(--space-2); font-size: 14.5px; }
+  .grid { display: grid; gap: var(--space-3); grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); margin-top: var(--space-5); }
+  .card {
+    display: flex; flex-direction: column; gap: 2px;
+    background: var(--bg-raised);
+    border: 1px solid var(--border-faint);
+    border-radius: var(--radius-card);
+    padding: var(--space-4);
+    text-decoration: none;
+    min-height: 44px;
+  }
+  .card:hover { border-color: var(--border-gold-soft); }
+  .name { color: var(--ivory); font-weight: 500; font-size: 15px; }
+  .hi { color: var(--text-dim); font-size: 13px; }
+</style>

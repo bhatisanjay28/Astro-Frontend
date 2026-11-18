@@ -1,10 +1,213 @@
 ---
-import TabStub from "../../components/TabStub.astro";
+/** /muhurat/ — today's windows + finder form (Epic 3.4). Client islands on
+ * the LIVE /api/v1/muhurat routes. */
+import Base from "../../layouts/Base.astro";
+
+const apiBase = import.meta.env.PUBLIC_API_BASE_URL ?? "https://astro-backend.vyotish.workers.dev";
+const EVENTS = [
+  "marriage",
+  "engagement",
+  "griha_pravesh",
+  "vehicle",
+  "property",
+  "business",
+  "naamkaran",
+  "mundan",
+  "annaprashan",
+  "travel",
+];
 ---
 
-<TabStub
-  title="Muhurat | Vyotish"
-  tabLabel="Muhurat"
-  description="Auspicious timings for marriage, griha pravesh, travel and more — rules as data."
-  epic="Epic 3.4 (finder API already live)"
-/>
+<Base
+  title="Muhurat Today & Finder | Vyotish"
+  description="Today's auspicious and inauspicious windows (Abhijit, Brahma Muhurta, Rahu Kaal) and an event-wise muhurat finder."
+  langPath="/muhurat"
+>
+  <section class="mt">
+    <h1>Muhurat</h1>
+    <p class="lede">
+      Today's auspicious and inauspicious periods for your city, plus an event-wise
+      finder. <strong>Rule data is pending Jyotishi review — treat windows as
+      indicative only.</strong>
+    </p>
+  </section>
+
+  <section class="today" aria-labelledby="today-h">
+    <h2 id="today-h">Today</h2>
+    <div class="toolbar">
+      <label>City
+        <select data-mt-city>
+          <option value="28.6139,77.209,Asia/Kolkata">New Delhi</option>
+          <option value="19.076,72.8777,Asia/Kolkata">Mumbai</option>
+          <option value="12.9716,77.5946,Asia/Kolkata">Bengaluru</option>
+          <option value="22.5726,88.3639,Asia/Kolkata">Kolkata</option>
+          <option value="13.0827,80.2707,Asia/Kolkata">Chennai</option>
+          <option value="17.385,78.4867,Asia/Kolkata">Hyderabad</option>
+        </select>
+      </label>
+    </div>
+    <div class="windows" data-mt-out>
+      <div class="cell skeleton">Loading…</div>
+    </div>
+  </section>
+
+  <section class="finder" aria-labelledby="finder-h">
+    <h2 id="finder-h">Muhurat finder</h2>
+    <form data-mf-form>
+      <div class="row">
+        <label>Event
+          <select name="event">
+            {EVENTS.map((e) => <option value={e}>{e.replace(/_/g, " ")}</option>)}
+          </select>
+        </label>
+        <label>From <input type="date" name="from" required /></label>
+        <label>To <input type="date" name="to" required /></label>
+        <label>City
+          <select name="city">
+            <option value="28.6139,77.209,Asia/Kolkata">New Delhi</option>
+            <option value="19.076,72.8777,Asia/Kolkata">Mumbai</option>
+            <option value="12.9716,77.5946,Asia/Kolkata">Bengaluru</option>
+            <option value="22.5726,88.3639,Asia/Kolkata">Kolkata</option>
+            <option value="13.0827,80.2707,Asia/Kolkata">Chennai</option>
+            <option value="17.385,78.4867,Asia/Kolkata">Hyderabad</option>
+          </select>
+        </label>
+      </div>
+      <button type="submit">Find muhurat windows</button>
+    </form>
+    <div class="mf-error" data-mf-error hidden>Could not run the finder — check the range (max 62 days) and try again.</div>
+    <div class="mf-out" data-mf-out hidden aria-live="polite"></div>
+  </section>
+
+  <script is:inline define:vars={{ apiBase }}>
+    (function () {
+      function fmt(iso, tz) {
+        try {
+          return new Intl.DateTimeFormat("en-GB", { timeZone: tz, hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(iso));
+        } catch (e) { return "—"; }
+      }
+      function dayName(iso, tz) {
+        try {
+          return new Intl.DateTimeFormat("en-GB", { timeZone: tz, weekday: "short", day: "numeric", month: "short" }).format(new Date(iso));
+        } catch (e) { return ""; }
+      }
+
+      // --- today block ---
+      var citySel = document.querySelector("[data-mt-city]");
+      var out = document.querySelector("[data-mt-out]");
+      function loadToday() {
+        var parts = citySel.value.split(",");
+        var url = apiBase + "/api/v1/muhurat/today?lat=" + parts[0] + "&lng=" + parts[1] + "&tz=" + encodeURIComponent(parts[2]);
+        out.innerHTML = '<div class="cell skeleton">Loading…</div>';
+        fetch(url).then(function (r) { return r.json(); }).then(function (j) {
+          var d = j.data;
+          var rows = [];
+          d.auspicious.forEach(function (s) {
+            rows.push('<div class="cell good"><div class="sn">' + s.name + '</div><div class="st">' + fmt(s.start, d.timezone) + " – " + fmt(s.end, d.timezone) + "</div></div>");
+          });
+          d.inauspicious.forEach(function (s) {
+            rows.push('<div class="cell bad"><div class="sn">' + s.name + '</div><div class="st">' + fmt(s.start, d.timezone) + " – " + fmt(s.end, d.timezone) + '</div><div class="ss">avoid</div></div>');
+          });
+          out.innerHTML = rows.join("");
+        }).catch(function () { out.innerHTML = '<div class="cell">Unavailable right now.</div>'; });
+      }
+      citySel.addEventListener("change", loadToday);
+      loadToday();
+
+      // --- finder ---
+      var form = document.querySelector("[data-mf-form]");
+      var mfErr = document.querySelector("[data-mf-error]");
+      var mfOut = document.querySelector("[data-mf-out]");
+      form.addEventListener("submit", function (e) {
+        e.preventDefault();
+        mfErr.setAttribute("hidden", "");
+        var f = new FormData(form);
+        var city = String(f.get("city")).split(",");
+        fetch(apiBase + "/api/v1/muhurat/find", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            event: f.get("event"),
+            from: f.get("from"),
+            to: f.get("to"),
+            lat: parseFloat(city[0]),
+            lng: parseFloat(city[1]),
+            tz: city[2],
+          }),
+        })
+          .then(function (r) { if (!r.ok) throw new Error("bad"); return r.json(); })
+          .then(function (j) {
+            var res = j.data;
+            var html = '<p class="disc">' + res.disclaimer + "</p>";
+            res.days.forEach(function (day) {
+              var badge = day.verdict === "suitable" ? "ok" : day.verdict === "conditional" ? "cond" : "no";
+              var fails = day.failing_rules.map(function (fr) { return fr.rule_name; }).join("; ") || "—";
+              html += '<div class="day ' + badge + '"><div class="dh"><span>' + dayName(day.date + "T00:00:00Z", res.timezone) + '</span><span class="badge ' + badge + '">' + day.verdict + "</span></div>";
+              html += '<div class="df">Failing rules: ' + fails + "</div>";
+              day.candidate_windows.forEach(function (w) {
+                html += '<div class="win">' + w.name + ": " + fmt(w.start, res.timezone) + " – " + fmt(w.end, res.timezone) + (w.exclusions.length ? " (excludes " + w.exclusions.join(", ") + ")" : "") + "</div>";
+              });
+              html += "</div>";
+            });
+            mfOut.innerHTML = html;
+            mfOut.removeAttribute("hidden");
+          })
+          .catch(function () {
+            mfOut.setAttribute("hidden", "");
+            mfErr.removeAttribute("hidden");
+          });
+      });
+    })();
+  </script>
+
+  <style>
+    .mt, .today, .finder { max-width: 1000px; margin: 0 auto; padding: var(--space-5) var(--space-4); }
+    .mt { padding-top: var(--space-7); }
+    h1 { font-family: var(--font-display); color: var(--ivory); font-size: 36px; }
+    h2 { font-family: var(--font-display); color: var(--ivory); font-size: 24px; margin-bottom: var(--space-3); }
+    .lede { color: var(--text-muted); font-size: 14.5px; line-height: 1.7; margin-top: var(--space-2); }
+    .toolbar { display: flex; gap: var(--space-3); margin-bottom: var(--space-4); }
+    label { color: var(--text-dim); font-size: 13px; display: grid; gap: var(--space-1); flex: 1; min-width: 160px; }
+    select, input {
+      min-height: var(--target-min);
+      background: var(--bg-raised);
+      border: 1px solid var(--border-faint);
+      border-radius: var(--radius-card);
+      color: var(--text-body);
+      padding: 0 var(--space-3);
+    }
+    .windows { display: grid; gap: var(--space-2); grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); }
+    .cell { background: var(--bg-raised); border: 1px solid var(--border-faint); border-radius: var(--radius-card); padding: var(--space-3); min-height: 64px; }
+    .cell.good { border-color: var(--border-gold-soft); }
+    .cell.bad { opacity: 0.85; }
+    .cell .sn { color: var(--ivory); font-weight: 500; font-size: 14px; }
+    .cell .st { color: var(--text-muted); font-size: 13px; margin-top: 2px; font-variant-numeric: tabular-nums; }
+    .cell .ss { color: var(--text-faint); font-size: 11px; }
+    .cell.skeleton { display: flex; align-items: center; color: var(--text-dim); }
+    .finder form { display: grid; gap: var(--space-3); }
+    .finder .row { display: flex; gap: var(--space-3); flex-wrap: wrap; }
+    .finder button {
+      min-height: var(--target-min);
+      padding: 0 var(--space-5);
+      background: linear-gradient(135deg, var(--gold-bright), var(--gold));
+      border: none;
+      border-radius: var(--radius-pill);
+      color: var(--ink-on-gold);
+      font-weight: 500;
+      cursor: pointer;
+      justify-self: start;
+    }
+    .mf-error { color: #e07a5f; margin-top: var(--space-3); font-size: 14px; }
+    .mf-out { margin-top: var(--space-4); }
+    .disc { color: var(--text-faint); font-size: 12.5px; border: 1px dashed var(--border-gold-soft); border-radius: var(--radius-card); padding: var(--space-3); margin-bottom: var(--space-4); line-height: 1.6; }
+    .day { background: var(--bg-raised); border: 1px solid var(--border-faint); border-radius: var(--radius-card); padding: var(--space-4); margin-bottom: var(--space-3); }
+    .day.no { opacity: 0.75; }
+    .dh { display: flex; justify-content: space-between; align-items: center; color: var(--ivory); font-weight: 500; }
+    .badge { font-size: 11px; text-transform: uppercase; letter-spacing: 0.12em; border-radius: var(--radius-pill); padding: 4px 10px; }
+    .badge.ok { background: var(--gold); color: var(--ink-on-gold); }
+    .badge.cond { background: var(--surface-chip); color: var(--text-muted); }
+    .badge.no { background: none; border: 1px solid #e07a5f; color: #e07a5f; }
+    .df { color: var(--text-dim); font-size: 12.5px; margin: var(--space-2) 0; }
+    .win { color: var(--text-muted); font-size: 13.5px; padding: 3px 0; font-variant-numeric: tabular-nums; }
+  </style>
+</Base>

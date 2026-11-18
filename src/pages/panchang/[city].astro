@@ -1,0 +1,38 @@
+---
+import PanchangDetail from "../../components/PanchangDetail.astro";
+import { CITIES, cityBySlug } from "../../data/cities";
+/** /panchang/{city} — SEO per-city page (Epic 3.2). Static paths from the
+ * mirrored city dataset; the day view fetches the LIVE API client-side. */
+import Base from "../../layouts/Base.astro";
+
+export function getStaticPaths() {
+  return CITIES.map((c) => ({ params: { city: c.slug } }));
+}
+
+const { city } = Astro.params;
+const info = cityBySlug(city ?? "");
+if (!info) return Astro.redirect("/404");
+---
+
+<Base
+  title={`Panchang for ${info.name} — Today | Vyotish`}
+  description={`Today's Vedic Panchang for ${info.name}: Tithi, Nakshatra, Yoga, Karana with start/end times, sunrise/sunset, Rahu Kaal and more — in ${info.tz}.`}
+  langPath="/panchang"
+>
+  <section class="ph">
+    <h1>Panchang — {info.name} <span class="hi-text">({info.name_hi})</span></h1>
+    <p class="lede">
+      Coordinates {info.lat.toFixed(4)}°, {info.lng.toFixed(4)}° · Timezone {info.tz} ·
+      Vedic day runs sunrise → sunrise. See also <a href="/panchang/">other cities</a>.
+    </p>
+  </section>
+  <PanchangDetail apiBase={import.meta.env.PUBLIC_API_BASE_URL ?? "https://astro-backend.vyotish.workers.dev"} citySlug={info.slug} cityName={info.name} lat={info.lat} lng={info.lng} tz={info.tz} />
+</Base>
+
+<style>
+  .ph { max-width: 1000px; margin: 0 auto; padding: var(--space-6) var(--space-4) 0; }
+  h1 { font-family: var(--font-display); color: var(--ivory); font-size: clamp(26px, 5vw, 38px); }
+  .hi-text { color: var(--text-dim); font-size: 0.7em; }
+  .lede { color: var(--text-muted); font-size: 14px; margin-top: var(--space-2); }
+  .lede a { color: var(--gold); }
+</style>
