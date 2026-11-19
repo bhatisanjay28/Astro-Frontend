@@ -1,7 +1,12 @@
 ---
-import { CITIES } from "../../data/cities";
-/** /panchang/ — city picker landing (Epic 3.2). */
+/** /panchang/ — city picker landing (Epic 3.2). D12: the city grid is
+ * fetched at BUILD time from the backend city API (Supabase `cities` table);
+ * when the backend is unreachable at build, an honest empty state renders —
+ * never a mirrored baked list. */
 import Base from "../../layouts/Base.astro";
+import { fetchCities } from "../../lib/content";
+
+const cities = (await fetchCities()) ?? [];
 ---
 
 <Base
@@ -14,12 +19,19 @@ import Base from "../../layouts/Base.astro";
     <p class="lede">Choose a city — every city has its own page, computed in its own timezone.</p>
     <div class="grid">
       {
-        CITIES.map((c) => (
-          <a class="card" href={`/panchang/${c.slug}`}>
-            <span class="name">{c.name}</span>
-            <span class="hi hi-text">{c.name_hi}</span>
-          </a>
-        ))
+        cities.length === 0 ? (
+          <p class="lede">
+            City pages are temporarily unavailable — the backend city service could
+            not be reached at build time. Please try again later.
+          </p>
+        ) : (
+          cities.map((c) => (
+            <a class="card" href={`/panchang/${c.slug}`}>
+              <span class="name">{c.name}</span>
+              {c.name_hi && <span class="hi hi-text">{c.name_hi}</span>}
+            </a>
+          ))
+        )
       }
     </div>
   </section>
@@ -29,6 +41,7 @@ import Base from "../../layouts/Base.astro";
   .pl { max-width: 1000px; margin: 0 auto; padding: var(--space-8) var(--space-4); }
   h1 { font-family: var(--font-display); color: var(--ivory); font-size: 34px; }
   .lede { color: var(--text-muted); margin-top: var(--space-2); font-size: 14.5px; }
+  .lede a { color: var(--gold); }
   .grid { display: grid; gap: var(--space-3); grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); margin-top: var(--space-5); }
   .card {
     display: flex; flex-direction: column; gap: 2px;

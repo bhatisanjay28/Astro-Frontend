@@ -1,17 +1,17 @@
 ---
 import PanchangDetail from "../../components/PanchangDetail.astro";
-import { CITIES, cityBySlug } from "../../data/cities";
-/** /panchang/{city} — SEO per-city page (Epic 3.2). Static paths from the
- * mirrored city dataset; the day view fetches the LIVE API client-side. */
+/** /panchang/{city} — SEO per-city page (Epic 3.2). D12: static paths are
+ * generated at BUILD time from the backend city API (Supabase `cities`
+ * table) — no mirrored dataset. The day view fetches the LIVE API client-side. */
 import Base from "../../layouts/Base.astro";
+import { type ApiCity, fetchCities } from "../../lib/content";
 
-export function getStaticPaths() {
-  return CITIES.map((c) => ({ params: { city: c.slug } }));
+export async function getStaticPaths() {
+  const cities = (await fetchCities()) ?? [];
+  return cities.map((c: ApiCity) => ({ params: { city: c.slug }, props: { info: c } }));
 }
 
-const { city } = Astro.params;
-const info = cityBySlug(city ?? "");
-if (!info) return Astro.redirect("/404");
+const { info } = Astro.props as { info: ApiCity };
 ---
 
 <Base
@@ -20,7 +20,7 @@ if (!info) return Astro.redirect("/404");
   langPath="/panchang"
 >
   <section class="ph">
-    <h1>Panchang — {info.name} <span class="hi-text">({info.name_hi})</span></h1>
+    <h1>Panchang — {info.name} {info.name_hi && <span class="hi-text">({info.name_hi})</span>}</h1>
     <p class="lede">
       Coordinates {info.lat.toFixed(4)}°, {info.lng.toFixed(4)}° · Timezone {info.tz} ·
       Vedic day runs sunrise → sunrise. See also <a href="/panchang/">other cities</a>.

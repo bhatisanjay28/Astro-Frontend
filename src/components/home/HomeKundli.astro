@@ -2,11 +2,10 @@
 /**
  * Home "Quick Kundli" — home design §6 (D11) with the REAL generation flow
  * (Epic 4.2): form POSTs /api/v1/kundli (no-PII) and renders Lagna chart,
- * Moon sign, Nakshatra and current Dasha. Birth place uses the 30-city
- * dataset with a type-ahead datalist. Includes the design's right-column
- * "what's included" list and the 36-point matching callout.
+ * Moon sign, Nakshatra and current Dasha. D12: the birth-place datalist is
+ * populated at RUNTIME from /api/v1/cities — no baked city data. Includes
+ * the design's right-column "what's included" list and the 36-point callout.
  */
-import { CITIES } from "../../data/cities";
 
 const INCLUDES = [
   {
@@ -94,8 +93,8 @@ const INCLUDES = [
           <div class="relative">
             <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-light-outline dark:text-dark-outline text-title-md">location_on</span>
             <input type="text" required list="city-options" placeholder="Enter city (e.g. Varanasi, Uttar Pradesh)" data-place class="w-full pl-10 pr-3.5 py-2.5 rounded bg-light-surface dark:bg-dark-surface border border-light-outline-variant dark:border-dark-outline-variant text-light-on-surface dark:text-dark-on-surface focus-visible:ring-2 focus-visible:ring-light-primary font-body text-body-md" />
-            <datalist id="city-options">
-              {CITIES.map((c) => <option value={c.name}>{c.name}</option>)}
+            <datalist id="city-options" data-runtime-options>
+              <option value="Loading cities…" />
             </datalist>
           </div>
           <span class="font-body text-body-sm text-light-outline dark:text-dark-outline">Auto-resolves latitude, longitude, and historical IANA time zone</span>
@@ -181,7 +180,7 @@ const INCLUDES = [
   </div>
 </section>
 
-<script define:vars={{ apiBase: import.meta.env.PUBLIC_API_BASE_URL ?? "https://astro-backend.vyotish.workers.dev", cities: CITIES.map((c) => ({ name: c.name, lat: c.lat, lng: c.lng, tz: c.tz })) }}>
+<script define:vars={{ apiBase: import.meta.env.PUBLIC_API_BASE_URL ?? "https://astro-backend.vyotish.workers.dev" }}>
   (function () {
     var API = apiBase;
     var root = document.querySelector("#kundli-section");
@@ -190,9 +189,34 @@ const INCLUDES = [
     var result = root.querySelector("[data-kundli-result]");
     var errEl = root.querySelector("[data-kundli-error]");
     var submit = root.querySelector("[data-kundli-submit]");
+    var cities = []; // D12: populated at runtime from /api/v1/cities
 
     var SIGNS = ["Mesha","Vrishabha","Mithuna","Karka","Simha","Kanya","Tula","Vrishchika","Dhanu","Makara","Kumbha","Meena"];
     var ABBR = { Sun: "Su", Moon: "Mo", Mars: "Ma", Mercury: "Me", Jupiter: "Ju", Venus: "Ve", Saturn: "Sa", Rahu: "Ra", Ketu: "Ke" };
+
+    function populateCities() {
+      return fetch(API + "/api/v1/cities?lang=en")
+        .then(function (r) { return r.ok ? r.json() : Promise.reject(new Error("http " + r.status)); })
+        .then(function (body) {
+          cities = ((body.data && body.data.cities) || []).map(function (c) {
+            return { name: c.name_en || c.name, lat: c.lat, lng: c.lng, tz: c.tz };
+          });
+          var list = root.querySelector("[data-runtime-options]");
+          if (list) {
+            list.textContent = "";
+            cities.forEach(function (c) {
+              var opt = document.createElement("option");
+              opt.value = c.name;
+              list.appendChild(opt);
+            });
+          }
+        });
+    }
+    populateCities().catch(function () {
+      cities = [];
+      var list = root.querySelector("[data-runtime-options]");
+      if (list) list.textContent = "";
+    });
 
     function findCity(name) {
       var q = (name || "").trim().toLowerCase();

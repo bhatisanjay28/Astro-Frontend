@@ -2,10 +2,11 @@
 /**
  * Home "Today at a Glance" — home design §6 (D11) wired to the live
  * /api/v1/panchang (city mode; Epic 3.1 + 1.7 fields incl. Hindu month &
- * Samvat). The city <select> uses the same 30-city dataset as the Panchang
- * pages; Today/Tomorrow toggles the ?date parameter.
+ * Samvat). D12: the city <select> is populated at RUNTIME from
+ * /api/v1/cities (no baked city data), and current/next limbs come from the
+ * server-picked `active` field — the client never computes them.
+ * Today/Tomorrow toggles the ?date parameter.
  */
-import { CITIES } from "../../data/cities";
 ---
 
 <section id="panchang" class="py-10 px-4 sm:px-8 border-b border-light-outline-variant/40 dark:border-dark-outline-variant/30 bg-light-surface dark:bg-dark-surface">
@@ -26,14 +27,7 @@ import { CITIES } from "../../data/cities";
       <div class="flex items-center gap-2">
         <div class="relative">
           <select data-city-select class="pl-8 pr-8 py-2 rounded bg-light-surface-variant dark:bg-dark-surface-variant border border-light-outline-variant dark:border-dark-outline-variant text-light-on-surface dark:text-dark-on-surface font-title text-title-sm focus-visible:ring-2 focus-visible:ring-light-primary" aria-label="Select city">
-            {
-              CITIES.map((c, i) => (
-                <option value={c.slug} selected={i === 0}>
-                  {c.name}
-                  {c.slug === "new-delhi" ? ", India" : ""} ({c.lat.toFixed(2)}° {c.lat >= 0 ? "N" : "S"}, {c.lng.toFixed(2)}° {c.lng >= 0 ? "E" : "W"})
-                </option>
-              ))
-            }
+            <option value="">Loading cities…</option>
           </select>
           <span class="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-title-md text-light-outline dark:text-dark-outline pointer-events-none">location_on</span>
         </div>
@@ -118,7 +112,7 @@ import { CITIES } from "../../data/cities";
         <span>•</span>
         <span>Month: <strong class="text-light-on-surface dark:text-dark-on-surface">Purnimanta &amp; Amanta</strong></span>
       </div>
-      <a href="/panchang/new-delhi" class="text-light-primary dark:text-dark-primary font-semibold hover:underline flex items-center gap-1 font-label text-label-sm">
+      <a href="/panchang/" class="text-light-primary dark:text-dark-primary font-semibold hover:underline flex items-center gap-1 font-label text-label-sm">
         View Complete Choghadiya, Hora &amp; Monthly Calendar →
       </a>
     </div>
@@ -126,14 +120,16 @@ import { CITIES } from "../../data/cities";
 </section>
 
 <script define:vars={{ apiBase: import.meta.env.PUBLIC_API_BASE_URL ?? "https://astro-backend.vyotish.workers.dev" }}>
-  // Live wiring (Epic 3.1): city mode + date toggle → /api/v1/panchang.
+  // Live wiring (Epic 3.1 + D12): cities from /api/v1/cities, panchang from
+  // /api/v1/panchang (city mode); current/next limbs rendered from the
+  // server-picked `active` field — the client never computes picks itself.
   (function () {
     var API = apiBase;
     var root = document.querySelector("#panchang");
     if (!root) return;
     var citySel = root.querySelector("[data-city-select]");
     var dayBtns = root.querySelectorAll("[data-day]");
-    var state = { slug: (citySel && citySel.value) || "new-delhi", date: null }; // null = today
+    var state = { slug: null, date: null }; // null = today; slug set once cities load
 
     function fmt(iso) {
       try {
@@ -148,25 +144,25 @@ import { CITIES } from "../../data/cities";
       return fmt(iso);
     }
 
-    function currentLimb(windows) {
-      if (!windows || !windows.length) return null;
-      var now = Date.now();
-      for (var i = 0; i < windows.length; i++) {
-        var w = windows[i];
-        if (new Date(w.start).getTime() <= now && now < new Date(w.end).getTime()) return w;
-      }
-      return windows[0];
-    }
-    function nextLimb(windows) {
-      if (!windows || !windows.length) return null;
-      var now = Date.now();
-      for (var i = 0; i < windows.length; i++) {
-        if (new Date(windows[i].start).getTime() > now) return windows[i];
-      }
-      return null;
-    }
-    function pakshaOf(name) {
-      return name && name.indexOf("Shukla") === 0 ? "Shukla" : name && name.indexOf("Krishna") === 0 ? "Krishna" : "";
+    function populateCities() {
+      return fetch(API + "/api/v1/cities?lang=en")
+        .then(function (r) { return r.ok ? r.json() : Promise.reject(new Error("http " + r.status)); })
+        .then(function (body) {
+          var cities = (body.data && body.data.cities) || [];
+          if (!citySel) return cities;
+          citySel.textContent = "";
+          cities.forEach(function (c, i) {
+            var opt = document.createElement("option");
+            opt.value = c.slug;
+            opt.textContent = c.name + (c.country === "IN" ? ", India" : "") + " (" +
+              c.lat.toFixed(2) + "° " + (c.lat >= 0 ? "N" : "S") + ", " +
+              c.lng.toFixed(2) + "° " + (c.lng >= 0 ? "E" : "W") + ")";
+            if (i === 0) opt.selected = true;
+            citySel.appendChild(opt);
+          });
+          if (cities.length && !state.slug) state.slug = cities[0].slug;
+          return cities;
+        });
     }
 
     function render(p) {
@@ -174,7 +170,7 @@ import { CITIES } from "../../data/cities";
         var el = root.querySelector('[data-limb="' + limbKey + '"] [data-field="' + field + '"]');
         if (el) el.textContent = text;
       };
-      // Vaar comes as a plain object; the other four are window lists
+      // Vaar comes as a plain object; the other four use server-picked active
       var vaarEl = root.querySelector('[data-limb="vaar"] [data-field="name"]');
       if (vaarEl) vaarEl.textContent = (p.vaar && p.vaar.name) || "—";
       var vaarEn = { Ravivara: "Sunday", Somavara: "Monday", Mangalavara: "Tuesday", Budhavara: "Wednesday", Guruvara: "Thursday", Shukravara: "Friday", Shanivara: "Saturday" };
@@ -183,8 +179,9 @@ import { CITIES } from "../../data/cities";
 
       var limbKeys = ["tithi", "nakshatra", "yoga", "karana"];
       limbKeys.forEach(function (key) {
-        var cur = currentLimb(p[key]);
-        var nxt = nextLimb(p[key]);
+        var active = p.active && p.active[key];
+        var cur = active && active.window;
+        var nxt = active && active.next;
         set(key, "name", cur ? cur.name : "—");
         set(key, "upto", cur ? "Upto " + fmtLocal(cur.end) : "");
         set(key, "followed", nxt ? "Followed by " + nxt.name.replace(/^(Shukla|Krishna) /, "") : "");
@@ -206,6 +203,7 @@ import { CITIES } from "../../data/cities";
     }
 
     function load() {
+      if (!state.slug) return;
       var qs = "?city=" + encodeURIComponent(state.slug);
       if (state.date) qs += "&date=" + state.date;
       fetch(API + "/api/v1/panchang" + qs)
@@ -229,6 +227,12 @@ import { CITIES } from "../../data/cities";
         load();
       });
     });
-    load();
+    populateCities().then(load).catch(function () {
+      if (citySel) citySel.textContent = "";
+      var opt = document.createElement("option");
+      opt.value = "";
+      opt.textContent = "Cities unavailable";
+      if (citySel) citySel.appendChild(opt);
+    });
   })();
 </script>

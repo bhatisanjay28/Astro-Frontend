@@ -1,97 +1,30 @@
 ---
 /**
  * Home "Daily Horoscope" — home design §6 (D11) wired to /api/v1/horoscope
- * (Epic 5.1 minimal). Falls back to the seed sample lines when the API is
- * unavailable; period tabs switch the requested period (daily content is
- * seeded; other periods show a friendly note until admin content lands).
+ * (Epic 5.1 minimal). D12: rashiphal TEXT is data — it comes only from the
+ * API (Supabase); the card grid below renders an honest "unavailable" line
+ * until the response lands. The 12-sign identity (slug/symbol/hi/en) is
+ * presentation config, like NAV_TABS. Period tabs switch the requested
+ * period (daily content is seeded; other periods show a friendly note until
+ * admin content lands).
  */
 const SIGNS = [
-  {
-    slug: "aries",
-    symbol: "♈",
-    hi: "मेष",
-    en: "Mesh (Aries)",
-    line: "New beginnings in financial ventures; planetary support in career.",
-  },
-  {
-    slug: "taurus",
-    symbol: "♉",
-    hi: "वृषभ",
-    en: "Vrishabha (Taurus)",
-    line: "Harmony in domestic affairs; favorable day for investments.",
-  },
-  {
-    slug: "gemini",
-    symbol: "♊",
-    hi: "मिथुन",
-    en: "Mithun (Gemini)",
-    line: "Clear communications will resolve pending commercial disputes swiftly.",
-  },
-  {
-    slug: "cancer",
-    symbol: "♋",
-    hi: "कर्क",
-    en: "Karka (Cancer)",
-    line: "Intuitive insights bring peaceful clarity to personal family matters.",
-  },
-  {
-    slug: "leo",
-    symbol: "♌",
-    hi: "सिंह",
-    en: "Simha (Leo)",
-    line: "Leadership abilities recognized; health stays vibrant and steady.",
-  },
-  {
-    slug: "virgo",
-    symbol: "♍",
-    hi: "कन्या",
-    en: "Kanya (Virgo)",
-    line: "Analytical focus leads to solid breakthroughs in your work tasks.",
-  },
-  {
-    slug: "libra",
-    symbol: "♎",
-    hi: "तुला",
-    en: "Tula (Libra)",
-    line: "Balance restored in relationships; peaceful evening with loved ones.",
-  },
-  {
-    slug: "scorpio",
-    symbol: "♏",
-    hi: "वृश्चिक",
-    en: "Vrishchika (Scorpio)",
-    line: "Deep spiritual curiosity ignited; auspicious travel possible.",
-  },
-  {
-    slug: "sagittarius",
-    symbol: "♐",
-    hi: "धनु",
-    en: "Dhanu (Sagittarius)",
-    line: "Guru's aspect brings wise counsel and optimism in endeavors.",
-  },
-  {
-    slug: "capricorn",
-    symbol: "♑",
-    hi: "मकर",
-    en: "Makar (Capricorn)",
-    line: "Patient disciplined effort yields concrete milestones at work.",
-  },
-  {
-    slug: "aquarius",
-    symbol: "♒",
-    hi: "कुम्भ",
-    en: "Kumbha (Aquarius)",
-    line: "Community collaboration and friendship flourish today with joy.",
-  },
-  {
-    slug: "pisces",
-    symbol: "♓",
-    hi: "मीन",
-    en: "Meen (Pisces)",
-    line: "Serene meditative focus; creative inspiration is peaked.",
-  },
+  { slug: "aries", symbol: "♈", hi: "मेष", en: "Mesh (Aries)" },
+  { slug: "taurus", symbol: "♉", hi: "वृषभ", en: "Vrishabha (Taurus)" },
+  { slug: "gemini", symbol: "♊", hi: "मिथुन", en: "Mithun (Gemini)" },
+  { slug: "cancer", symbol: "♋", hi: "कर्क", en: "Karka (Cancer)" },
+  { slug: "leo", symbol: "♌", hi: "सिंह", en: "Simha (Leo)" },
+  { slug: "virgo", symbol: "♍", hi: "कन्या", en: "Kanya (Virgo)" },
+  { slug: "libra", symbol: "♎", hi: "तुला", en: "Tula (Libra)" },
+  { slug: "scorpio", symbol: "♏", hi: "वृश्चिक", en: "Vrishchika (Scorpio)" },
+  { slug: "sagittarius", symbol: "♐", hi: "धनु", en: "Dhanu (Sagittarius)" },
+  { slug: "capricorn", symbol: "♑", hi: "मकर", en: "Makar (Capricorn)" },
+  { slug: "aquarius", symbol: "♒", hi: "कुम्भ", en: "Kumbha (Aquarius)" },
+  { slug: "pisces", symbol: "♓", hi: "मीन", en: "Meen (Pisces)" },
 ];
 const PERIODS = ["Yesterday", "Today", "Tomorrow", "Weekly", "Monthly", "Yearly"];
+const LOADING_LINE = "Fetching today's rashiphal…";
+const UNAVAILABLE_LINE = "Rashiphal unavailable right now — please refresh shortly.";
 ---
 
 <section id="horoscope" class="py-12 px-4 sm:px-8 border-b border-light-outline-variant/40 dark:border-dark-outline-variant/30 bg-light-surface-variant dark:bg-dark-surface-variant">
@@ -142,7 +75,7 @@ const PERIODS = ["Yesterday", "Today", "Tomorrow", "Weekly", "Monthly", "Yearly"
               <span class="font-body text-body-sm text-light-outline dark:text-dark-outline hi-text" lang="hi">{s.hi}</span>
             </div>
             <div class="font-title text-title-sm font-semibold text-light-on-surface dark:text-dark-on-surface group-hover:text-light-primary dark:group-hover:text-dark-primary">{s.en}</div>
-            <p class="font-body text-body-sm text-light-outline dark:text-dark-outline mt-1 line-clamp-2 text-balance" data-line>{s.line}</p>
+            <p class="font-body text-body-sm text-light-outline dark:text-dark-outline mt-1 line-clamp-2 text-balance" data-line>{LOADING_LINE}</p>
           </a>
         ))
       }
@@ -154,7 +87,7 @@ const PERIODS = ["Yesterday", "Today", "Tomorrow", "Weekly", "Monthly", "Yearly"
   </div>
 </section>
 
-<script define:vars={{ apiBase: import.meta.env.PUBLIC_API_BASE_URL ?? "https://astro-backend.vyotish.workers.dev", signs: SIGNS }}>
+<script define:vars={{ apiBase: import.meta.env.PUBLIC_API_BASE_URL ?? "https://astro-backend.vyotish.workers.dev", unavailableLine: UNAVAILABLE_LINE }}>
   (function () {
     var API = apiBase;
     var root = document.querySelector("#horoscope");
@@ -170,11 +103,8 @@ const PERIODS = ["Yesterday", "Today", "Tomorrow", "Weekly", "Monthly", "Yearly"
         var slug = card.getAttribute("data-sign");
         var row = bySign[slug];
         var el = card.querySelector("[data-line]");
-        if (row && row.overview) el.textContent = row.overview;
-        else {
-          var meta = signs.find(function (s) { return s.slug === slug; });
-          if (el && meta) el.textContent = meta.line;
-        }
+        // D12: text comes ONLY from the API — no baked fallback lines.
+        if (el) el.textContent = row && row.overview ? row.overview : unavailableLine;
       });
       if (note) note.classList.toggle("hidden", state === "daily");
     }
