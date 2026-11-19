@@ -1,0 +1,204 @@
+---
+/**
+ * Home "Daily Horoscope" — home design §6 (D11) wired to /api/v1/horoscope
+ * (Epic 5.1 minimal). Falls back to the seed sample lines when the API is
+ * unavailable; period tabs switch the requested period (daily content is
+ * seeded; other periods show a friendly note until admin content lands).
+ */
+const SIGNS = [
+  {
+    slug: "aries",
+    symbol: "♈",
+    hi: "मेष",
+    en: "Mesh (Aries)",
+    line: "New beginnings in financial ventures; planetary support in career.",
+  },
+  {
+    slug: "taurus",
+    symbol: "♉",
+    hi: "वृषभ",
+    en: "Vrishabha (Taurus)",
+    line: "Harmony in domestic affairs; favorable day for investments.",
+  },
+  {
+    slug: "gemini",
+    symbol: "♊",
+    hi: "मिथुन",
+    en: "Mithun (Gemini)",
+    line: "Clear communications will resolve pending commercial disputes swiftly.",
+  },
+  {
+    slug: "cancer",
+    symbol: "♋",
+    hi: "कर्क",
+    en: "Karka (Cancer)",
+    line: "Intuitive insights bring peaceful clarity to personal family matters.",
+  },
+  {
+    slug: "leo",
+    symbol: "♌",
+    hi: "सिंह",
+    en: "Simha (Leo)",
+    line: "Leadership abilities recognized; health stays vibrant and steady.",
+  },
+  {
+    slug: "virgo",
+    symbol: "♍",
+    hi: "कन्या",
+    en: "Kanya (Virgo)",
+    line: "Analytical focus leads to solid breakthroughs in your work tasks.",
+  },
+  {
+    slug: "libra",
+    symbol: "♎",
+    hi: "तुला",
+    en: "Tula (Libra)",
+    line: "Balance restored in relationships; peaceful evening with loved ones.",
+  },
+  {
+    slug: "scorpio",
+    symbol: "♏",
+    hi: "वृश्चिक",
+    en: "Vrishchika (Scorpio)",
+    line: "Deep spiritual curiosity ignited; auspicious travel possible.",
+  },
+  {
+    slug: "sagittarius",
+    symbol: "♐",
+    hi: "धनु",
+    en: "Dhanu (Sagittarius)",
+    line: "Guru's aspect brings wise counsel and optimism in endeavors.",
+  },
+  {
+    slug: "capricorn",
+    symbol: "♑",
+    hi: "मकर",
+    en: "Makar (Capricorn)",
+    line: "Patient disciplined effort yields concrete milestones at work.",
+  },
+  {
+    slug: "aquarius",
+    symbol: "♒",
+    hi: "कुम्भ",
+    en: "Kumbha (Aquarius)",
+    line: "Community collaboration and friendship flourish today with joy.",
+  },
+  {
+    slug: "pisces",
+    symbol: "♓",
+    hi: "मीन",
+    en: "Meen (Pisces)",
+    line: "Serene meditative focus; creative inspiration is peaked.",
+  },
+];
+const PERIODS = ["Yesterday", "Today", "Tomorrow", "Weekly", "Monthly", "Yearly"];
+---
+
+<section id="horoscope" class="py-12 px-4 sm:px-8 border-b border-light-outline-variant/40 dark:border-dark-outline-variant/30 bg-light-surface-variant dark:bg-dark-surface-variant">
+  <div class="max-w-7xl mx-auto">
+    <div class="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4">
+      <div>
+        <div class="flex items-center gap-2 mb-1">
+          <span class="font-label text-label-sm font-semibold uppercase tracking-wider text-saffron">Rashiphal (राशिफल)</span>
+          <span class="font-label text-label-sm bg-light-surface dark:bg-dark-surface px-2 py-0.5 rounded border border-light-outline-variant dark:border-dark-outline-variant text-light-outline dark:text-dark-outline">
+            Based on Moon Sign (चंद्र राशि)
+          </span>
+        </div>
+        <h2 class="font-headline text-headline-md font-bold text-light-on-surface dark:text-dark-on-surface">
+          Daily, Weekly &amp; Yearly Horoscope
+        </h2>
+        <p class="font-body text-body-sm text-light-on-surface-variant dark:text-dark-on-surface-variant mt-1">
+          Vedic predictions calculated from Gochar transits. Don't know your sign? <a href="/calculators" class="text-light-primary dark:text-dark-primary font-semibold underline">Find with free Rashi Calculator</a>.
+        </p>
+      </div>
+
+      <!-- Time Period Tabs -->
+      <div class="inline-flex flex-wrap rounded border border-light-outline-variant dark:border-dark-outline-variant p-1 bg-light-surface dark:bg-dark-surface font-label text-label-sm" role="tablist" aria-label="Horoscope period">
+        {
+          PERIODS.map((p, i) => (
+            <button
+              type="button"
+              role="tab"
+              data-period={p.toLowerCase()}
+              aria-selected={i === 1 ? "true" : "false"}
+              class={i === 1
+                ? "px-3 py-1.5 rounded bg-light-primary text-light-on-primary dark:bg-dark-primary dark:text-dark-on-primary font-semibold"
+                : "px-3 py-1.5 rounded text-light-outline dark:text-dark-outline hover:text-light-on-surface dark:hover:text-dark-on-surface"}
+            >
+              {p}
+            </button>
+          ))
+        }
+      </div>
+    </div>
+
+    <!-- 12 Signs Grid (English + Hindi names & Symbols) -->
+    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3.5" data-signs>
+      {
+        SIGNS.map((s) => (
+          <a href={`/horoscope/${s.slug}`} class="p-4 rounded-lg bg-light-surface dark:bg-dark-surface border border-light-outline-variant/60 dark:border-dark-outline-variant/40 hover:border-light-primary dark:hover:border-dark-primary hover:shadow-sm transition-all group" data-sign={s.slug}>
+            <div class="flex items-center justify-between mb-2">
+              <span class="w-8 h-8 rounded-full bg-light-primary-container text-light-primary dark:bg-dark-primary-container dark:text-dark-primary flex items-center justify-center font-display font-bold text-title-sm" aria-hidden="true">{s.symbol}</span>
+              <span class="font-body text-body-sm text-light-outline dark:text-dark-outline hi-text" lang="hi">{s.hi}</span>
+            </div>
+            <div class="font-title text-title-sm font-semibold text-light-on-surface dark:text-dark-on-surface group-hover:text-light-primary dark:group-hover:text-dark-primary">{s.en}</div>
+            <p class="font-body text-body-sm text-light-outline dark:text-dark-outline mt-1 line-clamp-2 text-balance" data-line>{s.line}</p>
+          </a>
+        ))
+      }
+    </div>
+
+    <p class="hidden font-body text-body-sm text-light-outline dark:text-dark-outline mt-4" data-period-note>
+      Weekly, monthly &amp; yearly editorial rashiphal is being prepared — daily predictions are live.
+    </p>
+  </div>
+</section>
+
+<script define:vars={{ apiBase: import.meta.env.PUBLIC_API_BASE_URL ?? "https://astro-backend.vyotish.workers.dev", signs: SIGNS }}>
+  (function () {
+    var API = apiBase;
+    var root = document.querySelector("#horoscope");
+    if (!root) return;
+    var tabs = root.querySelectorAll("[data-period]");
+    var note = root.querySelector("[data-period-note]");
+    var state = "daily";
+
+    function apply(data) {
+      var bySign = {};
+      (data && data.signs ? data.signs : []).forEach(function (s) { bySign[s.sign] = s; });
+      root.querySelectorAll("[data-sign]").forEach(function (card) {
+        var slug = card.getAttribute("data-sign");
+        var row = bySign[slug];
+        var el = card.querySelector("[data-line]");
+        if (row && row.overview) el.textContent = row.overview;
+        else {
+          var meta = signs.find(function (s) { return s.slug === slug; });
+          if (el && meta) el.textContent = meta.line;
+        }
+      });
+      if (note) note.classList.toggle("hidden", state === "daily");
+    }
+
+    function load() {
+      fetch(API + "/api/v1/horoscope?period=" + state + "&lang=en")
+        .then(function (r) { return r.ok ? r.json() : Promise.reject(new Error("http " + r.status)); })
+        .then(function (body) { apply(body.data); })
+        .catch(function () { apply(null); });
+    }
+
+    tabs.forEach(function (tab) {
+      tab.addEventListener("click", function () {
+        state = tab.getAttribute("data-period");
+        tabs.forEach(function (t) {
+          var active = t === tab;
+          t.setAttribute("aria-selected", String(active));
+          t.className = active
+            ? "px-3 py-1.5 rounded bg-light-primary text-light-on-primary dark:bg-dark-primary dark:text-dark-on-primary font-semibold"
+            : "px-3 py-1.5 rounded text-light-outline dark:text-dark-outline hover:text-light-on-surface dark:hover:text-dark-on-surface";
+        });
+        load();
+      });
+    });
+    load();
+  })();
+</script>

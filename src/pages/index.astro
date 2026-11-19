@@ -1,179 +1,698 @@
 ---
-import ExploreTiles from "../components/ExploreTiles.astro";
-import QuickKundli from "../components/QuickKundli.astro";
-import TodayAtAGlance from "../components/TodayAtAGlance.astro";
+import BookingModal from "../components/home/BookingModal.astro";
+import HomeHoroscope from "../components/home/HomeHoroscope.astro";
+import HomeKundli from "../components/home/HomeKundli.astro";
+import HomePanchang from "../components/home/HomePanchang.astro";
+import NewsletterForm from "../components/home/NewsletterForm.astro";
+import { NAV_TABS } from "../data/navigation";
 /**
- * Home page (Epic 2.2, PRD §6 order): hero → today at a glance → explore →
- * quick Kundli → trust → FAQ → (sample-marked) community teasers.
- * Sections requiring DB content (astrologers, poojas, blog) render honest
- * sample/empty states until their epics land — never fabricated (PRD §15).
+ * Home page — owner-approved design (D11, replaces the previous home layout):
+ * hero → today at a glance → horoscope → explore 9 portals → quick kundli →
+ * calculators → astrologers (sample) → poojan → gemstones teaser → blog →
+ * trust → FAQ + newsletter. Live islands: HomePanchang, HomeHoroscope,
+ * HomeKundli, NewsletterForm ×2, BookingModal (Epic 3.1/4.2/5.1/5.5 wiring).
  */
 import Base from "../layouts/Base.astro";
 
-const apiBase = import.meta.env.PUBLIC_API_BASE_URL ?? "https://astro-backend.vyotish.workers.dev";
-
-const faqs = [
+const CALCULATORS = [
   {
-    q: "Is the Kundli free? Do I need to sign up?",
-    a: "Yes, free and without signup. Enter your birth details and the chart is computed instantly. We never store your birth data.",
+    icon: "brightness_2",
+    title: "Rashi Calculator (चंद्र राशि)",
+    text: "Find your exact Moon sign and lunar constellation for accurate Vedic horoscopes.",
+    cta: "Calculate Rashi →",
+    href: "/calculators",
   },
   {
-    q: "How are the Panchang values calculated?",
-    a: "Our engine computes planetary positions with published astronomical methods, Lahiri ayanamsha, and full IANA timezone handling. The Vedic day runs sunrise to sunrise.",
+    icon: "stars",
+    title: "Nakshatra Calculator",
+    text: "Discover which of the 27 lunar mansions ruled your moment of birth and your birth pada.",
+    cta: "Calculate Nakshatra →",
+    href: "/calculators",
   },
   {
-    q: "Are the predictions real?",
-    a: "Astrology is guidance, not certainty. We make no guaranteed-outcome claims, and we never ask for OTPs or passwords.",
+    icon: "north_east",
+    title: "Rising Sign (Lagna)",
+    text: "Determines the eastern horizon sign at your exact birth minute—the anchor of all houses.",
+    cta: "Calculate Lagna →",
+    href: "/kundli",
   },
   {
-    q: "Is my personal data safe?",
-    a: "We collect only what a request needs, state its purpose plainly, and delete on request (DPDP Act 2023). Details on the Privacy Policy page.",
+    icon: "timelapse",
+    title: "Shani Sade Sati",
+    text: "Check Saturn's 7.5-year transit relative to your Moon sign: rising, peak, or setting phase.",
+    cta: "Check Sade Sati →",
+    href: "/calculators",
+  },
+  {
+    icon: "local_fire_department",
+    title: "Mangal Dosha Check",
+    text: "Evaluates Mars placement in 1st, 2nd, 4th, 7th, 8th or 12th house with traditional cancellations.",
+    cta: "Evaluate Mars →",
+    href: "/kundli",
+  },
+  {
+    icon: "stream",
+    title: "Kaal Sarp Yoga",
+    text: "Determines if all planets are hemmed between Rahu and Ketu, and identifies the specific type.",
+    cta: "Check Kaal Sarp →",
+    href: "/kundli",
+  },
+  {
+    icon: "pin",
+    title: "Vedic Numerology",
+    text: "Calculate your Mulank (Birth Number), Bhagyank (Destiny Number), and Namank (Name Number).",
+    cta: "Calculate Numbers →",
+    href: "/calculators",
+  },
+  {
+    icon: "schedule",
+    title: "Vimshottari Dasha",
+    text: "View your active planetary major period (Mahadasha) and current sub-period transitions.",
+    cta: "View Dasha →",
+    href: "/kundli",
   },
 ];
 
-const trustPoints = [
-  "Calculations validated against known Panchang values and published almanacs.",
-  "City-level accuracy with exact coordinates and IANA timezones.",
-  "Clearly-marked sample content — we never fabricate reviews or numbers.",
-  "Privacy-first: minimal collection, clear consent, deletion on request.",
+const ASTROLOGERS = [
+  {
+    initials: "VS",
+    tone: "primary",
+    name: "Pt. Vidyadhar Shastri",
+    role: "Vedic Jyotish & Muhurat Expert",
+    meta: "18 yrs exp • Hindi, Sanskrit, English",
+    bio: "Traditional Varanasi lineage scholar specializing in Janam Kundli analysis, career direction, and auspicious Vivah Muhurat selection.",
+    rate: "₹45 / min",
+    avail: "Available for Booking",
+    free: true,
+  },
+  {
+    initials: "AA",
+    tone: "secondary",
+    name: "Acharya Ananya Dave",
+    role: "Kundli Matching & Prashna Shastra",
+    meta: "12 yrs exp • English, Hindi, Gujarati",
+    bio: "Renowned for compassionate, empathetic marriage compatibility analysis and instant horary (Prashna) queries for urgent decisions.",
+    rate: "₹40 / min",
+    avail: "Available for Booking",
+    free: true,
+  },
+  {
+    initials: "RM",
+    tone: "primary",
+    name: "Dr. Rakesh Mishra",
+    role: "Vedic Vastu & Corporate Astrology",
+    meta: "22 yrs exp • Hindi, English",
+    bio: "Doctorate in Jyotish Shastra. Advises startups, business founders, and families on property energy alignment and commercial launch timings.",
+    rate: "₹60 / min",
+    avail: "Next slot 4:00 PM",
+    free: false,
+  },
+];
+
+const POOJAS = [
+  {
+    tag: "Graha Shanti",
+    tone: "primary",
+    duration: "Duration: 2.5 hrs",
+    title: "Navagraha Shanti Pooja",
+    text: "Harmonizes malefic planetary influences and strengthens benefic grahas in your natal chart.",
+    lines: ["Mode: At Home or Online Sankalp", "Samagri: Complete sacred dravya included"],
+    price: "₹3,500",
+  },
+  {
+    tag: "Shiva Aradhana",
+    tone: "secondary",
+    duration: "Duration: 3 hrs",
+    title: "Maha Rudrabhishek Pooja",
+    text: "Consecrated abhishek of Shiva with Panchamrit and Shukla Yajurveda Rudrashtadhyayi mantras.",
+    lines: ["Mode: Temple Consecration or Home", "Ideal Timing: Pradosh or Somwar"],
+    price: "₹5,100",
+  },
+  {
+    tag: "Vastu & Home",
+    tone: "primary",
+    duration: "Duration: 4 hrs",
+    title: "Griha Pravesh & Vastu Shanti",
+    text: "Purification of new dwelling, Havan, and Vastu Purusha invocation for domestic peace and abundance.",
+    lines: ["Mode: At Premises (Custom Muhurat)", "Complete Vastu mandala & Havan samagri"],
+    price: "₹7,500",
+  },
+];
+
+const BLOG_POSTS = [
+  {
+    tag: "Panchang Guide",
+    tone: "primary",
+    read: "6 min read",
+    title: "Why Does the Vedic Day Begin at Sunrise Rather Than Midnight?",
+    text: "An explanation of Surya Siddhanta, Ahoratra cycles, and why city-specific sunrise calculation is the essential foundation of all authentic astrological timings.",
+    author: "By Pt. Vidyadhar Shastri",
+    date: "18 Nov 2026",
+  },
+  {
+    tag: "Kundli Science",
+    tone: "secondary",
+    read: "8 min read",
+    title: "Demystifying Manglik Dosha: Myths, Reality & True Exceptions",
+    text: "Separating fear-based commercial myths from classical Brihat Parashara principles. When does Mars actually cause dosha, and which planetary combinations neutralize it?",
+    author: "By Acharya Ananya Dave",
+    date: "15 Nov 2026",
+  },
+  {
+    tag: "Muhurat Shastra",
+    tone: "primary",
+    read: "5 min read",
+    title: "How to Use Choghadiya & Abhijit Muhurat for Everyday Decisions",
+    text: "A practical guide to the 7 daytime and nighttime Choghadiyas (Amrit, Shubh, Labh, Char, Rog, Kaal, Udveg) and how to time important journeys and contracts.",
+    author: "By Dr. Rakesh Mishra",
+    date: "12 Nov 2026",
+  },
+];
+
+const TRUST = [
+  {
+    icon: "science",
+    tone: "primary",
+    title: "Swiss Ephemeris Accuracy",
+    text: "We compute planetary longitudes using high-precision Swiss Ephemeris algorithms combined with the Government of India standard Lahiri Ayanamsha (Chitra Paksha).",
+  },
+  {
+    icon: "privacy_tip",
+    tone: "secondary",
+    title: "Strict Privacy & DPDP Act",
+    text: "Birth details, contact information, and consultation notes are strictly personal data. We never share or sell records, and delete information upon simple user request.",
+  },
+  {
+    icon: "gavel",
+    tone: "primary",
+    title: "No Superstition or Panic",
+    text: "Astrological guidance provides self-knowledge and cosmic context. It is never a substitute for certified medical, legal, or financial professional advice.",
+  },
+];
+
+const FAQS = [
+  {
+    q: "Why is my Moon Sign (Rashi) different from my Western Zodiac Sign?",
+    a: "Western astrology uses the Tropical zodiac based on the vernal equinox, whereas Vedic astrology (Jyotish) uses the Sidereal zodiac (Nirayana) aligned with actual fixed star constellations. Due to the precession of equinoxes (Ayanamsha), there is currently an approximately 24-degree difference, placing your Moon sign one sign back in most cases.",
+  },
+  {
+    q: "How accurate is the online Janam Kundli generation?",
+    a: "Vyotish implements the exact mathematical algorithms used by the Swiss Ephemeris and the Indian National Calendar. Coordinates, true local sunrise, and historical daylight saving time shifts are taken from the IANA time zone database, ensuring minute-level precision for all charts.",
+  },
+  {
+    q: "Can I book a consultation without making an immediate online payment?",
+    a: "Yes. In Phase 1, our consultation system works on a confirmed booking request model. You submit your preferred date, time, and questions. Our administrative team coordinates directly with the astrologer and confirms your appointment via phone/WhatsApp prior to any session.",
+  },
 ];
 ---
 
 <Base
-  title="Vyotish — Authentic Vedic Astrology"
-  description="Free Kundli, daily Panchang, muhurat guidance and authentic Vedic astrology consultations. No signup, no stored birth data."
+  title="Vyotish — Authentic Vedic Astrology, Panchang & Kundli"
+  description="Authentic Vedic Astrology, high-precision Swiss Ephemeris Panchang, Shubh Muhurat finder, and free Janam Kundli with Lahiri Ayanamsha."
   langPath="/"
 >
-  <section class="hero">
-    <div class="hero-inner">
-      <div class="om" aria-hidden="true">ॐ</div>
-      <h1>Vedic wisdom, <span class="gold">made useful</span> for modern life.</h1>
-      <p class="hero-sub">
-        Free Kundli, live Panchang for your city, muhurat windows and calculators —
-        then talk to an experienced astrologer when you are ready.
-      </p>
-      <div class="hero-actions">
-        <a class="primary" href="#quick-kundli">Free Kundli</a>
-        <a class="secondary" href="#glance-h">Today's Panchang</a>
-        <a class="secondary" href="/consultations">Talk to an Astrologer</a>
+  <main>
+    <div class="chrome-reset">
+    <!-- SECTION 1: HERO -->
+    <section class="relative py-12 md:py-16 px-4 sm:px-8 border-b border-light-outline-variant/40 dark:border-dark-outline-variant/30 overflow-hidden bg-light-surface dark:bg-dark-surface">
+      <div class="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 items-center relative z-10">
+        <!-- Hero Left Column -->
+        <div class="lg:col-span-7">
+          <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-light-primary-container text-light-on-primary-container dark:bg-dark-primary-container dark:text-dark-on-primary-container font-label text-label-sm font-medium mb-4">
+            <span class="material-symbols-outlined text-title-md text-saffron">verified</span>
+            Vedic Ephemeris Accuracy • Lahiri Ayanamsha • Free Forever
+          </div>
+          <h1 class="font-display text-display-lg-mobile md:text-display-lg font-bold text-light-on-surface dark:text-dark-on-surface tracking-tight mb-4 text-balance">
+            Authentic Vedic Wisdom, Calculated with Astronomical Precision.
+          </h1>
+          <p class="font-body text-body-lg text-light-on-surface-variant dark:text-dark-on-surface-variant max-w-2xl mb-8 text-pretty leading-relaxed">
+            Vyotish brings traditional Jyotish science to modern life. Calculate your free Janam Kundli without signup, inspect city-accurate Panchang and Shubh Muhurat, or consult verified Vedic scholars.
+          </p>
+
+          <!-- 3 Main Hero Actions -->
+          <div class="flex flex-wrap items-center gap-3.5 mb-8">
+            <a href="#kundli-section" class="inline-flex items-center justify-center gap-2 px-6 py-3 bg-light-primary text-light-on-primary dark:bg-dark-primary dark:text-dark-on-primary rounded font-label text-label-lg font-semibold shadow-sm hover:opacity-95 active:scale-[0.98] transition-all">
+              <span class="material-symbols-outlined text-headline-sm">explore</span>
+              <span>Free Kundli (No Signup)</span>
+            </a>
+
+            <a href="#panchang" class="inline-flex items-center justify-center gap-2 px-5 py-3 bg-light-surface-variant dark:bg-dark-surface-variant text-light-on-surface dark:text-dark-on-surface border border-light-outline-variant dark:border-dark-outline-variant rounded font-label text-label-lg font-medium hover:border-light-primary dark:hover:border-dark-primary transition-colors">
+              <span class="material-symbols-outlined text-headline-sm text-accent">calendar_today</span>
+              <span>Today's Panchang</span>
+            </a>
+
+            <a href="#consultations" class="inline-flex items-center justify-center gap-2 px-5 py-3 bg-light-secondary text-light-on-secondary dark:bg-dark-secondary dark:text-dark-on-secondary rounded font-label text-label-lg font-medium hover:opacity-95 transition-opacity">
+              <span class="material-symbols-outlined text-headline-sm">call</span>
+              <span>Talk to Astrologer</span>
+            </a>
+          </div>
+
+          <!-- Trust Badges Under Hero -->
+          <div class="flex flex-wrap items-center gap-6 pt-4 border-t border-light-outline-variant/40 dark:border-dark-outline-variant/30 font-body text-body-sm text-light-outline dark:text-dark-outline">
+            <div class="flex items-center gap-1.5">
+              <span class="material-symbols-outlined text-success text-title-md">lock</span>
+              <span>Zero OTP required • 100% Private</span>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <span class="material-symbols-outlined text-accent text-title-md">verified_user</span>
+              <span>No fear tactics or miracle claims</span>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <span class="material-symbols-outlined text-light-primary dark:text-dark-primary text-title-md">speed</span>
+              <span>Instant Swiss Ephemeris output</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Hero Right Column: LIVE KUNDLI PREVIEW CARD -->
+        <div class="lg:col-span-5">
+          <div class="bg-light-surface dark:bg-dark-surface-variant/70 border border-light-outline-variant dark:border-dark-outline-variant rounded-xl p-5 shadow-sm">
+            <div class="flex items-center justify-between mb-3 pb-2 border-b border-light-outline-variant/40 dark:border-dark-outline-variant/30">
+              <div class="flex items-center gap-2">
+                <span class="material-symbols-outlined text-saffron text-headline-sm">temple_hindu</span>
+                <span class="font-headline font-semibold text-headline-sm text-light-on-surface dark:text-dark-on-surface">Sample Kundli Lagna Chart</span>
+              </div>
+              <span class="font-data text-label-sm text-light-primary dark:text-dark-primary bg-light-primary-container dark:bg-dark-primary-container dark:text-dark-primary px-2 py-0.5 rounded font-medium">North Indian</span>
+            </div>
+
+            <!-- SVG Kundli Chart Graphic (Traditional North Indian Diamond Chart) -->
+            <div class="aspect-square w-full max-w-[320px] mx-auto relative bg-light-surface-variant dark:bg-dark-surface rounded-lg p-2 border border-light-outline-variant/40 dark:border-dark-outline-variant/30">
+              <svg viewBox="0 0 200 200" class="w-full h-full stroke-light-primary dark:stroke-dark-primary font-data fill-none" aria-hidden="true">
+                <rect x="5" y="5" width="190" height="190" stroke-width="1.5"></rect>
+                <line x1="5" y1="5" x2="195" y2="195" stroke-width="1"></line>
+                <line x1="195" y1="5" x2="5" y2="195" stroke-width="1"></line>
+                <polygon points="100,5 195,100 100,195 5,100" stroke-width="1.5"></polygon>
+                <text x="100" y="50" text-anchor="middle" class="fill-light-on-surface dark:fill-dark-on-surface font-semibold text-[11px]" stroke="none">1. Lagna</text>
+                <text x="100" y="65" text-anchor="middle" class="fill-light-primary dark:fill-dark-primary text-[9px]" stroke="none">Su, Me</text>
+                <text x="50" y="100" text-anchor="middle" class="fill-light-on-surface dark:fill-dark-on-surface text-[10px]" stroke="none">4. Mo (Chandra)</text>
+                <text x="100" y="150" text-anchor="middle" class="fill-light-on-surface dark:fill-dark-on-surface text-[10px]" stroke="none">7. Ju (Guru)</text>
+                <text x="150" y="100" text-anchor="middle" class="fill-light-on-surface dark:fill-dark-on-surface text-[10px]" stroke="none">10. Sa (Shani)</text>
+                <text x="50" y="40" text-anchor="middle" class="fill-light-outline dark:fill-dark-outline text-[9px]" stroke="none">2</text>
+                <text x="35" y="65" text-anchor="middle" class="fill-light-outline dark:fill-dark-outline text-[9px]" stroke="none">3</text>
+                <text x="35" y="140" text-anchor="middle" class="fill-light-outline dark:fill-dark-outline text-[9px]" stroke="none">5</text>
+                <text x="50" y="165" text-anchor="middle" class="fill-light-outline dark:fill-dark-outline text-[9px]" stroke="none">6 (Ma)</text>
+                <text x="150" y="165" text-anchor="middle" class="fill-light-outline dark:fill-dark-outline text-[9px]" stroke="none">8 (Ra)</text>
+                <text x="165" y="140" text-anchor="middle" class="fill-light-outline dark:fill-dark-outline text-[9px]" stroke="none">9</text>
+                <text x="165" y="65" text-anchor="middle" class="fill-light-outline dark:fill-dark-outline text-[9px]" stroke="none">11</text>
+                <text x="150" y="40" text-anchor="middle" class="fill-light-outline dark:fill-dark-outline text-[9px]" stroke="none">12 (Ke)</text>
+              </svg>
+            </div>
+
+            <!-- Chart Quick Data -->
+            <div class="mt-3 grid grid-cols-3 gap-2 text-center">
+              <div class="p-2 rounded bg-light-surface-variant dark:bg-dark-surface/60">
+                <span class="block font-body text-light-outline dark:text-dark-outline text-label-sm">Lagna (Asc)</span>
+                <span class="font-data font-semibold text-data-mono text-light-primary dark:text-dark-primary">Mesh (04°12')</span>
+              </div>
+              <div class="p-2 rounded bg-light-surface-variant dark:bg-dark-surface/60">
+                <span class="block font-body text-light-outline dark:text-dark-outline text-label-sm">Moon Sign</span>
+                <span class="font-data font-semibold text-data-mono text-light-primary dark:text-dark-primary">Karka (Cancer)</span>
+              </div>
+              <div class="p-2 rounded bg-light-surface-variant dark:bg-dark-surface/60">
+                <span class="block font-body text-light-outline dark:text-dark-outline text-label-sm">Current Dasha</span>
+                <span class="font-data font-semibold text-data-mono text-light-primary dark:text-dark-primary">Guru - Budh</span>
+              </div>
+            </div>
+
+            <div class="mt-3 text-center">
+              <a href="#kundli-section" class="font-label text-label-sm font-semibold text-light-primary dark:text-dark-primary hover:underline inline-flex items-center gap-1">
+                Enter your birth details to generate your chart →
+              </a>
+            </div>
+          </div>
+        </div>
       </div>
-    </div>
-  </section>
+    </section>
 
-  <TodayAtAGlance apiBase={apiBase} />
-  <ExploreTiles />
+    <!-- SECTION 2: TODAY AT A GLANCE (live) -->
+    <HomePanchang />
 
-  <section id="quick-kundli" aria-label="Quick Kundli">
-    <QuickKundli apiBase={apiBase} />
-  </section>
+    <!-- SECTION 3: DAILY HOROSCOPE (live) -->
+    <HomeHoroscope />
 
-  <section class="trust" aria-labelledby="trust-h">
-    <div class="trust-inner">
-      <h2 id="trust-h">Why Vyotish</h2>
-      <ul>
-        {trustPoints.map((p) => <li>{p}</li>)}
-      </ul>
-    </div>
-  </section>
-
-  <section class="community" aria-labelledby="community-h">
-    <div class="community-inner">
-      <h2 id="community-h">Coming with the next milestones</h2>
-      <div class="cards">
-        <div class="card">
-          <h3>Astrologers</h3>
-          <p>Directory with expertise, languages and availability. <em>Sample profiles land with Epic 5 — clearly marked, never presented as real.</em></p>
+    <!-- SECTION 4: EXPLORE VYOTISH -->
+    <section class="py-12 px-4 sm:px-8 border-b border-light-outline-variant/40 dark:border-dark-outline-variant/30 bg-light-surface dark:bg-dark-surface">
+      <div class="max-w-7xl mx-auto">
+        <div class="text-center max-w-2xl mx-auto mb-10">
+          <span class="font-label text-label-sm font-semibold uppercase tracking-wider text-saffron">Core Architecture</span>
+          <h2 class="font-headline text-headline-md font-bold text-light-on-surface dark:text-dark-on-surface mt-1">
+            Explore All 9 Vyotish Portals
+          </h2>
+          <p class="font-body text-body-sm text-light-outline dark:text-dark-outline mt-2">
+            Structured for deep Vedic study, auspicious family timing, spiritual ceremonies, and personalized astrological consultations.
+          </p>
         </div>
-        <div class="card">
-          <h3>Festivals &amp; Muhurat</h3>
-          <p>Festival calendar and an event-wise muhurat finder. <em>Rules are data — a qualified Jyotishi reviews them before launch.</em></p>
-        </div>
-        <div class="card">
-          <h3>Blog</h3>
-          <p>Original astro-education articles. <em>Editorial desk arrives with Epic 6.</em></p>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {
+            NAV_TABS.map((t, i) => (
+              <a href={t.href} class="p-5 rounded-lg bg-light-surface-variant dark:bg-dark-surface-variant border border-light-outline-variant/60 dark:border-dark-outline-variant/40 hover:border-light-primary dark:hover:border-dark-primary hover:shadow-xs transition-all group">
+                <div class="w-10 h-10 rounded-lg bg-light-primary-container text-light-primary dark:bg-dark-primary-container dark:text-dark-primary flex items-center justify-center mb-3">
+                  <span class="material-symbols-outlined text-headline-sm">{t.icon}</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <h3 class="font-title text-title-md font-semibold text-light-on-surface dark:text-dark-on-surface group-hover:text-light-primary dark:group-hover:text-dark-primary">
+                    {i + 1}. {t.label}
+                  </h3>
+                  {t.label === "Gemstones" && (
+                    <span class="font-label text-label-sm px-1.5 py-0.5 rounded bg-light-primary-container text-light-primary dark:bg-dark-primary-container dark:text-dark-primary font-semibold">Coming soon..!</span>
+                  )}
+                </div>
+                <p class="font-body text-body-sm text-light-outline dark:text-dark-outline mt-1.5">{t.description}</p>
+              </a>
+            ))
+          }
         </div>
       </div>
-    </div>
-  </section>
+    </section>
 
-  <section class="faq" aria-labelledby="faq-h">
-    <div class="faq-inner">
-      <h2 id="faq-h">Frequently asked</h2>
-      {
-        faqs.map((f) => (
-          <details>
-            <summary>{f.q}</summary>
-            <p>{f.a}</p>
-          </details>
-        ))
-      }
-    </div>
-  </section>
+    <!-- SECTION 5: QUICK KUNDLI GENERATOR (live) -->
+    <HomeKundli />
 
-  <style>
-    .hero {
-      background: var(--color-bg);
-      padding: var(--space-8) var(--space-4) var(--space-6);
-      text-align: center;
-    }
-    .hero-inner { max-width: 760px; margin: 0 auto; }
-    .om { font-size: 40px; color: var(--gold); /* glow removed — calm palette */ margin-bottom: var(--space-3); }
-    h1 {
-      font-family: var(--font-display);
-      font-size: clamp(30px, 5.4vw, 46px);
-      font-weight: 600;
-      color: var(--text-primary);
-      line-height: 1.2;
-    }
-    .gold { color: var(--color-accent-text); font-style: italic; }
-    .hero-sub { color: var(--text-muted); font-size: 15px; line-height: 1.7; margin: var(--space-4) auto 0; max-width: 560px; }
-    .hero-actions { display: flex; gap: var(--space-3); justify-content: center; flex-wrap: wrap; margin-top: var(--space-6); }
-    .hero-actions a {
-      min-height: var(--target-min);
-      display: inline-flex;
-      align-items: center;
-      padding: 0 var(--space-5);
-      border-radius: var(--radius-pill);
-      text-decoration: none;
-      font-size: 14px;
-      font-weight: 500;
-    }
-    .primary {
-      background: var(--color-accent);
-      color: var(--ink-on-gold);
-    }
-    .secondary {
-      background: var(--color-surface);
-      border: 1px solid var(--color-primary);
-      color: var(--color-primary);
-    }
-    .trust, .community, .faq { max-width: 1100px; margin: 0 auto var(--space-8); padding: 0 var(--space-4); }
-    .trust-inner, .community-inner, .faq-inner {
-      background: var(--bg-raised);
-      border: 1px solid var(--border-faint);
-      border-radius: var(--radius-card);
-      padding: var(--space-6);
-    }
-    h2 { font-family: var(--font-display); color: var(--ivory); font-size: 26px; margin-bottom: var(--space-4); font-weight: 600; }
-    .trust ul { list-style: none; display: grid; gap: var(--space-3); }
-    .trust li { color: var(--text-body); font-size: 14.5px; padding-left: var(--space-5); position: relative; }
-    .trust li::before { content: "✦"; position: absolute; left: 0; color: var(--color-accent-text); }
-    .cards { display: grid; gap: var(--space-4); grid-template-columns: 1fr; }
-    .card { border: 1px dashed var(--border-faint); border-radius: var(--radius-card); padding: var(--space-4); }
-    .card h3 { color: var(--ivory); font-family: var(--font-display); font-size: 18px; margin-bottom: var(--space-2); }
-    .card p { color: var(--text-dim); font-size: 13.5px; line-height: 1.6; }
-    .card em { color: var(--text-faint); }
-    details { border-bottom: 1px solid var(--border-faint); padding: var(--space-3) 0; }
-    summary {
-      min-height: var(--target-min);
-      display: flex;
-      align-items: center;
-      cursor: pointer;
-      color: var(--text-body);
-      font-size: 15px;
-      font-weight: 500;
-    }
-    details p { color: var(--text-muted); font-size: 14px; line-height: 1.7; padding: var(--space-2) 0; }
-    @media (min-width: 768px) { .cards { grid-template-columns: repeat(3, 1fr); } }
-  </style>
+    <!-- SECTION 6: TIER 1 CALCULATORS -->
+    <section id="calculators" class="py-12 px-4 sm:px-8 border-b border-light-outline-variant/40 dark:border-dark-outline-variant/30 bg-light-surface-variant dark:bg-dark-surface-variant">
+      <div class="max-w-7xl mx-auto">
+        <div class="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4">
+          <div>
+            <span class="font-label text-label-sm font-semibold uppercase tracking-wider text-saffron">Free Tools</span>
+            <h2 class="font-headline text-headline-md font-bold text-light-on-surface dark:text-dark-on-surface mt-1">
+              Astrology &amp; Numerology Calculators
+            </h2>
+            <p class="font-body text-body-sm text-light-outline dark:text-dark-outline mt-1">
+              Tier 1 verified calculators with instant results, plain-language explanations, and zero login barrier.
+            </p>
+          </div>
+          <div class="relative w-full md:w-64">
+            <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-light-outline dark:text-dark-outline text-title-md">search</span>
+            <input type="search" placeholder="Search calculator..." class="w-full pl-9 pr-3 py-1.5 rounded bg-light-surface dark:bg-dark-surface border border-light-outline-variant dark:border-dark-outline-variant text-light-on-surface dark:text-dark-on-surface font-body text-body-sm" />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {
+            CALCULATORS.map((c) => (
+              <div class="p-4 rounded-lg bg-light-surface dark:bg-dark-surface border border-light-outline-variant/60 dark:border-dark-outline-variant/40 hover:border-light-primary dark:hover:border-dark-primary transition-all">
+                <div class="flex items-center gap-2 mb-2 text-saffron">
+                  <span class="material-symbols-outlined text-headline-sm">{c.icon}</span>
+                  <h3 class="font-title text-title-sm font-semibold text-light-on-surface dark:text-dark-on-surface">{c.title}</h3>
+                </div>
+                <p class="font-body text-body-sm text-light-outline dark:text-dark-outline mb-3">{c.text}</p>
+                <a href={c.href} class="font-label text-label-sm font-semibold text-light-primary dark:text-dark-primary hover:underline">{c.cta}</a>
+              </div>
+            ))
+          }
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 7: FEATURED ASTROLOGERS (sample data, P8) -->
+    <section id="consultations" class="py-12 px-4 sm:px-8 border-b border-light-outline-variant/40 dark:border-dark-outline-variant/30 bg-light-surface dark:bg-dark-surface">
+      <div class="max-w-7xl mx-auto">
+        <div class="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4">
+          <div>
+            <div class="flex items-center gap-2 mb-1">
+              <span class="font-label text-label-sm font-semibold uppercase tracking-wider text-saffron">Astrologer Directory</span>
+              <span class="font-label text-label-sm bg-light-primary-container text-light-primary dark:bg-dark-primary-container dark:text-dark-primary px-2 py-0.5 rounded font-semibold">
+                [Sample Data for Phase 1 Local Review]
+              </span>
+            </div>
+            <h2 class="font-headline text-headline-md font-bold text-light-on-surface dark:text-dark-on-surface">
+              Consult Verified Jyotish Scholars
+            </h2>
+            <p class="font-body text-body-sm text-light-outline dark:text-dark-outline mt-1">
+              Choose an expert based on expertise, language, and lineage. Transparent consultation request process.
+            </p>
+          </div>
+          <div class="flex items-center gap-2">
+            <select class="px-3 py-1.5 rounded bg-light-surface-variant dark:bg-dark-surface-variant border border-light-outline-variant dark:border-dark-outline-variant text-light-on-surface dark:text-dark-on-surface font-body text-body-sm" aria-label="Specialization">
+              <option>All Specializations</option>
+              <option>Vedic Kundli</option>
+              <option>Marriage Muhurat</option>
+              <option>Vastu Shastra</option>
+              <option>Career &amp; Business</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Astrologer Cards Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          {
+            ASTROLOGERS.map((a) => (
+              <article class="bg-light-surface-variant dark:bg-dark-surface-variant border border-light-outline-variant dark:border-dark-outline-variant rounded-xl p-5 flex flex-col justify-between">
+                <div>
+                  <div class="flex items-start gap-3.5 mb-3">
+                    <div class={`w-14 h-14 rounded-full flex items-center justify-center font-display font-bold text-title-lg shrink-0 ${a.tone === "secondary"
+                      ? "bg-light-secondary text-light-on-secondary dark:bg-dark-secondary dark:text-dark-on-secondary"
+                      : "bg-light-primary text-light-on-primary dark:bg-dark-primary dark:text-dark-on-primary"}`}>
+                      {a.initials}
+                    </div>
+                    <div>
+                      <h3 class="font-title text-title-md font-semibold text-light-on-surface dark:text-dark-on-surface">{a.name}</h3>
+                      <p class="font-body text-body-sm text-light-outline dark:text-dark-outline">{a.role}</p>
+                      <p class="font-label text-label-sm text-light-primary dark:text-dark-primary font-medium mt-0.5">{a.meta}</p>
+                    </div>
+                  </div>
+                  <p class="font-body text-body-sm text-light-on-surface-variant dark:text-dark-on-surface-variant line-clamp-3 mb-3">{a.bio}</p>
+                  <div class="flex items-center justify-between py-2 border-t border-b border-light-outline-variant/40 dark:border-dark-outline-variant/40">
+                    <span class="font-data text-data-mono font-semibold text-light-primary dark:text-dark-primary">{a.rate}</span>
+                    <span class={`inline-flex items-center gap-1 font-label text-label-sm font-medium ${a.free ? "text-success" : "text-light-outline dark:text-dark-outline"}`}>
+                      <span class={`w-2 h-2 rounded-full ${a.free ? "bg-success" : "bg-light-outline dark:bg-dark-outline"}`} />
+                      {a.avail}
+                    </span>
+                  </div>
+                </div>
+                <div class="mt-4">
+                  <button type="button" data-open-booking class="w-full py-2.5 px-4 bg-light-primary text-light-on-primary dark:bg-dark-primary dark:text-dark-on-primary rounded font-label text-label-md font-semibold text-center hover:opacity-95 transition-opacity">
+                    Request Consultation
+                  </button>
+                </div>
+              </article>
+            ))
+          }
+        </div>
+
+        <p class="font-body text-body-sm text-center text-light-outline dark:text-dark-outline">
+          Phase 1 Consultation Model: Form submissions are saved to Supabase and routed to admin. Live chat, audio calling and wallet balance are scheduled for Phase 2.
+        </p>
+      </div>
+    </section>
+
+    <!-- SECTION 8: VEDIC POOJAN (sample catalogue, P9) -->
+    <section id="poojan" class="py-12 px-4 sm:px-8 border-b border-light-outline-variant/40 dark:border-dark-outline-variant/30 bg-light-surface-variant dark:bg-dark-surface-variant">
+      <div class="max-w-7xl mx-auto">
+        <div class="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4">
+          <div>
+            <span class="font-label text-label-sm font-semibold uppercase tracking-wider text-saffron">Spiritual Services</span>
+            <h2 class="font-headline text-headline-md font-bold text-light-on-surface dark:text-dark-on-surface mt-1">
+              Sacred Vedic Pooja Catalogue
+            </h2>
+            <p class="font-body text-body-sm text-light-outline dark:text-dark-outline mt-1">
+              Authentic Vedic rituals performed by qualified pandits with complete Samagri and customized Sankalp.
+            </p>
+          </div>
+          <a href="/poojan" class="font-label text-label-md font-semibold text-light-primary dark:text-dark-primary hover:underline">
+            View All Pooja Services →
+          </a>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {
+            POOJAS.map((p) => (
+              <div class="bg-light-surface dark:bg-dark-surface rounded-xl border border-light-outline-variant/60 dark:border-dark-outline-variant/40 p-5 flex flex-col justify-between">
+                <div>
+                  <div class="flex items-center justify-between mb-2">
+                    <span class={`font-label text-label-sm px-2.5 py-0.5 rounded-full font-semibold ${p.tone === "secondary"
+                      ? "bg-light-secondary-container text-light-secondary dark:bg-dark-secondary-container dark:text-dark-secondary"
+                      : "bg-light-primary-container text-light-primary dark:bg-dark-primary-container dark:text-dark-primary"}`}>
+                      {p.tag}
+                    </span>
+                    <span class="font-data text-data-mono text-light-outline dark:text-dark-outline">{p.duration}</span>
+                  </div>
+                  <h3 class="font-title text-title-lg font-semibold text-light-on-surface dark:text-dark-on-surface">{p.title}</h3>
+                  <p class="font-body text-body-sm text-light-outline dark:text-dark-outline mt-2">{p.text}</p>
+                  <div class="mt-4 flex flex-col gap-1 font-body text-body-sm text-light-on-surface-variant dark:text-dark-on-surface-variant">
+                    {p.lines.map((line) => (
+                      <div>• {line.startsWith("Mode:") ? (
+                        <>
+                          <span>Mode: </span>
+                          <strong class="text-light-on-surface dark:text-dark-on-surface">{line.slice(6)}</strong>
+                        </>
+                      ) : (
+                        <span>{line}</span>
+                      )}</div>
+                    ))}
+                  </div>
+                </div>
+                <div class="mt-5 pt-4 border-t border-light-outline-variant/30 dark:border-dark-outline-variant/30 flex items-center justify-between">
+                  <div>
+                    <span class="font-body text-label-sm text-light-outline dark:text-dark-outline block">Sample Dakshina</span>
+                    <span class="font-data text-title-lg font-semibold text-light-primary dark:text-dark-primary">{p.price}</span>
+                  </div>
+                  <button type="button" data-open-booking class="px-4 py-2 bg-light-surface-variant dark:bg-dark-surface-variant text-light-on-surface dark:text-dark-on-surface hover:bg-light-primary hover:text-white rounded font-label text-label-sm font-semibold transition-colors">
+                    Book Pooja
+                  </button>
+                </div>
+              </div>
+            ))
+          }
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 9: GEMSTONES TEASER (notify form is LIVE via /newsletter) -->
+    <section id="gemstones" class="py-12 px-4 sm:px-8 border-b border-light-outline-variant/40 dark:border-dark-outline-variant/30 bg-light-surface dark:bg-dark-surface">
+      <div class="max-w-5xl mx-auto rounded-2xl bg-light-surface-variant dark:bg-dark-surface-variant border border-light-outline-variant dark:border-dark-outline-variant p-8 sm:p-12 text-center relative overflow-hidden flex flex-col items-center gap-4">
+        <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-light-primary-container text-light-primary dark:bg-dark-primary-container dark:text-dark-primary font-label text-label-sm font-semibold">
+          <span class="material-symbols-outlined text-title-md">diamond</span>
+          Gemstones Portal — Coming soon..!
+        </div>
+
+        <h2 class="font-headline text-headline-lg-mobile md:text-headline-lg font-bold text-light-on-surface dark:text-dark-on-surface max-w-2xl mx-auto">
+          100% Natural, Unheated Vedic Gemstones Energized for Your Chart
+        </h2>
+
+        <p class="font-body text-body-md text-light-on-surface-variant dark:text-dark-on-surface-variant max-w-xl mx-auto leading-relaxed">
+          We are preparing our dedicated lab-certified gemstone platform. Each gemstone is verified with government-accredited lab certificates and energised by traditional Vedic rituals before dispatch.
+        </p>
+
+        <NewsletterForm
+          source="gemstones_notify"
+          placeholder="Enter your email for launch access"
+          inputClass="flex-1 px-4 py-3 rounded bg-light-surface dark:bg-dark-surface border border-light-outline-variant dark:border-dark-outline-variant text-light-on-surface dark:text-dark-on-surface font-body text-body-sm focus-visible:ring-2 focus-visible:ring-light-primary"
+          buttonClass="px-5 py-3 rounded bg-light-primary text-light-on-primary dark:bg-dark-primary dark:text-dark-on-primary font-label text-label-md font-semibold hover:opacity-95 transition-opacity whitespace-nowrap"
+          success="Thank you! You will be notified when the Gemstones platform launches."
+        />
+
+        <p class="font-body text-body-sm text-light-outline dark:text-dark-outline mt-1">
+          Configured by GEMSTONES_SITE_URL. Once active, this tab routes directly to our dedicated store.
+        </p>
+      </div>
+    </section>
+
+    <!-- SECTION 10: LATEST BLOG ARTICLES -->
+    <section id="blog" class="py-12 px-4 sm:px-8 border-b border-light-outline-variant/40 dark:border-dark-outline-variant/30 bg-light-surface-variant dark:bg-dark-surface-variant">
+      <div class="max-w-7xl mx-auto">
+        <div class="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4">
+          <div>
+            <span class="font-label text-label-sm font-semibold uppercase tracking-wider text-saffron">Jyotish Insights</span>
+            <h2 class="font-headline text-headline-md font-bold text-light-on-surface dark:text-dark-on-surface mt-1">
+              Articles &amp; Vedic Studies
+            </h2>
+            <p class="font-body text-body-sm text-light-outline dark:text-dark-outline mt-1">
+              Original scholarship written and reviewed through the Vyotish admin publication engine.
+            </p>
+          </div>
+          <div class="flex items-center gap-3">
+            <a href="/blog" class="font-label text-label-sm text-light-outline dark:text-dark-outline hover:text-light-on-surface dark:hover:text-dark-on-surface underline">Admin Login</a>
+            <span class="text-light-outline dark:text-dark-outline font-body text-body-sm">|</span>
+            <a href="/blog" class="font-label text-label-md font-semibold text-light-primary dark:text-dark-primary hover:underline">
+              Browse All Articles →
+            </a>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {
+            BLOG_POSTS.map((b) => (
+              <article class="bg-light-surface dark:bg-dark-surface rounded-xl border border-light-outline-variant/60 dark:border-dark-outline-variant/40 p-5 flex flex-col justify-between hover:border-light-primary dark:hover:border-dark-primary transition-colors">
+                <div>
+                  <div class="flex items-center gap-2 mb-2">
+                    <span class={`font-label text-label-sm font-semibold px-2 py-0.5 rounded ${b.tone === "secondary"
+                      ? "bg-light-secondary-container text-light-secondary dark:bg-dark-secondary-container dark:text-dark-secondary"
+                      : "bg-light-primary-container text-light-primary dark:bg-dark-primary-container dark:text-dark-primary"}`}>
+                      {b.tag}
+                    </span>
+                    <span class="font-body text-body-sm text-light-outline dark:text-dark-outline">{b.read}</span>
+                  </div>
+                  <h3 class="font-title text-title-md font-semibold text-light-on-surface dark:text-dark-on-surface mb-2">{b.title}</h3>
+                  <p class="font-body text-body-sm text-light-outline dark:text-dark-outline line-clamp-3">{b.text}</p>
+                </div>
+                <div class="mt-4 pt-3 border-t border-light-outline-variant/30 dark:border-dark-outline-variant/30 flex items-center justify-between font-body text-body-sm text-light-outline dark:text-dark-outline">
+                  <span>{b.author}</span>
+                  <span>{b.date}</span>
+                </div>
+              </article>
+            ))
+          }
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 11: TRUST & CALCULATION INTEGRITY -->
+    <section class="py-12 px-4 sm:px-8 bg-light-surface dark:bg-dark-surface border-b border-light-outline-variant/40 dark:border-dark-outline-variant/30">
+      <div class="max-w-7xl mx-auto">
+        <div class="text-center max-w-2xl mx-auto mb-10">
+          <span class="font-label text-label-sm font-semibold uppercase tracking-wider text-saffron">Transparency &amp; Ethics</span>
+          <h2 class="font-headline text-headline-md font-bold text-light-on-surface dark:text-dark-on-surface mt-1">
+            Our Mathematical &amp; Ethical Standards
+          </h2>
+          <p class="font-body text-body-sm text-light-outline dark:text-dark-outline mt-1">
+            Only true astronomical calculation statements. No invented testimonials, fabricated ratings, or fear-based guarantees.
+          </p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 text-center md:text-left">
+          {
+            TRUST.map((t) => (
+              <div class="p-6 rounded-xl bg-light-surface-variant dark:bg-dark-surface-variant border border-light-outline-variant/50 dark:border-dark-outline-variant/50">
+                <div class={`w-12 h-12 rounded-lg flex items-center justify-center mb-4 mx-auto md:mx-0 ${t.tone === "secondary"
+                  ? "bg-light-secondary-container text-light-secondary dark:bg-dark-secondary-container dark:text-dark-on-secondary-container"
+                  : "bg-light-primary-container text-light-primary dark:bg-dark-primary-container dark:text-dark-primary"}`}>
+                  <span class="material-symbols-outlined text-headline-sm">{t.icon}</span>
+                </div>
+                <h3 class="font-title text-title-md font-semibold mb-2 text-light-on-surface dark:text-dark-on-surface">{t.title}</h3>
+                <p class="font-body text-body-sm text-light-on-surface-variant dark:text-dark-on-surface-variant leading-relaxed">{t.text}</p>
+              </div>
+            ))
+          }
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 12: FAQ & NEWSLETTER -->
+    <section class="py-12 px-4 sm:px-8 bg-light-surface-variant dark:bg-dark-surface-variant">
+      <div class="max-w-4xl mx-auto">
+        <h2 class="font-headline text-headline-md font-bold text-center text-light-on-surface dark:text-dark-on-surface mb-8">
+          Frequently Asked Questions
+        </h2>
+
+        <div class="flex flex-col gap-4 mb-12">
+          {
+            FAQS.map((f) => (
+              <details class="group p-4 bg-light-surface dark:bg-dark-surface rounded-lg border border-light-outline-variant/50 dark:border-dark-outline-variant/30">
+                <summary class="flex justify-between items-center font-title text-title-sm font-semibold cursor-pointer list-none text-light-on-surface dark:text-dark-on-surface">
+                  <span>{f.q}</span>
+                  <span class="material-symbols-outlined text-light-outline dark:text-dark-outline group-open:rotate-180 transition-transform">expand_more</span>
+                </summary>
+                <p class="font-body text-body-sm text-light-outline dark:text-dark-outline mt-3 leading-relaxed">{f.a}</p>
+              </details>
+            ))
+          }
+        </div>
+
+        <!-- Newsletter Signup (live via /newsletter, Epic 5.5) -->
+        <div class="p-6 md:p-8 rounded-xl bg-light-surface dark:bg-dark-surface border border-light-outline-variant dark:border-dark-outline-variant text-center flex flex-col items-center gap-3">
+          <span class="material-symbols-outlined text-accent text-headline-lg">mail</span>
+          <h3 class="font-headline text-headline-sm font-bold text-light-on-surface dark:text-dark-on-surface">
+            Subscribe to Weekly Vedic Calendar &amp; Ekadashi Alerts
+          </h3>
+          <p class="font-body text-body-sm text-light-outline dark:text-dark-outline max-w-md mx-auto leading-relaxed">
+            Receive upcoming Tithi changes, auspicious Shubh Muhurats, and major festival vrats directly to your inbox every Monday.
+          </p>
+          <NewsletterForm
+            source="weekly_panchang"
+            placeholder="Enter your email"
+            inputClass="flex-1 px-4 py-2.5 rounded bg-light-surface-variant dark:bg-dark-surface-variant border border-light-outline-variant dark:border-dark-outline-variant text-light-on-surface dark:text-dark-on-surface font-body text-body-sm focus-visible:ring-2 focus-visible:ring-light-primary"
+            buttonClass="px-5 py-2.5 rounded bg-light-secondary text-light-on-secondary dark:bg-dark-secondary dark:text-dark-on-secondary font-label text-label-md font-semibold hover:opacity-95"
+            success="Subscribed to weekly Panchang updates!"
+          />
+          <p class="font-body text-body-sm text-light-outline dark:text-dark-outline">Zero spam. Unsubscribe anytime in 1 click.</p>
+        </div>
+      </div>
+    </section>
+    </div>
+  </main>
+
+  <!-- Consultation booking modal (Epic 5.2 pending — honest Phase-1 notice) -->
+  <BookingModal />
 </Base>

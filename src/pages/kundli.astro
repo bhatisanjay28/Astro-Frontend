@@ -263,12 +263,12 @@ const CITIES = [
 
 <style is:global>
   .kl { max-width: 860px; margin: 0 auto; padding: var(--space-7) var(--space-4) var(--space-5); }
-  h1 { font-family: var(--font-display); color: var(--ivory); font-size: 34px; }
+  .kl h1 { font-family: var(--font-display); color: var(--ivory); font-size: 34px; }
   .lede { color: var(--text-muted); font-size: 14.5px; margin-top: var(--space-2); line-height: 1.6; }
-  form { display: grid; gap: var(--space-3); margin-top: var(--space-5); }
+  .kl form { display: grid; gap: var(--space-3); margin-top: var(--space-5); }
   .row { display: flex; gap: var(--space-3); flex-wrap: wrap; }
-  label { flex: 1; min-width: 170px; display: grid; gap: var(--space-1); color: var(--text-dim); font-size: 13px; }
-  input, select {
+  .kl label { flex: 1; min-width: 170px; display: grid; gap: var(--space-1); color: var(--text-dim); font-size: 13px; }
+  .kl input, .kl select {
     min-height: var(--target-min);
     background: var(--bg-raised);
     border: 1px solid var(--color-border-strong);
@@ -276,7 +276,7 @@ const CITIES = [
     color: var(--text-body);
     padding: 0 var(--space-3);
   }
-  button {
+  .kl button {
     min-height: var(--target-min);
     background: var(--color-accent);
     border: none;
@@ -290,8 +290,8 @@ const CITIES = [
   .k-error { color: var(--color-error-text); margin-top: var(--space-3); }
   .k-out { max-width: 860px; margin: 0 auto; padding: 0 var(--space-4) var(--space-8); }
   .charts { display: flex; gap: var(--space-5); flex-wrap: wrap; margin-top: var(--space-5); }
-  figure { margin: 0; }
-  figcaption { color: var(--text-dim); font-size: 13px; margin-bottom: var(--space-2); }
+  .k-out figure { margin: 0; }
+  .k-out figcaption { color: var(--text-dim); font-size: 13px; margin-bottom: var(--space-2); }
   [data-chart-svg] { color: var(--text-dim); background: var(--bg-raised); border: 1px solid var(--border-gold-soft); border-radius: var(--radius-card); padding: var(--space-3); }
   [data-chart-svg] .hn { fill: var(--gold); font-size: 12px; }
   [data-chart-svg] .pt { fill: var(--text-body); font-size: 13px; font-weight: 600; }
@@ -300,12 +300,12 @@ const CITIES = [
   .s { background: var(--bg-raised); border: 1px solid var(--color-border-strong); border-radius: var(--radius-card); padding: var(--space-3) var(--space-4); }
   .s .k { font-size: 10.5px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--text-dim); }
   .s .v { font-family: var(--font-display); font-size: 18px; color: var(--ivory); margin-top: 2px; }
-  h2 { font-family: var(--font-display); color: var(--ivory); font-size: 22px; margin: var(--space-6) 0 var(--space-3); }
+  .k-out h2 { font-family: var(--font-display); color: var(--ivory); font-size: 22px; margin: var(--space-6) 0 var(--space-3); }
   .table-wrap { overflow-x: auto; border: 1px solid var(--color-border-strong); border-radius: var(--radius-card); }
-  table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
-  th, td { text-align: left; padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--border-faint); color: var(--text-body); }
-  th { color: var(--text-dim); font-size: 11px; text-transform: uppercase; letter-spacing: 0.12em; }
-  tr:last-child td { border-bottom: none; }
+  .k-out table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  .k-out th, .k-out td { text-align: left; padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--border-faint); color: var(--text-body); }
+  .k-out th { color: var(--text-dim); font-size: 11px; text-transform: uppercase; letter-spacing: 0.12em; }
+  .k-out tr:last-child td { border-bottom: none; }
   .doshas { display: grid; gap: var(--space-3); }
   .d { background: var(--bg-raised); border: 1px solid var(--color-border-strong); border-radius: var(--radius-card); padding: var(--space-3) var(--space-4); }
   .d .dn { color: var(--text-body); font-size: 14px; }

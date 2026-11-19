@@ -6,8 +6,10 @@
  * Fonts: hotlinked for Coming-Soon parity — self-host before launch (P3).
  */
 import "../styles/tokens.css";
+import "../styles/tailwind.css";
 import Footer from "../components/Footer.astro";
 import Header from "../components/Header.astro";
+import UtilityBar from "../components/UtilityBar.astro";
 
 interface Props {
   title: string;
@@ -52,9 +54,15 @@ const themeLock = lockDark ? "dark" : null;
     <script is:inline>
       // No-flash theme bootstrap: follows the SYSTEM setting by default,
       // remembers an explicit user choice (localStorage "vyotish-theme").
+      // Sets BOTH the .dark class (Tailwind dark: variant) and data-theme
+      // (legacy tokens.css overrides) so both styling systems agree.
       (function () {
-        var locked = document.documentElement.getAttribute("data-theme") === "dark";
-        if (locked) return;
+        var root = document.documentElement;
+        var locked = root.getAttribute("data-theme") === "dark";
+        if (locked) {
+          root.classList.add("dark");
+          return;
+        }
         var theme = "light";
         try {
           var saved = localStorage.getItem("vyotish-theme");
@@ -62,18 +70,26 @@ const themeLock = lockDark ? "dark" : null;
         } catch (e) {
           theme = "light";
         }
-        if (theme === "dark") document.documentElement.setAttribute("data-theme", "dark");
+        if (theme === "dark") {
+          root.setAttribute("data-theme", "dark");
+          root.classList.add("dark");
+        }
       })();
     </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Inter:wght@300;400;500;600&family=Noto+Sans+Devanagari:wght@400;600&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Poppins:wght@400;500;600&family=JetBrains+Mono:wght@500&family=Noto+Sans+Devanagari:wght@400;600&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=block"
       rel="stylesheet"
     />
   </head>
   <body>
     <a class="skip-link" href="#main-content">Skip to main content</a>
+    {chrome && <UtilityBar lang={lang} />}
     {
       chrome && <Header currentPath={Astro.url.pathname} />
     }
@@ -81,50 +97,6 @@ const themeLock = lockDark ? "dark" : null;
       <slot />
     </main>
     {chrome && <Footer />}
-    <style is:global>
-      html {
-        background: var(--bg-page);
-      }
-      body {
-        background: var(--bg-page);
-        color: var(--text-body);
-        font-family: var(--font-body);
-        min-height: 100vh;
-        display: flex;
-        flex-direction: column;
-      }
-      main {
-        flex: 1;
-      }
-      :where(a, button, input, select, textarea, [tabindex]):focus-visible {
-        outline: none;
-        box-shadow: var(--focus-ring);
-        border-radius: 4px;
-      }
-      .skip-link {
-        position: absolute;
-        left: -9999px;
-        top: 0;
-        z-index: 100;
-        background: var(--color-primary);
-        color: var(--color-on-primary);
-        padding: var(--space-2) var(--space-4);
-        border-radius: 0 0 var(--radius-card) 0;
-      }
-      .skip-link:focus-visible {
-        left: 0;
-      }
-      /* Link rule: teal, deeper terracotta on hover (components may override) */
-      main a {
-        color: var(--color-primary);
-      }
-      main a:hover {
-        color: var(--color-accent-text);
-      }
-      [lang="hi"] .hi-text,
-      .hi-text {
-        font-family: "Noto Sans Devanagari", var(--font-body);
-      }
-    </style>
+    <!-- global styles live in src/styles/base.css (layer order: theme → base → utilities) -->
   </body>
 </html>

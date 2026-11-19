@@ -1,0 +1,234 @@
+---
+/**
+ * Home "Today at a Glance" — home design §6 (D11) wired to the live
+ * /api/v1/panchang (city mode; Epic 3.1 + 1.7 fields incl. Hindu month &
+ * Samvat). The city <select> uses the same 30-city dataset as the Panchang
+ * pages; Today/Tomorrow toggles the ?date parameter.
+ */
+import { CITIES } from "../../data/cities";
+---
+
+<section id="panchang" class="py-10 px-4 sm:px-8 border-b border-light-outline-variant/40 dark:border-dark-outline-variant/30 bg-light-surface dark:bg-dark-surface">
+  <div class="max-w-7xl mx-auto">
+    <!-- Header with City Selector -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+      <div>
+        <div class="flex items-center gap-2">
+          <span class="font-label text-label-sm font-semibold uppercase tracking-wider text-saffron">Today at a Glance</span>
+          <span class="font-data text-label-sm px-2 py-0.5 rounded bg-light-primary-container text-light-on-primary-container dark:bg-dark-primary-container dark:text-dark-on-primary-container">Vedic Day: Sunrise to Sunrise</span>
+        </div>
+        <h2 class="font-headline text-headline-md font-bold text-light-on-surface dark:text-dark-on-surface mt-1">
+          Daily Panchang &amp; Auspicious Timings
+        </h2>
+      </div>
+
+      <!-- City Selector & Date Controls -->
+      <div class="flex items-center gap-2">
+        <div class="relative">
+          <select data-city-select class="pl-8 pr-8 py-2 rounded bg-light-surface-variant dark:bg-dark-surface-variant border border-light-outline-variant dark:border-dark-outline-variant text-light-on-surface dark:text-dark-on-surface font-title text-title-sm focus-visible:ring-2 focus-visible:ring-light-primary" aria-label="Select city">
+            {
+              CITIES.map((c, i) => (
+                <option value={c.slug} selected={i === 0}>
+                  {c.name}
+                  {c.slug === "new-delhi" ? ", India" : ""} ({c.lat.toFixed(2)}° {c.lat >= 0 ? "N" : "S"}, {c.lng.toFixed(2)}° {c.lng >= 0 ? "E" : "W"})
+                </option>
+              ))
+            }
+          </select>
+          <span class="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-title-md text-light-outline dark:text-dark-outline pointer-events-none">location_on</span>
+        </div>
+
+        <!-- Quick Day Switcher -->
+        <div class="inline-flex rounded border border-light-outline-variant dark:border-dark-outline-variant bg-light-surface-variant dark:bg-dark-surface-variant p-0.5" role="group" aria-label="Day">
+          <button type="button" data-day="today" class="px-3 py-1.5 rounded bg-light-surface dark:bg-dark-surface text-light-primary dark:text-dark-primary font-label text-label-sm font-semibold shadow-xs">Today</button>
+          <button type="button" data-day="tomorrow" class="px-3 py-1.5 rounded text-light-outline dark:text-dark-outline hover:text-light-on-surface dark:hover:text-dark-on-surface font-label text-label-sm font-medium">Tomorrow</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Five Limbs (Panch-Anga) Cards Grid -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5 mb-6" data-limbs>
+      {
+        [
+          { label: "Tithi (तिथि)", icon: "wb_sunny", key: "tithi" },
+          { label: "Vaar (दिन / वार)", icon: "today", key: "vaar" },
+          { label: "Nakshatra (नक्षत्र)", icon: "stars", key: "nakshatra" },
+          { label: "Yoga (योग)", icon: "self_improvement", key: "yoga" },
+          { label: "Karana (करण)", icon: "hourglass_bottom", key: "karana" },
+        ].map((limb) => (
+          <div class="p-4 rounded-lg bg-light-surface-variant dark:bg-dark-surface-variant/70 border border-light-outline-variant/60 dark:border-dark-outline-variant/40" data-limb={limb.key}>
+            <span class="font-body text-body-sm text-light-outline dark:text-dark-outline flex items-center justify-between">
+              {limb.label}
+              <span class="material-symbols-outlined text-title-md text-accent">{limb.icon}</span>
+            </span>
+            <div class="mt-1 font-title text-title-md font-semibold text-light-on-surface dark:text-dark-on-surface min-h-[24px]" data-field="name">—</div>
+            <div class="font-data text-data-mono text-light-primary dark:text-dark-primary mt-1 font-medium min-h-[18px]" data-field="upto" />
+            <div class="font-body text-body-sm text-light-outline dark:text-dark-outline mt-0.5 min-h-[18px]" data-field="followed" />
+          </div>
+        ))
+      }
+    </div>
+
+    <!-- Astrological Times Row -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-3.5 bg-light-surface-variant dark:bg-dark-surface-variant rounded-lg p-4 border border-light-outline-variant/50 dark:border-dark-outline-variant/30">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-full bg-light-primary-container text-light-primary flex items-center justify-center">
+          <span class="material-symbols-outlined text-headline-sm">wb_twilight</span>
+        </div>
+        <div>
+          <span class="font-body text-body-sm text-light-outline dark:text-dark-outline block">Sunrise &amp; Sunset</span>
+          <span class="font-data text-data-mono font-semibold text-light-on-surface dark:text-dark-on-surface" data-times="sun">—</span>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-full bg-light-primary-container text-error flex items-center justify-center">
+          <span class="material-symbols-outlined text-headline-sm">warning</span>
+        </div>
+        <div>
+          <span class="font-body text-body-sm text-error font-medium block">Rahu Kaal (Inauspicious)</span>
+          <span class="font-data text-data-mono font-semibold text-light-on-surface dark:text-dark-on-surface" data-times="rahu">—</span>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-full bg-light-primary-container text-success flex items-center justify-center">
+          <span class="material-symbols-outlined text-headline-sm">verified</span>
+        </div>
+        <div>
+          <span class="font-body text-body-sm text-success font-medium block">Abhijit Muhurat (Auspicious)</span>
+          <span class="font-data text-data-mono font-semibold text-light-on-surface dark:text-dark-on-surface" data-times="abhijit">—</span>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-full bg-light-primary-container text-light-on-primary-container dark:bg-dark-primary-container dark:text-dark-on-primary-container flex items-center justify-center">
+          <span class="material-symbols-outlined text-headline-sm">brightness_3</span>
+        </div>
+        <div>
+          <span class="font-body text-body-sm text-light-outline dark:text-dark-outline block">Hindu Month &amp; Samvat</span>
+          <span class="font-data text-data-mono font-semibold text-light-on-surface dark:text-dark-on-surface" data-times="samvat">—</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="mt-4 flex flex-col sm:flex-row items-center justify-between font-body text-body-sm text-light-outline dark:text-dark-outline gap-2">
+      <div class="flex items-center gap-2">
+        <span>Method: <strong class="text-light-on-surface dark:text-dark-on-surface">Lahiri Ayanamsha</strong></span>
+        <span>•</span>
+        <span>Month: <strong class="text-light-on-surface dark:text-dark-on-surface">Purnimanta &amp; Amanta</strong></span>
+      </div>
+      <a href="/panchang/new-delhi" class="text-light-primary dark:text-dark-primary font-semibold hover:underline flex items-center gap-1 font-label text-label-sm">
+        View Complete Choghadiya, Hora &amp; Monthly Calendar →
+      </a>
+    </div>
+  </div>
+</section>
+
+<script define:vars={{ apiBase: import.meta.env.PUBLIC_API_BASE_URL ?? "https://astro-backend.vyotish.workers.dev" }}>
+  // Live wiring (Epic 3.1): city mode + date toggle → /api/v1/panchang.
+  (function () {
+    var API = apiBase;
+    var root = document.querySelector("#panchang");
+    if (!root) return;
+    var citySel = root.querySelector("[data-city-select]");
+    var dayBtns = root.querySelectorAll("[data-day]");
+    var state = { slug: (citySel && citySel.value) || "new-delhi", date: null }; // null = today
+
+    function fmt(iso) {
+      try {
+        return new Intl.DateTimeFormat("en-IN", { timeZone: undefined, hour: "2-digit", minute: "2-digit", hour12: true }).format(new Date(iso));
+      } catch (e) {
+        return iso;
+      }
+    }
+    function fmtLocal(iso) {
+      // display in the site viewer's local clock (approximation of city clock is
+      // avoided on purpose: instants are absolute ISO)
+      return fmt(iso);
+    }
+
+    function currentLimb(windows) {
+      if (!windows || !windows.length) return null;
+      var now = Date.now();
+      for (var i = 0; i < windows.length; i++) {
+        var w = windows[i];
+        if (new Date(w.start).getTime() <= now && now < new Date(w.end).getTime()) return w;
+      }
+      return windows[0];
+    }
+    function nextLimb(windows) {
+      if (!windows || !windows.length) return null;
+      var now = Date.now();
+      for (var i = 0; i < windows.length; i++) {
+        if (new Date(windows[i].start).getTime() > now) return windows[i];
+      }
+      return null;
+    }
+    function pakshaOf(name) {
+      return name && name.indexOf("Shukla") === 0 ? "Shukla" : name && name.indexOf("Krishna") === 0 ? "Krishna" : "";
+    }
+
+    function render(p) {
+      var set = function (limbKey, field, text) {
+        var el = root.querySelector('[data-limb="' + limbKey + '"] [data-field="' + field + '"]');
+        if (el) el.textContent = text;
+      };
+      // Vaar comes as a plain object; the other four are window lists
+      var vaarEl = root.querySelector('[data-limb="vaar"] [data-field="name"]');
+      if (vaarEl) vaarEl.textContent = (p.vaar && p.vaar.name) || "—";
+      var vaarEn = { Ravivara: "Sunday", Somavara: "Monday", Mangalavara: "Tuesday", Budhavara: "Wednesday", Guruvara: "Thursday", Shukravara: "Friday", Shanivara: "Saturday" };
+      set("vaar", "upto", vaarEn[p.vaar && p.vaar.name] || "");
+      set("vaar", "followed", p.vaar ? "Ruling: " + p.vaar.name.replace("vara", "") : "");
+
+      var limbKeys = ["tithi", "nakshatra", "yoga", "karana"];
+      limbKeys.forEach(function (key) {
+        var cur = currentLimb(p[key]);
+        var nxt = nextLimb(p[key]);
+        set(key, "name", cur ? cur.name : "—");
+        set(key, "upto", cur ? "Upto " + fmtLocal(cur.end) : "");
+        set(key, "followed", nxt ? "Followed by " + nxt.name.replace(/^(Shukla|Krishna) /, "") : "");
+      });
+
+      var sunrise = p.vedic_day && new Date(p.vedic_day.sunrise);
+      var sunset = p.vedic_day && new Date(p.vedic_day.sunset);
+      var sunEl = root.querySelector('[data-times="sun"]');
+      if (sunrise && sunset && sunEl) sunEl.textContent = fmt(sunrise) + " • " + fmt(sunset);
+      var rahuEl = root.querySelector('[data-times="rahu"]');
+      if (rahuEl && p.rahu_kaal) rahuEl.textContent = fmt(p.rahu_kaal.start) + " - " + fmt(p.rahu_kaal.end);
+      var abhEl = root.querySelector('[data-times="abhijit"]');
+      if (abhEl && p.abhijit) abhEl.textContent = fmt(p.abhijit.start) + " - " + fmt(p.abhijit.end);
+      var samEl = root.querySelector('[data-times="samvat"]');
+      if (samEl && p.hindu_month && p.samvat) {
+        var monthName = p.hindu_month.purnimanta.name + (p.hindu_month.adhika ? " (Adhik)" : "");
+        samEl.textContent = monthName + " • Vikram " + p.samvat.vikram;
+      }
+    }
+
+    function load() {
+      var qs = "?city=" + encodeURIComponent(state.slug);
+      if (state.date) qs += "&date=" + state.date;
+      fetch(API + "/api/v1/panchang" + qs)
+        .then(function (r) { return r.ok ? r.json() : Promise.reject(new Error("http " + r.status)); })
+        .then(function (body) { render(body.data); })
+        .catch(function () {
+          root.querySelectorAll("[data-field]").forEach(function (el) { el.textContent = "—"; });
+        });
+    }
+
+    if (citySel) citySel.addEventListener("change", function () { state.slug = citySel.value; load(); });
+    dayBtns.forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        state.date = btn.getAttribute("data-day") === "tomorrow" ? new Date(Date.now() + 86400000).toISOString().slice(0, 10) : null;
+        dayBtns.forEach(function (b) {
+          var active = b === btn;
+          b.className = active
+            ? "px-3 py-1.5 rounded bg-light-surface dark:bg-dark-surface text-light-primary dark:text-dark-primary font-label text-label-sm font-semibold shadow-xs"
+            : "px-3 py-1.5 rounded text-light-outline dark:text-dark-outline hover:text-light-on-surface dark:hover:text-dark-on-surface font-label text-label-sm font-medium";
+        });
+        load();
+      });
+    });
+    load();
+  })();
+</script>

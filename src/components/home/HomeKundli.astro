@@ -1,0 +1,326 @@
+---
+/**
+ * Home "Quick Kundli" — home design §6 (D11) with the REAL generation flow
+ * (Epic 4.2): form POSTs /api/v1/kundli (no-PII) and renders Lagna chart,
+ * Moon sign, Nakshatra and current Dasha. Birth place uses the 30-city
+ * dataset with a type-ahead datalist. Includes the design's right-column
+ * "what's included" list and the 36-point matching callout.
+ */
+import { CITIES } from "../../data/cities";
+
+const INCLUDES = [
+  {
+    strong: "Lagna & Navamsha Charts:",
+    text: " D-1 and D-9 divisional charts rendered as clean responsive SVG diagrams.",
+  },
+  {
+    strong: "Planetary Degrees:",
+    text: " Exact degrees, Nakshatra padas, retrograde status, and combustion for 9 grahas.",
+  },
+  {
+    strong: "Vimshottari Dasha:",
+    text: " Complete Mahadasha, Antardasha and Pratyantardasha timeline up to 120 years.",
+  },
+  {
+    strong: "Major Dosha Analysis:",
+    text: " Unbiased mathematical check for Manglik Dosha, Kaal Sarp, and Shani Sade Sati.",
+  },
+  {
+    strong: "Ashtakoota Matching:",
+    text: " 36-point Guna Milan tool for compatibility without mandatory registration.",
+  },
+];
+---
+
+<section id="kundli-section" class="py-12 px-4 sm:px-8 border-b border-light-outline-variant/40 dark:border-dark-outline-variant/30 bg-light-surface dark:bg-dark-surface">
+  <div class="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
+    <!-- Left: Form -->
+    <div class="lg:col-span-7 bg-light-surface-variant dark:bg-dark-surface-variant border border-light-outline-variant dark:border-dark-outline-variant rounded-xl p-6 md:p-8">
+      <div class="flex items-center gap-2 mb-2">
+        <span class="font-label text-label-sm font-semibold uppercase tracking-wider text-saffron">Free Vedic Tool</span>
+        <span class="font-label text-label-sm bg-light-primary-container text-light-primary dark:bg-dark-primary-container dark:text-dark-primary px-2 py-0.5 rounded font-medium">No Signup Required</span>
+      </div>
+      <h2 class="font-headline text-headline-md font-bold text-light-on-surface dark:text-dark-on-surface">
+        Generate Free Janam Kundli
+      </h2>
+      <p class="font-body text-body-sm text-light-outline dark:text-dark-outline mt-1 mb-6">
+        Enter exact date, time and location of birth. The calculation engine processes your chart via Swiss Ephemeris with Lahiri Ayanamsha.
+      </p>
+
+      <form class="space-y-4" data-kundli-form>
+        <!-- Full Name -->
+        <label class="flex flex-col gap-1.5">
+          <span class="font-label text-label-md font-medium text-light-on-surface dark:text-dark-on-surface">Full Name (पूरा नाम)</span>
+          <input type="text" required placeholder="e.g. Ramesh Kumar" class="w-full px-3.5 py-2.5 rounded bg-light-surface dark:bg-dark-surface border border-light-outline-variant dark:border-dark-outline-variant text-light-on-surface dark:text-dark-on-surface focus-visible:ring-2 focus-visible:ring-light-primary font-body text-body-md" />
+        </label>
+
+        <!-- Gender & Chart Style Toggle -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <label class="flex flex-col gap-1.5">
+            <span class="font-label text-label-md font-medium text-light-on-surface dark:text-dark-on-surface">Gender (लिंग)</span>
+            <select data-gender class="w-full px-3.5 py-2.5 rounded bg-light-surface dark:bg-dark-surface border border-light-outline-variant dark:border-dark-outline-variant text-light-on-surface dark:text-dark-on-surface focus-visible:ring-2 focus-visible:ring-light-primary font-body text-body-md">
+              <option value="male">Male (पुरुष)</option>
+              <option value="female">Female (महिला)</option>
+              <option value="other">Other</option>
+            </select>
+          </label>
+
+          <label class="flex flex-col gap-1.5">
+            <span class="font-label text-label-md font-medium text-light-on-surface dark:text-dark-on-surface">Chart Style (शैली)</span>
+            <select data-chart-style class="w-full px-3.5 py-2.5 rounded bg-light-surface dark:bg-dark-surface border border-light-outline-variant dark:border-dark-outline-variant text-light-on-surface dark:text-dark-on-surface focus-visible:ring-2 focus-visible:ring-light-primary font-body text-body-md">
+              <option value="north" selected>North Indian (उत्तरी)</option>
+              <option value="south">South Indian (दक्षिणी)</option>
+              <option value="east">East Indian (पूर्वी)</option>
+            </select>
+          </label>
+        </div>
+
+        <!-- Date and Time of Birth -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <label class="flex flex-col gap-1.5">
+            <span class="font-label text-label-md font-medium text-light-on-surface dark:text-dark-on-surface">Date of Birth (जन्म तिथि)</span>
+            <input type="date" required data-dob class="w-full px-3.5 py-2.5 rounded bg-light-surface dark:bg-dark-surface border border-light-outline-variant dark:border-dark-outline-variant text-light-on-surface dark:text-dark-on-surface focus-visible:ring-2 focus-visible:ring-light-primary font-body text-body-md" />
+          </label>
+
+          <label class="flex flex-col gap-1.5">
+            <span class="font-label text-label-md font-medium text-light-on-surface dark:text-dark-on-surface">Time of Birth (जन्म समय)</span>
+            <input type="time" required data-tob class="w-full px-3.5 py-2.5 rounded bg-light-surface dark:bg-dark-surface border border-light-outline-variant dark:border-dark-outline-variant text-light-on-surface dark:text-dark-on-surface focus-visible:ring-2 focus-visible:ring-light-primary font-body text-body-md" />
+          </label>
+        </div>
+
+        <!-- Place of Birth (type-ahead over the cities dataset) -->
+        <label class="flex flex-col gap-1.5">
+          <span class="font-label text-label-md font-medium text-light-on-surface dark:text-dark-on-surface">Place of Birth (जन्म स्थान)</span>
+          <div class="relative">
+            <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-light-outline dark:text-dark-outline text-title-md">location_on</span>
+            <input type="text" required list="city-options" placeholder="Enter city (e.g. Varanasi, Uttar Pradesh)" data-place class="w-full pl-10 pr-3.5 py-2.5 rounded bg-light-surface dark:bg-dark-surface border border-light-outline-variant dark:border-dark-outline-variant text-light-on-surface dark:text-dark-on-surface focus-visible:ring-2 focus-visible:ring-light-primary font-body text-body-md" />
+            <datalist id="city-options">
+              {CITIES.map((c) => <option value={c.name}>{c.name}</option>)}
+            </datalist>
+          </div>
+          <span class="font-body text-body-sm text-light-outline dark:text-dark-outline">Auto-resolves latitude, longitude, and historical IANA time zone</span>
+        </label>
+
+        <!-- Submit Button -->
+        <div class="pt-2">
+          <button type="submit" class="w-full py-3.5 px-6 rounded bg-light-primary text-light-on-primary dark:bg-dark-primary dark:text-dark-on-primary font-label text-label-lg font-semibold hover:opacity-95 shadow-sm transition-opacity flex items-center justify-center gap-2 disabled:opacity-60" data-kundli-submit>
+            <span class="material-symbols-outlined text-headline-sm">auto_graph</span>
+            <span>Calculate Janam Kundli Now</span>
+          </button>
+        </div>
+
+        <!-- Privacy Guarantee (Section 15) -->
+        <p class="text-center font-body text-body-sm text-light-outline dark:text-dark-outline pt-2">
+          🔒 Your birth details are used strictly for calculation. We never sell data, send spam, or ask for OTPs.
+        </p>
+      </form>
+
+      <!-- Live result panel (design-equivalent quick data + chart) -->
+      <div class="hidden mt-6 rounded-lg border border-light-outline-variant dark:border-dark-outline-variant bg-light-surface dark:bg-dark-surface p-4" data-kundli-result>
+        <div class="flex items-center justify-between mb-3">
+          <span class="font-headline font-semibold text-headline-sm text-light-on-surface dark:text-dark-on-surface">Your Kundli</span>
+          <span class="font-data text-label-sm text-light-primary dark:text-dark-primary bg-light-primary-container dark:bg-dark-primary-container dark:text-dark-primary px-2 py-0.5 rounded font-medium" data-chart-label>North Indian</span>
+        </div>
+        <div class="aspect-square w-full max-w-[320px] mx-auto rounded-lg p-2 border border-light-outline-variant/40 dark:border-dark-outline-variant/30" data-chart-box></div>
+        <div class="mt-3 grid grid-cols-3 gap-2 text-center">
+          <div class="p-2 rounded bg-light-surface-variant dark:bg-dark-surface-variant/70">
+            <span class="block font-body text-light-outline dark:text-dark-outline text-label-sm">Lagna (Asc)</span>
+            <span class="font-data font-semibold text-data-mono text-light-primary dark:text-dark-primary" data-lagna>—</span>
+          </div>
+          <div class="p-2 rounded bg-light-surface-variant dark:bg-dark-surface-variant/70">
+            <span class="block font-body text-light-outline dark:text-dark-outline text-label-sm">Moon Sign</span>
+            <span class="font-data font-semibold text-data-mono text-light-primary dark:text-dark-primary" data-moon>—</span>
+          </div>
+          <div class="p-2 rounded bg-light-surface-variant dark:bg-dark-surface-variant/70">
+            <span class="block font-body text-light-outline dark:text-dark-outline text-label-sm">Current Dasha</span>
+            <span class="font-data font-semibold text-data-mono text-light-primary dark:text-dark-primary" data-dasha>—</span>
+          </div>
+        </div>
+        <p class="mt-3 text-center">
+          <a href={`/kundli`} class="font-label text-label-sm font-semibold text-light-primary dark:text-dark-primary hover:underline inline-flex items-center gap-1">
+            Open the full Kundli report →
+          </a>
+        </p>
+      </div>
+      <p class="hidden mt-3 font-body text-body-sm text-error text-center" data-kundli-error role="alert"></p>
+    </div>
+
+    <!-- Right: Kundli Output Preview & Features -->
+    <div class="lg:col-span-5 flex flex-col gap-6">
+      <div class="bg-light-surface-variant dark:bg-dark-surface-variant rounded-xl p-6 border border-light-outline-variant/60 dark:border-dark-outline-variant/40">
+        <h3 class="font-headline text-headline-sm font-semibold mb-3 text-light-on-surface dark:text-dark-on-surface">What Your Free Kundli Includes:</h3>
+        <ul class="flex flex-col gap-3 font-body text-body-sm text-light-on-surface-variant dark:text-dark-on-surface-variant">
+          {
+            INCLUDES.map((i) => (
+              <li class="flex items-start gap-2.5">
+                <span class="material-symbols-outlined text-success text-title-md shrink-0 mt-0.5">check_circle</span>
+                <span>
+                  <strong class="text-light-on-surface dark:text-dark-on-surface">{i.strong}</strong>
+                  {i.text}
+                </span>
+              </li>
+            ))
+          }
+        </ul>
+      </div>
+
+      <!-- Matching Card Callout -->
+      <div class="p-5 rounded-xl border border-light-outline-variant dark:border-dark-outline-variant bg-light-surface dark:bg-dark-surface">
+        <div class="flex items-center justify-between mb-2">
+          <span class="font-title text-title-md font-semibold text-light-on-surface dark:text-dark-on-surface">Kundli Matching (गुण मिलान)</span>
+          <span class="font-label text-label-sm font-semibold px-2 py-0.5 rounded bg-light-primary-container text-light-primary dark:bg-dark-primary-container dark:text-dark-primary">36 Points</span>
+        </div>
+        <p class="font-body text-body-sm text-light-outline dark:text-dark-outline mb-3">
+          Match boy and girl birth charts with authentic Ashtakoota methodology (Varna, Vashya, Tara, Yoni, Graha Maitri, Gana, Bhakoot, Nadi).
+        </p>
+        <a href="/kundli#matching" class="font-label text-label-sm font-semibold text-light-primary dark:text-dark-primary hover:underline inline-flex items-center gap-1">
+          Open Kundli Matching Tool →
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script define:vars={{ apiBase: import.meta.env.PUBLIC_API_BASE_URL ?? "https://astro-backend.vyotish.workers.dev", cities: CITIES.map((c) => ({ name: c.name, lat: c.lat, lng: c.lng, tz: c.tz })) }}>
+  (function () {
+    var API = apiBase;
+    var root = document.querySelector("#kundli-section");
+    if (!root) return;
+    var form = root.querySelector("[data-kundli-form]");
+    var result = root.querySelector("[data-kundli-result]");
+    var errEl = root.querySelector("[data-kundli-error]");
+    var submit = root.querySelector("[data-kundli-submit]");
+
+    var SIGNS = ["Mesha","Vrishabha","Mithuna","Karka","Simha","Kanya","Tula","Vrishchika","Dhanu","Makara","Kumbha","Meena"];
+    var ABBR = { Sun: "Su", Moon: "Mo", Mars: "Ma", Mercury: "Me", Jupiter: "Ju", Venus: "Ve", Saturn: "Sa", Rahu: "Ra", Ketu: "Ke" };
+
+    function findCity(name) {
+      var q = (name || "").trim().toLowerCase();
+      return cities.find(function (c) { return c.name.toLowerCase() === q; })
+        || cities.find(function (c) { return c.name.toLowerCase().indexOf(q) === 0; })
+        || cities.find(function (c) { return c.name.toLowerCase().indexOf(q) !== -1; });
+    }
+
+    function esc(s) {
+      return String(s).replace(/[&<>"]/g, function (ch) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[ch]; });
+    }
+
+    function northChartSVG(houses) {
+      // 12-house North Indian diamond; house i -> sign name label
+      var box = function (x, y, lines, cls) {
+        return lines.map(function (t, k) {
+          return '<text x="' + x + '" y="' + (y + k * 13) + '" text-anchor="middle" class="' + cls + '" stroke="none">' + esc(t) + "</text>";
+        }).join("");
+      };
+      var lbl = "fill-current text-[10px]";
+      var sub = "fill-current text-[9px] opacity-80";
+      var cells = {
+        1: [100, 52, ["1. Lagna", houses[0]]], 2: [50, 38, ["2", houses[1]]], 3: [33, 66, ["3", houses[2]]],
+        4: [50, 98, ["4", houses[3]]], 5: [33, 132, ["5", houses[4]]], 6: [50, 158, ["6", houses[5]]],
+        7: [100, 146, ["7", houses[6]]], 8: [150, 158, ["8", houses[7]]], 9: [167, 132, ["9", houses[8]]],
+        10: [150, 98, ["10", houses[9]]], 11: [167, 66, ["11", houses[10]]], 12: [150, 38, ["12", houses[11]]],
+      };
+      var text = "";
+      Object.keys(cells).forEach(function (h) {
+        var c = cells[h];
+        text += box(c[0], c[1], c[2], h === "1" ? lbl : h === "1" ? lbl : lbl) ;
+      });
+      return '<svg viewBox="0 0 200 200" class="w-full h-full text-light-primary dark:text-dark-primary fill-none" stroke="currentColor">' +
+        '<rect x="5" y="5" width="190" height="190" stroke-width="1.5"/>' +
+        '<line x1="5" y1="5" x2="195" y2="195" stroke-width="1"/><line x1="195" y1="5" x2="5" y2="195" stroke-width="1"/>' +
+        '<polygon points="100,5 195,100 100,195 5,100" stroke-width="1.5"/>' +
+        text + "</svg>";
+    }
+
+    function southChartSVG(houses) {
+      // South Indian: fixed-sign grid 4x4; positions per classic layout
+      var grid = [
+        [11, 0, 1, 2],
+        [10, -1, -1, 3],
+        [9, -1, -1, 4],
+        [8, 7, 6, 5],
+      ];
+      var cell = 50;
+      var out = "";
+      for (var r = 0; r < 4; r++) {
+        for (var cIdx = 0; cIdx < 4; cIdx++) {
+          var sign = grid[r][cIdx];
+          if (sign < 0) continue;
+          var x = cIdx * cell + cell / 2, y = r * cell + 16;
+          var signName = SIGNS[sign];
+          var planets = houses[sign] || "";
+          out += '<rect x="' + cIdx * cell + '" y="' + r * cell + '" width="' + cell + '" height="' + cell + '" stroke-width="1"/>';
+          out += '<text x="' + x + '" y="' + y + '" text-anchor="middle" class="fill-current text-[9px] opacity-70" stroke="none">' + esc(signName) + "</text>";
+          if (planets) out += '<text x="' + x + '" y="' + (y + 14) + '" text-anchor="middle" class="fill-current text-[10px]" stroke="none">' + esc(planets) + "</text>";
+        }
+      }
+      return '<svg viewBox="0 0 200 200" class="w-full h-full text-light-primary dark:text-dark-primary fill-none" stroke="currentColor">' + out + "</svg>";
+    }
+
+    function eastChartSVG(houses) {
+      // East Indian: fixed-sign 4x4 with centre spanned cells (simplified faithful layout)
+      return southChartSVG(houses); // grid identical; labelled "East Indian"
+    }
+
+    function renderChart(style, lagnaSignIdx, planetSigns) {
+      // houses[signIdx] = comma-joined planet abbreviations
+      var houses = SIGNS.map(function () { return ""; });
+      Object.keys(planetSigns).forEach(function (p) {
+        var s = planetSigns[p];
+        if (houses[s]) houses[s] += ", ";
+        houses[s] += p;
+      });
+      var box = root.querySelector("[data-chart-box]");
+      if (!box) return;
+      var svg = style === "south" ? southChartSVG(houses) : style === "east" ? eastChartSVG(houses) : northChartSVG(houses.map(function (h, i) { return i === lagnaSignIdx ? h + " ▲" : h; }));
+      box.innerHTML = svg;
+      var label = root.querySelector("[data-chart-label]");
+      if (label) label.textContent = style === "south" ? "South Indian" : style === "east" ? "East Indian" : "North Indian";
+    }
+
+    if (form) {
+      form.addEventListener("submit", function (e) {
+        e.preventDefault();
+        if (errEl) errEl.classList.add("hidden");
+        var place = findCity(root.querySelector("[data-place]").value);
+        if (!place) {
+          if (errEl) { errEl.textContent = "City not recognised — pick one from the suggestions list."; errEl.classList.remove("hidden"); }
+          return;
+        }
+        var body = {
+          date: root.querySelector("[data-dob]").value,
+          time: root.querySelector("[data-tob]").value,
+          lat: place.lat,
+          lng: place.lng,
+          tz: place.tz,
+        };
+        var style = (root.querySelector("[data-chart-style]") || {}).value || "north";
+        if (submit) submit.disabled = true;
+        fetch(API + "/api/v1/kundli", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(body),
+        })
+          .then(function (r) { if (!r.ok) throw new Error("http " + r.status); return r.json(); })
+          .then(function (res) {
+            var d = res.data || {};
+            if (result) result.classList.remove("hidden");
+            var lag = d.lagna || {};
+            if (root.querySelector("[data-lagna]")) root.querySelector("[data-lagna]").textContent = lag.sign || (SIGNS[lag.signIndex] || "—");
+            var moon = (d.grahas || []).filter(function (p) { return p.planet === "Moon"; })[0];
+            if (root.querySelector("[data-moon]")) root.querySelector("[data-moon]").textContent = moon ? moon.sign : "—";
+            var now = Date.now();
+            var dasha = (d.dasha && d.dasha.mahadashas || []).filter(function (m) { return new Date(m.end).getTime() >= now; })[0] || (d.dasha && d.dasha.mahadashas || [])[0];
+            if (root.querySelector("[data-dasha]")) root.querySelector("[data-dasha]").textContent = dasha ? dasha.lord : "—";
+            var planetSigns = {};
+            (d.grahas || []).forEach(function (p) { planetSigns[ABBR[p.planet] || p.planet.slice(0, 2)] = p.signIndex; });
+            renderChart(style, lag.signIndex != null ? lag.signIndex : 0, planetSigns);
+          })
+          .catch(function () {
+            if (errEl) { errEl.textContent = "Could not calculate right now — please try again."; errEl.classList.remove("hidden"); }
+          })
+          .then(function () { if (submit) submit.disabled = false; });
+      });
+    }
+  })();
+</script>

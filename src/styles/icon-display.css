@@ -1,0 +1,22 @@
+/*
+ * Display-utility fixes for Material Symbols icons — UNLAYERED on purpose.
+ *
+ * The Google-hosted icon stylesheet (linked in Base.astro) carries an
+ * unlayered `.material-symbols-outlined { display: inline-block; … }` rule,
+ * and unlayered normal declarations always beat ANY layered declaration —
+ * including our utilities layer (theme → base → utilities). Without these
+ * equally-unlayered, higher-specificity rules, `hidden` / `dark:hidden` /
+ * `dark:inline` could never hide an icon span.
+ *
+ * Specificity: Google 0,1,0 → these are 0,2,0+ so link order is irrelevant.
+ * Only the two icon class-combos actually used in the markup are covered.
+ */
+.material-symbols-outlined.hidden {
+  display: none;
+}
+.dark .material-symbols-outlined.dark\:hidden {
+  display: none;
+}
+.dark .material-symbols-outlined.dark\:inline {
+  display: inline-block;
+}

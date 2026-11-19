@@ -42,7 +42,10 @@ Bun.serve({
     // Astro static output: unknown paths → its 404 page if built, else index
     const notFound = Bun.file(`${root}404.html`);
     if (await notFound.exists()) {
-      return new Response(notFound, { status: 404, headers: { "Content-Type": "text/html; charset=utf-8" } });
+      return new Response(notFound, {
+        status: 404,
+        headers: { "Content-Type": "text/html; charset=utf-8" },
+      });
     }
     return new Response("Not found", { status: 404 });
   },

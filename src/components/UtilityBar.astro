@@ -1,0 +1,71 @@
+---
+/**
+ * Top utility bar (home design §4): precision guarantee, language switch,
+ * light/dark toggle. Persists the choice (localStorage "vyotish-theme") and
+ * toggles BOTH the .dark class (Tailwind) and data-theme (legacy tokens).
+ */
+interface Props {
+  lang?: "en" | "hi";
+}
+const { lang = "en" } = Astro.props;
+---
+
+<aside class="chrome-reset bg-light-surface-variant dark:bg-dark-surface-variant border-b border-light-outline-variant/60 dark:border-dark-outline-variant/40 py-2 px-4 sm:px-8">
+  <div class="max-w-7xl mx-auto flex items-center justify-between">
+    <div class="flex items-center gap-4 text-light-outline dark:text-dark-outline">
+      <span class="inline-flex items-center gap-1 font-body text-body-sm">
+        <span class="material-symbols-outlined text-title-md text-accent">auto_awesome</span>
+        Swiss Ephemeris &amp; Lahiri Ayanamsha Precision Engine
+      </span>
+      <span class="hidden md:inline text-light-outline font-body text-body-sm">|</span>
+      <span class="hidden md:inline font-body text-body-sm">Calculated from local sunrise &amp; true astronomical coordinates</span>
+    </div>
+    <div class="flex items-center gap-4">
+      <!-- Language Switcher -->
+      <div class="flex items-center gap-1 bg-light-surface dark:bg-dark-surface rounded px-2 py-0.5 border border-light-outline-variant dark:border-dark-outline-variant">
+        <a
+          href={lang === "hi" ? "/" : "javascript:void(0)"}
+          class={`font-label text-label-sm px-1 ${lang === "en" ? "font-semibold text-light-primary dark:text-dark-primary hover:underline" : "font-medium text-light-outline dark:text-dark-outline"}`}
+          aria-current={lang === "en" ? "true" : undefined}>English</a
+        >
+        <span class="text-light-outline font-label text-label-sm">/</span>
+        <a
+          href={lang === "hi" ? "javascript:void(0)" : "/hi/"}
+          lang="hi"
+          class={`font-label text-label-sm px-1 hi-text ${lang === "hi" ? "font-semibold text-light-primary dark:text-dark-primary" : "font-medium text-light-outline dark:text-dark-outline hover:text-light-on-surface dark:hover:text-dark-on-surface"}`}
+          aria-current={lang === "hi" ? "true" : undefined}>हिन्दी</a
+        >
+      </div>
+      <!-- Light / Dark Mode Toggle -->
+      <button
+        type="button"
+        data-theme-toggle
+        class="p-1 rounded text-light-outline dark:text-dark-outline hover:text-light-on-surface dark:hover:text-dark-on-surface focus-visible:ring-2 focus-visible:ring-light-primary"
+        title="Toggle Light/Dark Theme"
+        aria-label="Toggle Theme"
+      >
+        <span class="material-symbols-outlined text-title-md dark:hidden">dark_mode</span>
+        <span class="material-symbols-outlined text-title-md hidden dark:inline">light_mode</span>
+      </button>
+    </div>
+  </div>
+</aside>
+
+<script>
+  // Theme toggle — persists choice; keeps Tailwind .dark class and legacy
+  // data-theme attribute in lockstep (bootstrap in Base.astro reads both).
+  document.querySelectorAll("[data-theme-toggle]").forEach((el) => {
+    el.addEventListener("click", () => {
+      const root = document.documentElement;
+      const next = root.classList.contains("dark") ? "light" : "dark";
+      root.classList.toggle("dark", next === "dark");
+      if (next === "dark") root.setAttribute("data-theme", "dark");
+      else root.removeAttribute("data-theme");
+      try {
+        localStorage.setItem("vyotish-theme", next);
+      } catch {
+        /* storage unavailable — session-only theme */
+      }
+    });
+  });
+</script>

@@ -4,6 +4,7 @@ export interface NavTab {
   label_hi: string;
   href: string;
   description: string;
+  /** Material Symbols icon name (home design §9) */
   icon: string;
 }
 
@@ -13,63 +14,63 @@ export const NAV_TABS: NavTab[] = [
     label_hi: "परामर्श",
     href: "/consultations",
     description: "Find an astrologer and request a booking",
-    icon: "🧭",
+    icon: "support_agent",
   },
   {
     label: "Horoscope",
     label_hi: "राशिफल",
     href: "/horoscope",
     description: "Daily to yearly predictions for 12 signs",
-    icon: "♏",
+    icon: "auto_awesome",
   },
   {
     label: "Panchang",
     label_hi: "पंचांग",
     href: "/panchang",
     description: "Daily Vedic calendar for your city",
-    icon: "📅",
+    icon: "calendar_month",
   },
   {
     label: "Muhurat",
     label_hi: "मुहूर्त",
     href: "/muhurat",
     description: "Auspicious timings for every event",
-    icon: "🕗",
+    icon: "verified",
   },
   {
     label: "Astrology",
     label_hi: "ज्योतिष",
     href: "/astrology",
     description: "Free Kundli, matching and learning",
-    icon: "🌙",
+    icon: "insights",
   },
   {
     label: "Poojan",
     label_hi: "पूजन",
     href: "/poojan",
     description: "Pooja catalogue and booking",
-    icon: "🪔",
+    icon: "temple_hindu",
   },
   {
     label: "Free Calculators",
     label_hi: "गणना यंत्र",
     href: "/calculators",
     description: "Quick astrology and numerology tools",
-    icon: "🧮",
+    icon: "calculate",
   },
   {
     label: "Gemstones",
     label_hi: "रत्न",
     href: "/gemstones",
     description: "Coming soon..!",
-    icon: "💎",
+    icon: "diamond",
   },
   {
     label: "Blog",
     label_hi: "ब्लॉग",
     href: "/blog",
     description: "Astro-education articles",
-    icon: "📖",
+    icon: "article",
   },
 ];
 

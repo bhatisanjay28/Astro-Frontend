@@ -40,7 +40,7 @@ src/
 
 ## Environment
 
-- `.env.example` — **PUBLIC_* values only**; the frontend never holds Supabase keys
+- `.env.example` — _*PUBLIC_* values only_*; the frontend never holds Supabase keys
   or secrets of any kind (DECISIONS.md D3).
 
 ## Deploy

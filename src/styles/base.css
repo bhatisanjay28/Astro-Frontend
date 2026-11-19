@@ -1,0 +1,111 @@
+/*
+ * Base layer — imported BETWEEN tailwind's theme and utilities layers, so
+ * utilities always win over these (order: theme → base → utilities).
+ * Contains the legacy global styles + `.chrome-reset` preflight-equivalents
+ * scoped to the redesigned chrome & home markup (D11).
+ */
+html {
+  background: var(--bg-page);
+}
+body {
+  background: var(--bg-page);
+  color: var(--text-body);
+  font-family: var(--font-body);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+main {
+  flex: 1;
+}
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: 4px;
+}
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 100;
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  padding: var(--space-2) var(--space-4);
+  border-radius: 0 0 var(--radius-card) 0;
+}
+.skip-link:focus-visible {
+  left: 0;
+}
+/* Link fallback: primary colour, accent-text hover (utilities override) */
+main a {
+  color: var(--color-primary);
+}
+main a:hover {
+  color: var(--color-accent-text);
+}
+.hi-text,
+[lang="hi"] .hi-text {
+  font-family: "Noto Sans Devanagari", var(--font-body);
+}
+
+/* ---- Design-surface resets (preflight-equivalent, :where = 0 specificity) ---- */
+.chrome-reset :where(h1, h2, h3, h4, h5, h6, p, figure, blockquote, dl, dd) {
+  margin: 0;
+}
+.chrome-reset :where(ul, ol) {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.chrome-reset :where(a) {
+  color: inherit;
+  text-decoration: inherit;
+}
+.chrome-reset :where(button) {
+  background-color: transparent;
+  background-image: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+.chrome-reset :where(input, select, textarea) {
+  font: inherit;
+  color: inherit;
+  margin: 0;
+}
+.chrome-reset :where(button, input, select, textarea):focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+.chrome-reset :where(svg, img) {
+  display: block;
+  vertical-align: middle;
+}
+.chrome-reset :where(summary) {
+  list-style: none;
+}
+
+/* Material Symbols base (design head style). NOTE: display here CANNOT beat
+   the Google-hosted unlayered rule — the display-utility fixes live in the
+   unlayered icon-display.css (imported after utilities in tailwind.css). */
+.material-symbols-outlined,
+.material-symbols-rounded,
+.material-symbols-sharp,
+.material-icons {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  box-sizing: content-box;
+  overflow: hidden;
+  white-space: nowrap;
+  direction: ltr;
+  vertical-align: middle;
+}
+/* line-height wins even over unlayered legacy rules on mixed pages */
+.material-symbols-outlined,
+.material-symbols-rounded,
+.material-symbols-sharp,
+.material-icons {
+  /* biome-ignore lint/complexity/noImportantStyles: must beat unlayered legacy CSS */
+  line-height: 1 !important;
+}

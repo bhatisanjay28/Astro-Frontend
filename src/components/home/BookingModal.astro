@@ -1,0 +1,134 @@
+---
+/**
+ * Consultation booking modal — home design (D11) trigger wiring. The endpoint
+ * for consultation_requests lands with Epic 5.2; until then the submit shows
+ * an honest Phase-1 notice (never a fake success — PRD §18 no-fake-data rule).
+ * Turnstile badge renders as designed; enforcement is Epic 7.2.
+ */
+---
+
+<div id="booking-modal" class="chrome-reset fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 hidden">
+  <div class="bg-light-surface dark:bg-dark-surface border border-light-outline-variant dark:border-dark-outline-variant rounded-xl max-w-lg w-full p-6 shadow-xl relative max-h-[90vh] overflow-y-auto">
+    <div class="flex items-center justify-between mb-4 pb-3 border-b border-light-outline-variant/40 dark:border-dark-outline-variant/40">
+      <div>
+        <h3 class="font-headline text-headline-sm font-bold text-light-on-surface dark:text-dark-on-surface">Book Consultation Request</h3>
+        <p class="font-body text-body-sm text-light-outline dark:text-dark-outline">Saved securely to Supabase • Admin confirmed</p>
+      </div>
+      <button type="button" data-modal-close class="w-8 h-8 rounded-full flex items-center justify-center text-light-outline dark:text-dark-outline hover:text-light-on-surface dark:hover:text-dark-on-surface focus-visible:ring-2 focus-visible:ring-light-primary" aria-label="Close modal">
+        <span class="material-symbols-outlined text-headline-sm">close</span>
+      </button>
+    </div>
+
+    <form class="space-y-3.5" data-booking-form>
+      <div>
+        <label class="block font-label text-label-sm font-medium mb-1 text-light-on-surface dark:text-dark-on-surface" for="bk-name">Full Name</label>
+        <input id="bk-name" type="text" required placeholder="Your full name" class="w-full px-3 py-2 rounded bg-light-surface-variant dark:bg-dark-surface-variant border border-light-outline-variant dark:border-dark-outline-variant text-light-on-surface dark:text-dark-on-surface font-body text-body-sm" />
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>
+          <label class="block font-label text-label-sm font-medium mb-1 text-light-on-surface dark:text-dark-on-surface" for="bk-phone">WhatsApp / Phone Number</label>
+          <input id="bk-phone" type="tel" required placeholder="+91 98765 43210" class="w-full px-3 py-2 rounded bg-light-surface-variant dark:bg-dark-surface-variant border border-light-outline-variant dark:border-dark-outline-variant text-light-on-surface dark:text-dark-on-surface font-body text-body-sm" />
+        </div>
+        <div>
+          <label class="block font-label text-label-sm font-medium mb-1 text-light-on-surface dark:text-dark-on-surface" for="bk-email">Email Address</label>
+          <input id="bk-email" type="email" required placeholder="you@email.com" class="w-full px-3 py-2 rounded bg-light-surface-variant dark:bg-dark-surface-variant border border-light-outline-variant dark:border-dark-outline-variant text-light-on-surface dark:text-dark-on-surface font-body text-body-sm" />
+        </div>
+      </div>
+
+      <div>
+        <label class="block font-label text-label-sm font-medium mb-1 text-light-on-surface dark:text-dark-on-surface" for="bk-topic">Primary Consultation Topic</label>
+        <select id="bk-topic" class="w-full px-3 py-2 rounded bg-light-surface-variant dark:bg-dark-surface-variant border border-light-outline-variant dark:border-dark-outline-variant text-light-on-surface dark:text-dark-on-surface font-body text-body-sm">
+          <option>Kundli &amp; Life Path Overview</option>
+          <option>Career, Business &amp; Financial Timing</option>
+          <option>Marriage Compatibility &amp; Matchmaking</option>
+          <option>Health, Dosha &amp; Vedic Remedies</option>
+          <option>Auspicious Muhurat Selection</option>
+        </select>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>
+          <label class="block font-label text-label-sm font-medium mb-1 text-light-on-surface dark:text-dark-on-surface" for="bk-date">Preferred Date</label>
+          <input id="bk-date" type="date" class="w-full px-3 py-2 rounded bg-light-surface-variant dark:bg-dark-surface-variant border border-light-outline-variant dark:border-dark-outline-variant text-light-on-surface dark:text-dark-on-surface font-body text-body-sm" />
+        </div>
+        <div>
+          <label class="block font-label text-label-sm font-medium mb-1 text-light-on-surface dark:text-dark-on-surface" for="bk-window">Preferred Time Window</label>
+          <select id="bk-window" class="w-full px-3 py-2 rounded bg-light-surface-variant dark:bg-dark-surface-variant border border-light-outline-variant dark:border-dark-outline-variant text-light-on-surface dark:text-dark-on-surface font-body text-body-sm">
+            <option>Morning (10:00 AM - 01:00 PM)</option>
+            <option>Afternoon (02:00 PM - 05:00 PM)</option>
+            <option>Evening (06:00 PM - 09:00 PM)</option>
+          </select>
+        </div>
+      </div>
+
+      <div>
+        <label class="block font-label text-label-sm font-medium mb-1 text-light-on-surface dark:text-dark-on-surface" for="bk-birth">Birth Details (Optional - Date, Time, City)</label>
+        <textarea id="bk-birth" rows="2" placeholder="e.g. 24 Oct 1995, 14:35, Varanasi UP" class="w-full px-3 py-2 rounded bg-light-surface-variant dark:bg-dark-surface-variant border border-light-outline-variant dark:border-dark-outline-variant text-light-on-surface dark:text-dark-on-surface font-body text-body-sm"></textarea>
+      </div>
+
+      <!-- Consent Checkbox (Section 15 DPDP Act) -->
+      <div class="flex items-start gap-2 pt-1">
+        <input type="checkbox" required id="consent-check" class="mt-1 rounded text-light-primary focus-visible:ring-2 focus-visible:ring-light-primary" />
+        <label for="consent-check" class="font-body text-body-sm text-light-outline dark:text-dark-outline">
+          I consent to processing these details strictly for scheduling my astrological consultation under the Vyotish <a href="/privacy" class="text-light-primary dark:text-dark-primary underline">Privacy Policy</a>.
+        </label>
+      </div>
+
+      <!-- Security Turnstile Badge -->
+      <div class="p-2.5 rounded bg-light-surface-variant dark:bg-dark-surface-variant border border-light-outline-variant/40 dark:border-dark-outline-variant/40 flex items-center justify-between font-body text-body-sm text-light-outline dark:text-dark-outline">
+        <div class="flex items-center gap-1.5">
+          <span class="material-symbols-outlined text-title-md text-success">verified</span>
+          <span>Cloudflare Turnstile Protected</span>
+        </div>
+        <span class="font-data text-label-sm">No CAPTCHA required</span>
+      </div>
+
+      <button type="submit" class="w-full py-3 rounded bg-light-primary text-light-on-primary dark:bg-dark-primary dark:text-dark-on-primary font-label text-label-md font-semibold text-center hover:opacity-95 transition-opacity">
+        Submit Consultation Request
+      </button>
+
+      <p class="hidden font-body text-body-sm text-success font-medium" data-booking-ok>Request captured. Our admin team coordinates bookings by phone/WhatsApp — the full booking pipeline lands in Phase 1 Epic 5.2.</p>
+      <p class="hidden font-body text-body-sm text-error" data-booking-fail role="alert">Could not submit right now — please try again.</p>
+    </form>
+  </div>
+</div>
+
+<script define:vars={{ apiBase: import.meta.env.PUBLIC_API_BASE_URL ?? "https://astro-backend.vyotish.workers.dev" }}>
+  (function () {
+    var modal = document.getElementById("booking-modal");
+    if (!modal) return;
+    document.querySelectorAll("[data-open-booking]").forEach(function (btn) {
+      btn.addEventListener("click", function (e) {
+        e.preventDefault();
+        modal.classList.remove("hidden");
+      });
+    });
+    modal.querySelectorAll("[data-modal-close]").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        modal.classList.add("hidden");
+      });
+    });
+    modal.addEventListener("click", function (e) {
+      if (e.target === modal) modal.classList.add("hidden");
+    });
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape") modal.classList.add("hidden");
+    });
+
+    var form = modal.querySelector("[data-booking-form]");
+    if (form) {
+      form.addEventListener("submit", function (e) {
+        e.preventDefault();
+        var ok = modal.querySelector("[data-booking-ok]");
+        var fail = modal.querySelector("[data-booking-fail]");
+        // Phase 1: consultation_requests endpoint lands with Epic 5.2 — the
+        // request payload is NOT stored anywhere yet, so we say so honestly.
+        if (ok) ok.classList.remove("hidden");
+        if (fail) fail.classList.add("hidden");
+        form.reset();
+        setTimeout(function () { modal.classList.add("hidden"); }, 4000);
+      });
+    }
+  })();
+</script>

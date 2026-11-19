@@ -1,0 +1,145 @@
+/*
+ * Tailwind v4 entry — utilities-only (NO preflight: existing pages keep their
+ * own base CSS). The @theme block below is the machine-readable port of the
+ * owner-approved design's Tailwind config (the attached homepage mockup) and
+ * is now the SINGLE SOURCE for every colour value (D11; supersedes the
+ * in-file palette of the old Sandalwood & Teal theme).
+ *
+ * Layer order is declared FIRST and reflected TEXTUALLY (theme → base →
+ * utilities) so bundler minification cannot invert it — utilities must always
+ * beat the base layer (base.css holds the legacy globals + chrome-reset).
+ *
+ * Dark mode: class-based (`@custom-variant dark`) — the theme bootstrap in
+ * Base.astro toggles `.dark` on <html> (and data-theme for the legacy tokens).
+ */
+@layer theme, base, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "./base.css" layer(base);
+@import "tailwindcss/utilities.css" layer(utilities);
+@import "./icon-display.css"; /* UNLAYERED: beats the Google-hosted icon rule that no layer can */
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* `static` → every design token is emitted to :root even when no utility
+   uses it (the legacy tokens.css aliases reference these vars directly). */
+@theme static {
+  /* ---- Colours (design config, verbatim) ---- */
+  --color-accent: #c0841d;
+  --color-on-accent: #292929;
+  --color-saffron: #b44010;
+  --color-success: #146932;
+  --color-on-success: #ffffff;
+  --color-warning: #b45309;
+  --color-on-warning: #ffffff;
+  --color-error: #b91c1c;
+  --color-on-error: #ffffff;
+
+  --color-light-primary: #8b2e05;
+  --color-light-on-primary: #ffffff;
+  --color-light-primary-container: #ffede6;
+  --color-light-on-primary-container: #3d0e00;
+  --color-light-secondary: #1e3a5f;
+  --color-light-on-secondary: #ffffff;
+  --color-light-secondary-container: #e0ecfc;
+  --color-light-on-secondary-container: #091e36;
+  --color-light-surface: #fcfbf8;
+  --color-light-on-surface: #1c1b1a;
+  --color-light-surface-variant: #f3efe9;
+  --color-light-on-surface-variant: #4e4842;
+  --color-light-outline: #5f5750;
+  --color-light-outline-variant: #d4ccc3;
+
+  --color-dark-primary: #ffb594;
+  --color-dark-on-primary: #541b00;
+  --color-dark-primary-container: #762402;
+  --color-dark-on-primary-container: #ffdbcd;
+  --color-dark-secondary: #a5c8ff;
+  --color-dark-on-secondary: #00315e;
+  --color-dark-secondary-container: #10477e;
+  --color-dark-on-secondary-container: #d4e3ff;
+  --color-dark-surface: #141312;
+  --color-dark-on-surface: #e7e2dd;
+  --color-dark-surface-variant: #282522;
+  --color-dark-on-surface-variant: #cec4bb;
+  --color-dark-outline: #978e86;
+  --color-dark-outline-variant: #4c4640;
+
+  /* ---- Fonts (design config, verbatim) ---- */
+  --font-display: "Cinzel", sans-serif;
+  --font-headline: "Cinzel", sans-serif;
+  --font-title: "Poppins", sans-serif;
+  --font-body: "Poppins", sans-serif;
+  --font-label: "Poppins", sans-serif;
+  --font-data: "JetBrains Mono", sans-serif;
+
+  /* ---- Type scale (design config, verbatim) ---- */
+  --text-display-lg: 40px;
+  --text-display-lg--line-height: 48px;
+  --text-display-lg--letter-spacing: -0.5px;
+  --text-display-lg--font-weight: 700;
+  --text-display-lg-mobile: 30px;
+  --text-display-lg-mobile--line-height: 38px;
+  --text-display-lg-mobile--letter-spacing: -0.25px;
+  --text-display-lg-mobile--font-weight: 700;
+  --text-headline-lg: 32px;
+  --text-headline-lg--line-height: 40px;
+  --text-headline-lg--font-weight: 700;
+  --text-headline-lg-mobile: 24px;
+  --text-headline-lg-mobile--line-height: 32px;
+  --text-headline-lg-mobile--font-weight: 600;
+  --text-headline-md: 24px;
+  --text-headline-md--line-height: 32px;
+  --text-headline-md--font-weight: 600;
+  --text-headline-sm: 20px;
+  --text-headline-sm--line-height: 28px;
+  --text-headline-sm--font-weight: 600;
+  --text-title-lg: 18px;
+  --text-title-lg--line-height: 26px;
+  --text-title-lg--font-weight: 600;
+  --text-title-md: 16px;
+  --text-title-md--line-height: 24px;
+  --text-title-md--font-weight: 600;
+  --text-title-sm: 14px;
+  --text-title-sm--line-height: 20px;
+  --text-title-sm--font-weight: 600;
+  --text-body-lg: 16px;
+  --text-body-lg--line-height: 24px;
+  --text-body-lg--font-weight: 400;
+  --text-body-md: 14px;
+  --text-body-md--line-height: 22px;
+  --text-body-md--font-weight: 400;
+  --text-body-sm: 12px;
+  --text-body-sm--line-height: 18px;
+  --text-body-sm--font-weight: 400;
+  --text-label-lg: 14px;
+  --text-label-lg--line-height: 20px;
+  --text-label-lg--font-weight: 500;
+  --text-label-md: 12px;
+  --text-label-md--line-height: 16px;
+  --text-label-md--font-weight: 500;
+  --text-label-sm: 11px;
+  --text-label-sm--line-height: 14px;
+  --text-label-sm--font-weight: 500;
+  --text-data-mono: 13px;
+  --text-data-mono--line-height: 18px;
+  --text-data-mono--font-weight: 500;
+
+  /* ---- Radius / spacing (design config, verbatim) ---- */
+  --radius-sm: 6px;
+  --radius-DEFAULT: 10px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --spacing-gutter-xs: 4px;
+  --spacing-gutter-sm: 8px;
+  --spacing-gutter-md: 16px;
+  --spacing-gutter-lg: 24px;
+  --spacing-gutter-xl: 32px;
+  --spacing-section: 48px;
+  --spacing-page-margin: 20px;
+}
+
+/* plain `rounded` → 10px (v4 has no DEFAULT radius mapping out of the box) */
+@utility rounded {
+  border-radius: var(--radius-DEFAULT);
+}

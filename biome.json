@@ -2,6 +2,7 @@
   "$schema": "https://json.schemastore.org/biome.json",
   "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
   "files": { "ignoreUnknown": true },
+  "css": { "parser": { "tailwindDirectives": true } },
   "formatter": {
     "enabled": true,
     "indentStyle": "space",
@@ -10,7 +11,7 @@
   },
   "linter": {
     "enabled": true,
-    "rules": { "recommended": true }
+    "rules": { "preset": "recommended" }
   },
   "overrides": [
     {

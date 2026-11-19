@@ -1,210 +1,102 @@
 ---
-import { NAV_TABS } from "../data/navigation";
 /**
- * Site header (Epic 2.1): wordmark top-left, 9 tabs, EN/HI switch, theme
- * toggle, primary CTA; mobile drawer + sticky bottom CTA (PRD §4).
- * Touch targets ≥44px (PRD §13).
+ * Site header — home design §4 (Epic 2.1 re-skin, D11): mandala logo, 9 tabs
+ * (active = primary-container chip), Talk-to-Astrologer CTA, mobile drawer.
+ * Tabs route to real pages; anchors remain inside the home page.
  */
-import Wordmark from "./Wordmark.astro";
+import { NAV_TABS } from "../data/navigation";
 
 interface Props {
   currentPath?: string;
 }
 const { currentPath = "/" } = Astro.props;
+const isActive = (href: string) =>
+  currentPath === href || (href !== "/" && currentPath.startsWith(href));
 ---
 
-<header class="site-header">
-  <div class="header-inner">
-    <a class="brand" href="/" aria-label="Vyotish — home">
-      <Wordmark />
+<header class="chrome-reset sticky top-0 z-40 bg-light-surface/95 dark:bg-dark-surface/95 backdrop-blur-sm border-b border-light-outline-variant/60 dark:border-dark-outline-variant/40">
+  <div class="max-w-7xl mx-auto px-4 sm:px-8 py-3.5 flex items-center justify-between">
+    <!-- Brand & logo -->
+    <a href="/" class="flex items-center gap-2.5 group" aria-label="Vyotish — home">
+      <div class="w-9 h-9 rounded-lg bg-light-primary dark:bg-dark-primary flex items-center justify-center text-light-on-primary dark:text-dark-on-primary shadow-xs">
+        <!-- Jyotish Vedic Mandala Symbol -->
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="9"></circle>
+          <polygon points="12 3 15 12 21 12 16 15 18 21 12 17 6 21 8 15 3 12 9 12 12 3"></polygon>
+        </svg>
+      </div>
+      <div>
+        <span class="font-display font-bold text-headline-sm text-light-on-surface dark:text-dark-on-surface block leading-tight">Vyotish</span>
+        <span class="font-body text-label-sm tracking-wider uppercase text-light-primary dark:text-dark-primary font-medium block">Vedic Astrology &amp; Wisdom</span>
+      </div>
     </a>
 
-    <nav class="tabs" aria-label="Primary">
-      {NAV_TABS.map((t) => <a href={t.href} aria-current={currentPath === t.href ? "page" : undefined}>{t.label}</a>)}
+    <!-- 9 main tabs (desktop) -->
+    <nav class="hidden xl:flex items-center gap-1 font-title text-title-sm" aria-label="Main Navigation">
+      {
+        NAV_TABS.map((t) => (
+          <a
+            href={t.href}
+            aria-current={isActive(t.href) ? "page" : undefined}
+            class={`px-2.5 py-1.5 rounded font-medium transition-colors ${
+              t.label === "Gemstones"
+                ? "text-light-outline dark:text-dark-outline hover:text-light-on-surface dark:hover:text-dark-on-surface relative"
+                : isActive(t.href)
+                  ? "text-light-primary dark:text-dark-primary font-semibold bg-light-primary-container dark:bg-dark-primary-container"
+                  : "text-light-on-surface-variant dark:text-dark-on-surface-variant hover:text-light-primary dark:hover:text-dark-primary"
+            }`}
+          >
+            {t.label}
+            {t.label === "Gemstones" && (
+              <span class="text-label-sm px-1.5 py-0.5 bg-light-primary-container text-light-primary dark:bg-dark-primary-container dark:text-dark-primary rounded-full font-label font-semibold ml-1">Soon</span>
+            )}
+          </a>
+        ))
+      }
     </nav>
 
-    <div class="actions">
-      <a class="lang" href="/hi/" lang="hi" aria-label="Switch to Hindi">हिं</a>
-      <button class="theme-toggle" type="button" data-theme-toggle aria-label="Toggle light/dark theme">◐</button>
-      <a class="cta" href="/consultations">Talk to an Astrologer</a>
-      <button class="drawer-btn" type="button" data-drawer-toggle aria-label="Open menu" aria-expanded="false">☰</button>
+    <!-- Primary action + mobile hamburger -->
+    <div class="flex items-center gap-3">
+      <a href="/consultations" class="hidden sm:inline-flex items-center justify-center gap-2 px-4 py-2 bg-light-primary text-light-on-primary dark:bg-dark-primary dark:text-dark-on-primary rounded font-label text-label-md font-medium shadow-xs hover:opacity-95 transition-opacity">
+        <span class="material-symbols-outlined text-title-md">support_agent</span>
+        <span>Talk to Astrologer</span>
+      </a>
+      <button type="button" data-drawer-toggle aria-label="Open mobile menu" aria-expanded="false" class="xl:hidden p-2 rounded text-light-on-surface dark:text-dark-on-surface">
+        <span class="material-symbols-outlined text-headline-sm">menu</span>
+      </button>
     </div>
   </div>
 
-  <div class="drawer" id="mobile-drawer" hidden>
-    <nav aria-label="Mobile">
-      {NAV_TABS.map((t) => <a href={t.href}> <span aria-hidden="true">{t.icon}</span> {t.label} <span class="hi-mini">{t.label_hi}</span></a>)}
+  <!-- Mobile drawer (design shows the trigger; drawer styled from the same tokens) -->
+  <div id="mobile-drawer" hidden class="xl:hidden border-t border-light-outline-variant/60 dark:border-dark-outline-variant/40 bg-light-surface dark:bg-dark-surface">
+    <nav class="max-w-7xl mx-auto px-4 py-3 flex flex-col gap-1 font-title text-title-sm" aria-label="Mobile Navigation">
+      {
+        NAV_TABS.map((t) => (
+          <a
+            href={t.href}
+            class={`flex items-center gap-2 px-3 py-3 rounded ${isActive(t.href) ? "bg-light-primary-container text-light-primary dark:bg-dark-primary-container dark:text-dark-primary font-semibold" : "text-light-on-surface-variant dark:text-dark-on-surface-variant"}`}
+          >
+            <span class="material-symbols-outlined text-title-md text-light-primary dark:text-dark-primary">{t.icon}</span>
+            <span>{t.label}</span>
+            <span class="ml-auto font-body text-body-sm text-light-outline dark:text-dark-outline hi-text" lang="hi">{t.label_hi}</span>
+          </a>
+        ))
+      }
     </nav>
   </div>
 </header>
 
-<div class="sticky-cta-mobile">
-  <a href="/consultations">Talk to an Astrologer</a>
-</div>
-
-<script is:inline>
-  (function () {
-    // theme toggle
-    var toggle = document.querySelector("[data-theme-toggle]");
-    if (toggle) {
-      toggle.addEventListener("click", function () {
-        var current = document.documentElement.getAttribute("data-theme") || "dark";
-        var next = current === "dark" ? "light" : "dark";
-        document.documentElement.setAttribute("data-theme", next);
-        try { localStorage.setItem("vyotish-theme", next); } catch (e) {}
-      });
-    }
-    // drawer
-    var btn = document.querySelector("[data-drawer-toggle]");
-    var drawer = document.getElementById("mobile-drawer");
-    if (btn && drawer) {
-      btn.addEventListener("click", function () {
-        var open = drawer.hasAttribute("hidden");
-        if (open) drawer.removeAttribute("hidden");
-        else drawer.setAttribute("hidden", "");
-        btn.setAttribute("aria-expanded", String(open));
-        btn.setAttribute("aria-label", open ? "Close menu" : "Open menu");
-      });
-    }
-  })();
+<script>
+  // Drawer (progressive enhancement — markup is server-rendered)
+  const btn = document.querySelector("[data-drawer-toggle]");
+  const drawer = document.getElementById("mobile-drawer");
+  if (btn && drawer) {
+    btn.addEventListener("click", () => {
+      const open = drawer.hasAttribute("hidden");
+      if (open) drawer.removeAttribute("hidden");
+      else drawer.setAttribute("hidden", "");
+      btn.setAttribute("aria-expanded", String(open));
+      btn.setAttribute("aria-label", open ? "Close menu" : "Open menu");
+    });
+  }
 </script>
-
-<style>
-  .site-header {
-    position: sticky;
-    top: 0;
-    z-index: 50;
-    background: var(--bg-header);
-    backdrop-filter: blur(8px);
-    border-bottom: 1px solid var(--border-faint);
-  }
-  .header-inner {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: var(--space-3) var(--space-4);
-    display: flex;
-    align-items: center;
-    gap: var(--space-4);
-  }
-  .brand :global(.wordmark) {
-    height: 40px;
-    width: auto;
-  }
-  .brand {
-    display: inline-flex;
-    min-height: var(--target-min);
-    align-items: center;
-  }
-  .tabs {
-    display: none;
-    gap: var(--space-1);
-    flex: 1;
-    flex-wrap: wrap;
-    justify-content: center;
-  }
-  .tabs a {
-    padding: 10px 12px;
-    min-height: var(--target-min);
-    display: inline-flex;
-    align-items: center;
-    font-size: 14px;
-    color: var(--text-body);
-    text-decoration: none;
-    border-radius: var(--radius-card);
-  }
-  .tabs a:hover {
-    color: var(--color-primary);
-    background: var(--color-tint);
-  }
-  /* Selected/active item: teal background, white text (usage rule) */
-  .tabs a[aria-current="page"] {
-    background: var(--color-primary);
-    color: var(--color-on-primary);
-  }
-  .actions {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-    margin-left: auto;
-  }
-  .lang,
-  .theme-toggle,
-  .drawer-btn {
-    min-width: var(--target-min);
-    min-height: var(--target-min);
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    background: none;
-    border: 1px solid var(--color-border-strong);
-    border-radius: var(--radius-card);
-    color: var(--text-body);
-    cursor: pointer;
-    font-size: 15px;
-    text-decoration: none;
-  }
-  .cta {
-    display: none;
-    align-items: center;
-    min-height: var(--target-min);
-    padding: 0 var(--space-5);
-    background: var(--color-accent);
-    color: var(--ink-on-gold);
-    font-weight: 500;
-    font-size: 14px;
-    border-radius: var(--radius-pill);
-    text-decoration: none;
-  }
-  .drawer {
-    border-top: 1px solid var(--border-faint);
-    background: var(--bg-page);
-  }
-  .drawer nav {
-    display: grid;
-  }
-  .drawer a {
-    min-height: var(--target-min);
-    display: flex;
-    align-items: center;
-    gap: var(--space-3);
-    padding: var(--space-3) var(--space-5);
-    color: var(--text-body);
-    text-decoration: none;
-    border-bottom: 1px solid var(--border-faint);
-  }
-  .drawer .hi-mini {
-    margin-left: auto;
-    color: var(--text-dim);
-    font-size: 13px;
-  }
-  .sticky-cta-mobile {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    z-index: 40;
-    padding: var(--space-2) var(--space-4) calc(var(--space-2) + env(safe-area-inset-bottom, 0px));
-    background: var(--bg-header);
-    backdrop-filter: blur(8px);
-    border-top: 1px solid var(--border-faint);
-  }
-  .sticky-cta-mobile a {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-height: var(--target-min);
-    background: var(--color-accent);
-    color: var(--ink-on-gold);
-    font-weight: 500;
-    border-radius: var(--radius-pill);
-    text-decoration: none;
-  }
-  @media (min-width: 1024px) {
-    .tabs { display: flex; }
-    .cta { display: inline-flex; }
-    .drawer-btn, .sticky-cta-mobile { display: none; }
-  }
-  @media (max-width: 1023px) {
-    .sticky-cta-mobile { display: block; }
-  }
-</style>

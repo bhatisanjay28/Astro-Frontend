@@ -1,142 +1,126 @@
 ---
 /**
- * Site footer (Epic 2.1): all tabs, calculators teaser, legal links,
- * newsletter signup (placeholder — backend form lands later), social
- * placeholders (P15).
+ * Site footer — home design §4 (D11 re-skin): brand & mission, 9 portals,
+ * popular tools, trust & legal, mandatory astrological disclaimer.
+ * (The newsletter moved to the home FAQ section; the footer matches the
+ * approved design exactly.)
  */
-import { LEGAL_LINKS, NAV_TABS } from "../data/navigation";
+import { NAV_TABS } from "../data/navigation";
+
+const portals = NAV_TABS.map((t, i) => ({
+  n: i + 1,
+  label: t.label,
+  href: t.href,
+  suffix: t.label === "Gemstones" ? " (Soon)" : t.label === "Blog" ? " & Admin" : "",
+  display:
+    t.label === "Panchang"
+      ? "Daily Panchang"
+      : t.label === "Muhurat"
+        ? "Shubh Muhurat"
+        : t.label === "Astrology"
+          ? "Astrology (Kundli)"
+          : t.label === "Poojan"
+            ? "Vedic Poojan"
+            : t.label === "Blog"
+              ? "Blog"
+              : t.label,
+}));
+
+const tools = [
+  { label: "Free Janam Kundli", href: "/kundli" },
+  { label: "Kundli Matching (36 Guna)", href: "/kundli" },
+  { label: "Moon Sign (Rashi) Finder", href: "/calculators" },
+  { label: "Nakshatra Calculator", href: "/calculators" },
+  { label: "Shani Sade Sati Check", href: "/calculators" },
+  { label: "Manglik Dosha Analysis", href: "/calculators" },
+  { label: "Vedic Numerology", href: "/calculators" },
+];
+
+const legal = [
+  { label: "Privacy Policy (DPDP Act)", href: "/privacy" },
+  { label: "Terms of Use", href: "/terms" },
+  { label: "Refund & Cancellation", href: "/refund" },
+  { label: "Astrological Disclaimer", href: "/disclaimer" },
+  { label: "About Calculation Accuracy", href: "/about" },
+  { label: "Grievance & Contact", href: "/contact" },
+];
 ---
 
-<footer class="site-footer">
-  <div class="footer-inner">
-    <div class="col brand-col">
-      <a href="/" aria-label="Vyotish — home" class="f-brand">Vyotish</a>
-      <p>
-        Ancient Vedic wisdom for modern life. Free tools and authentic guidance —
-        calculations validated against known Panchang values.
+<footer class="chrome-reset bg-light-surface-variant dark:bg-dark-surface-variant border-t border-light-outline-variant/60 dark:border-dark-outline-variant/40 pt-12 pb-8 px-4 sm:px-8">
+  <div class="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8 mb-12">
+    <!-- Brand & Mission Column -->
+    <div class="lg:col-span-2">
+      <div class="flex items-center gap-2 mb-3">
+        <div class="w-8 h-8 rounded bg-light-primary text-light-on-primary flex items-center justify-center font-display font-bold">V</div>
+        <span class="font-display font-bold text-headline-sm text-light-on-surface dark:text-dark-on-surface">Vyotish</span>
+      </div>
+      <p class="font-body text-body-sm text-light-outline dark:text-dark-outline max-w-sm mb-4 leading-relaxed">
+        Authentic Vedic astrology calculated with modern astronomical rigor. Providing accessible, zero-cost Janam Kundli charts, precision daily Panchang, and vetted scholar consultations.
       </p>
-      <div class="social" aria-label="Social links (placeholders)">
-        <span title="Social links are placeholders (P15)">WhatsApp</span>
-        <span>Instagram</span>
-        <span>YouTube</span>
+      <div class="font-body text-body-sm text-light-outline dark:text-dark-outline space-y-1">
+        <div>Engine: Swiss Ephemeris • Lahiri Ayanamsha (Chitra Paksha)</div>
+        <div>Timezones: IANA Global Astronomical Database</div>
       </div>
     </div>
 
-    <nav class="col" aria-label="Footer sections">
-      <h3>Explore</h3>
-      {NAV_TABS.map((t) => <a href={t.href}>{t.label}</a>)}
+    <!-- Quick Nav: 9 Main Tabs -->
+    <nav aria-label="Portals">
+      <h4 class="font-title text-title-sm font-semibold text-light-on-surface dark:text-dark-on-surface mb-3">Portals</h4>
+      <ul class="space-y-2 font-body text-body-sm text-light-outline dark:text-dark-outline">
+        {
+          portals.map((p) => (
+            <li>
+              <a href={p.href} class="hover:text-light-primary dark:hover:text-dark-primary">
+                {p.n}. {p.display}
+                {p.suffix}
+              </a>
+            </li>
+          ))
+        }
+      </ul>
     </nav>
 
-    <nav class="col" aria-label="Legal">
-      <h3>Company</h3>
-      {LEGAL_LINKS.map((l) => <a href={l.href}>{l.label}</a>)}
+    <!-- Free Calculators Tier 1 -->
+    <nav aria-label="Popular Tools">
+      <h4 class="font-title text-title-sm font-semibold text-light-on-surface dark:text-dark-on-surface mb-3">Popular Tools</h4>
+      <ul class="space-y-2 font-body text-body-sm text-light-outline dark:text-dark-outline">
+        {
+          tools.map((t) => (
+            <li>
+              <a href={t.href} class="hover:text-light-primary dark:hover:text-dark-primary">{t.label}</a>
+            </li>
+          ))
+        }
+      </ul>
     </nav>
 
-    <div class="col">
-      <h3>Newsletter</h3>
-      <p>Be the first to know when we launch.</p>
-      <form class="newsletter" data-newsletter>
-        <input type="email" name="email" required placeholder="you@example.com" aria-label="Email address" />
-        <button type="submit">Notify Me</button>
-      </form>
-      <p class="note" data-newsletter-note hidden>Thank you — you are on the list. (Placeholder: backend form lands with Epic 7.)</p>
-      <p class="privacy-line">
-        We never ask for OTPs or passwords. Birth details you share are used only for
-        your request — see our Privacy Policy.
-      </p>
+    <!-- Legal & Trust Policies (Mandatory Section 15) -->
+    <nav aria-label="Trust and Legal">
+      <h4 class="font-title text-title-sm font-semibold text-light-on-surface dark:text-dark-on-surface mb-3">Trust &amp; Legal</h4>
+      <ul class="space-y-2 font-body text-body-sm text-light-outline dark:text-dark-outline">
+        {
+          legal.map((l) => (
+            <li>
+              <a href={l.href} class="hover:text-light-primary dark:hover:text-dark-primary">{l.label}</a>
+            </li>
+          ))
+        }
+      </ul>
+    </nav>
+  </div>
+
+  <!-- MANDATORY LEGAL DISCLAIMER (Section 15) -->
+  <div class="max-w-7xl mx-auto pt-6 border-t border-light-outline-variant/40 font-body text-body-sm text-light-outline dark:text-dark-outline space-y-2">
+    <p>
+      <strong>Astrological Disclaimer:</strong> Astrology content, horoscope readings, and calculation tools provided on Vyotish are for philosophical guidance, self-discovery, and cultural informational purposes only. Astrological outcomes cannot be guaranteed. This platform does not provide or replace certified medical diagnoses, legal counsel, psychiatric therapy, or licensed financial planning.
+    </p>
+    <div class="flex flex-col sm:flex-row items-center justify-between pt-4 font-body text-body-sm">
+      <div>© {new Date().getFullYear()} Vyotish Platform. All rights reserved. Phase 1 Local Build.</div>
+      <div class="flex gap-4 mt-2 sm:mt-0">
+        <span>Security: Cloudflare RLS &amp; CSP Compliant</span>
+        <span>•</span>
+        <span>Zero OTP Policy Active</span>
+      </div>
     </div>
   </div>
-
-  <div class="legal-line">
-    <p>© {new Date().getFullYear()} Vyotish · vyotish.com — Astrology content is for guidance and information; outcomes are not guaranteed.</p>
-  </div>
 </footer>
-
-<script is:inline>
-  document.querySelectorAll("[data-newsletter]").forEach(function (form) {
-    form.addEventListener("submit", function (e) {
-      e.preventDefault();
-      var note = form.parentElement && form.parentElement.querySelector("[data-newsletter-note]");
-      if (note) note.removeAttribute("hidden");
-      form.reset();
-    });
-  });
-</script>
-
-<style>
-  .site-footer {
-    background: var(--color-primary); /* teal footer, white text (usage rule) */
-    color: var(--color-on-primary);
-    margin-top: var(--space-8);
-  }
-  .footer-inner {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: var(--space-7) var(--space-4);
-    display: grid;
-    gap: var(--space-6);
-    grid-template-columns: 1fr;
-  }
-  .col h3 {
-    font-family: var(--font-display);
-    color: var(--color-on-primary);
-    font-size: 18px;
-    margin-bottom: var(--space-3);
-  }
-  .col a {
-    display: block;
-    min-height: 32px;
-    line-height: 32px;
-    color: rgba(255, 255, 255, 0.88);
-    text-decoration: none;
-    font-size: 14px;
-  }
-  .col a:hover { color: var(--color-on-primary); text-decoration: underline; }
-  .f-brand {
-    font-family: var(--font-display);
-    font-size: 26px;
-    color: var(--color-on-primary);
-    text-decoration: none;
-  }
-  .brand-col p { color: rgba(255, 255, 255, 0.85); font-size: 14px; margin-top: var(--space-3); }
-  .social { display: flex; gap: var(--space-3); margin-top: var(--space-4); }
-  .social span {
-    color: rgba(255, 255, 255, 0.88);
-    font-size: 13px;
-    border: 1px solid rgba(255, 255, 255, 0.45);
-    border-radius: var(--radius-pill);
-    padding: 6px 12px;
-  }
-  .newsletter { display: flex; gap: var(--space-2); }
-  .newsletter input {
-    flex: 1;
-    min-height: var(--target-min);
-    background: var(--color-surface);
-    border: none;
-    border-radius: var(--radius-card);
-    color: var(--color-text);
-    padding: 0 var(--space-3);
-  }
-  /* secondary button on teal: sandalwood bg, teal border + teal text */
-  .newsletter button {
-    min-height: var(--target-min);
-    padding: 0 var(--space-4);
-    background: var(--color-bg);
-    border: 1.5px solid var(--color-primary);
-    border-radius: var(--radius-card);
-    color: var(--color-primary);
-    font-weight: 500;
-    cursor: pointer;
-  }
-  .note { color: var(--color-accent-soft); font-size: 13px; margin-top: var(--space-2); }
-  .privacy-line { color: rgba(255, 255, 255, 0.8); font-size: 12px; margin-top: var(--space-3); max-width: 320px; }
-  .legal-line {
-    border-top: 1px solid rgba(255, 255, 255, 0.28);
-    padding: var(--space-4);
-    text-align: center;
-  }
-  .legal-line p { color: rgba(255, 255, 255, 0.85); font-size: 12px; }
-  @media (min-width: 768px) {
-    .footer-inner { grid-template-columns: 2fr 1fr 1fr 1.5fr; }
-  }
-</style>

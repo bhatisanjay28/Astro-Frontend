@@ -18,6 +18,8 @@
   "devDependencies": {
     "@astrojs/check": "^0.9.4",
     "@biomejs/biome": "^2.6.8",
+    "@tailwindcss/vite": "^4.3.5",
+    "tailwindcss": "^4.3.5",
     "typescript": "^5.9.0"
   }
 }

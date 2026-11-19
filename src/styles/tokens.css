@@ -1,50 +1,50 @@
 /*
- * Vyotish design tokens — "Sandalwood & Teal" palette (owner brief).
- * Single source of truth: NO colour value may appear outside this file.
+ * Vyotish legacy design tokens — alias layer (D11).
  *
- * Light theme is DEFAULT (:root). Dark theme overrides under [data-theme="dark"].
- * The theme bootstrap in Base.astro follows the system setting until the user
- * picks a theme, then remembers the choice (localStorage "vyotish-theme").
+ * Every COLOUR VALUE lives in the @theme block of tailwind.css (ported from
+ * the owner-approved homepage design). This file maps the semantic var names
+ * used by existing components onto those design tokens, and switches them for
+ * dark theme via [data-theme="dark"] (set together with the .dark class by
+ * the Base.astro bootstrap).
  *
- * Contrast (WCAG 2.2 AA) — verified pairs, see CHANGELOG entry for ratios:
- *   text/bg 13.9:1 · muted/bg 5.4:1 · primary/bg 4.9:1 · on-primary/primary 5.5:1
- *   on-accent/accent 6.4:1 · accent-text/bg 4.9:1 — light; dark equivalents ≥7:1.
+ * Fonts & type scale also come from tailwind.css @theme (--font-*, --text-*).
+ *
+ * Contrast: interactive borders use --color-border-strong (≈6:1 vs bg light);
+ * decorative card borders keep --color-border by design (D8 legacy note).
  */
 :root {
   color-scheme: light;
 
-  /* ---- Canonical palette (light) ---- */
-  --color-bg: #faf6ee; /* warm sandalwood page background */
-  --color-surface: #ffffff; /* cards, header, forms */
-  --color-tint: #e4f0ee; /* soft teal highlight, hover, selected rows */
-  --color-border: #e2d9c6; /* sandy borders (decorative card edges) */
-  --color-border-strong: #8a7a5e; /* interactive control borders — 3.8:1 vs bg, 4.2:1 vs surface */
-  --color-primary: #1f6f78; /* teal: headings, nav, links, primary buttons, footer */
-  --color-on-primary: #ffffff;
-  --color-accent: #e58e62; /* terracotta: key CTAs */
-  --color-on-accent: #1e2a2c; /* dark text ON terracotta — never white */
-  --color-accent-text: #a8481f; /* terracotta as text / links-hover */
-  --color-accent-soft: #fbe9df; /* soft terracotta background */
-  --color-text: #1e2a2c;
-  --color-text-muted: #5f6b6d;
-  --color-secondary-light: #7fb8b2; /* small decorative accents, logo detail */
+  /* ---- Palette (aliases → design tokens, light) ---- */
+  --color-bg: var(--color-light-surface);
+  --color-surface: var(--color-light-surface);
+  --color-tint: var(--color-light-surface-variant);
+  --color-border: var(--color-light-outline-variant);
+  --color-border-strong: var(--color-light-outline);
+  --color-primary: var(--color-light-primary);
+  --color-on-primary: var(--color-light-on-primary);
+  /* --color-accent / --color-on-accent come straight from @theme (same names) */
+  --color-accent-text: var(--color-saffron);
+  --color-accent-soft: var(--color-light-primary-container);
+  --color-text: var(--color-light-on-surface);
+  --color-text-muted: var(--color-light-on-surface-variant);
+  --color-secondary-light: var(--color-light-secondary-container);
 
   /* Semantic status — always paired with a label/icon, never colour alone */
-  --color-auspicious-text: #1e6b3a;
-  --color-auspicious-bg: #e6f4ea;
-  --color-inauspicious-text: #a32a2a;
-  --color-inauspicious-bg: #fbe9e7;
-  --color-error-text: #a32a2a;
-  --color-error-bg: #fbe9e7;
+  --color-auspicious-text: var(--color-success);
+  --color-auspicious-bg: #e7f2e9;
+  --color-inauspicious-text: var(--color-error);
+  --color-inauspicious-bg: #fbebeb;
+  --color-error-text: var(--color-error);
+  --color-error-bg: #fbebeb;
 
   /* Focus (high-contrast) */
-  --focus-ring: 0 0 0 3px rgba(168, 72, 31, 0.55);
+  --focus-ring: 0 0 0 3px rgba(180, 64, 16, 0.55);
 
-  /* Soft teal border for emphasised cards (≥3:1 UI contrast) */
-  --border-emphasis: rgba(31, 111, 120, 0.4);
+  /* Emphasised card border (≥3:1 UI contrast) */
+  --border-emphasis: rgba(139, 46, 5, 0.4);
 
-  /* ---- Legacy aliases (semantic names used by components) ----
-     Components read these; values live ONLY here. */
+  /* ---- Legacy aliases (semantic names used by pre-design components) ---- */
   --bg-night: var(--color-bg);
   --bg-night-glow: var(--color-bg);
   --bg-page: var(--color-bg);
@@ -53,7 +53,7 @@
   --gold: var(--color-primary);
   --gold-bright: var(--color-accent);
   --gold-glow: transparent;
-  --gold-shadow: rgba(30, 42, 44, 0.18);
+  --gold-shadow: rgba(28, 27, 26, 0.18);
   --border-gold-soft: var(--border-emphasis);
   --ivory: var(--color-primary);
   --starlight: var(--color-secondary-light);
@@ -67,10 +67,6 @@
   --surface-glass: var(--color-tint);
   --surface-chip: var(--color-tint);
   --border-faint: var(--color-border);
-
-  /* Typography (unchanged) */
-  --font-display: "Cormorant Garamond", serif;
-  --font-body: "Inter", system-ui, sans-serif;
 
   /* Shape / spacing / targets (unchanged) */
   --radius-card: 12px;
@@ -89,29 +85,28 @@
 [data-theme="dark"] {
   color-scheme: dark;
 
-  --color-bg: #0f1b1c;
-  --color-surface: #172627;
-  --color-tint: #1f3335;
-  --color-border: #2a3f40;
-  --color-border-strong: #5c7a7c; /* interactive control borders — 3.8:1 vs bg, 3.4:1 vs surface */
-  --color-on-primary: #0f1b1c;
-  --color-accent: #e58e62;
-  --color-on-accent: #1e2a2c;
-  --color-accent-text: #f0a98a;
-  --color-accent-soft: #3a2a22;
-  --color-text: #eaf2f1;
-  --color-text-muted: #a6b8b8;
-  --color-secondary-light: #7fb8b2;
+  --color-bg: var(--color-dark-surface);
+  --color-surface: var(--color-dark-surface-variant);
+  --color-tint: var(--color-dark-surface-variant);
+  --color-border: var(--color-dark-outline-variant);
+  --color-border-strong: var(--color-dark-outline);
+  --color-primary: var(--color-dark-primary);
+  --color-on-primary: var(--color-dark-on-primary);
+  --color-accent-text: var(--color-dark-primary);
+  --color-accent-soft: #3a2415;
+  --color-text: var(--color-dark-on-surface);
+  --color-text-muted: var(--color-dark-on-surface-variant);
+  --color-secondary-light: var(--color-dark-secondary-container);
 
-  --color-auspicious-text: #8fd9a8;
+  --color-auspicious-text: #6fcf8f;
   --color-auspicious-bg: #1b3a2a;
   --color-inauspicious-text: #f2a5a0;
   --color-inauspicious-bg: #3a2422;
   --color-error-text: #f2a5a0;
   --color-error-bg: #3a2422;
 
-  --focus-ring: 0 0 0 3px rgba(240, 169, 138, 0.6);
-  --border-emphasis: rgba(92, 184, 194, 0.5);
+  --focus-ring: 0 0 0 3px rgba(255, 181, 148, 0.6);
+  --border-emphasis: rgba(255, 181, 148, 0.5);
 
   /* legacy aliases that need dark-specific values */
   --gold-shadow: rgba(0, 0, 0, 0.35);

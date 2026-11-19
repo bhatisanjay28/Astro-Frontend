@@ -1,0 +1,49 @@
+---
+/**
+ * Newsletter / notify-me form (Epic 5.5) — POSTs /api/v1/newsletter with a
+ * source tag. Used by the Gemstones teaser (gemstones_notify) and the home
+ * FAQ block (weekly_panchang). Design §6 markup, real endpoint.
+ */
+interface Props {
+  source: "gemstones_notify" | "weekly_panchang";
+  placeholder: string;
+  buttonClass: string;
+  inputClass: string;
+  success: string;
+}
+const { source, placeholder, buttonClass, inputClass, success } = Astro.props;
+---
+
+<form data-newsletter-form data-source={source} class="max-w-md w-full mx-auto flex flex-col sm:flex-row gap-2 mt-2">
+  <input type="email" required placeholder={placeholder} class={inputClass} />
+  <button type="submit" class={buttonClass}>
+    {source === "gemstones_notify" ? "Notify Me" : "Subscribe"}
+  </button>
+</form>
+<p class="hidden font-body text-body-sm text-success font-medium mt-1" data-newsletter-ok>{success}</p>
+<p class="hidden font-body text-body-sm text-error mt-1" data-newsletter-fail role="alert">Could not subscribe right now — please try again.</p>
+
+<script define:vars={{ apiBase: import.meta.env.PUBLIC_API_BASE_URL ?? "https://astro-backend.vyotish.workers.dev" }}>
+  document.querySelectorAll("[data-newsletter-form]").forEach(function (form) {
+    form.addEventListener("submit", function (e) {
+      e.preventDefault();
+      var ok = form.nextElementSibling;
+      var fail = ok && ok.nextElementSibling;
+      var email = form.querySelector("input[type=email]").value.trim();
+      fetch(apiBase + "/api/v1/newsletter", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ email: email, source: form.getAttribute("data-source") }),
+      })
+        .then(function (r) { if (!r.ok) throw new Error("http " + r.status); return r.json(); })
+        .then(function () {
+          if (ok) ok.classList.remove("hidden");
+          if (fail) fail.classList.add("hidden");
+          form.reset();
+        })
+        .catch(function () {
+          if (fail) fail.classList.remove("hidden");
+        });
+    });
+  });
+</script>
