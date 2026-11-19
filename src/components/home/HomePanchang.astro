@@ -217,7 +217,9 @@
     if (citySel) citySel.addEventListener("change", function () { state.slug = citySel.value; load(); });
     dayBtns.forEach(function (btn) {
       btn.addEventListener("click", function () {
-        state.date = btn.getAttribute("data-day") === "tomorrow" ? new Date(Date.now() + 86400000).toISOString().slice(0, 10) : null;
+        var tmr = new Date();
+        tmr.setDate(tmr.getDate() + 1);
+        state.date = btn.getAttribute("data-day") === "tomorrow" ? tmr.getFullYear() + "-" + String(tmr.getMonth() + 1).padStart(2, "0") + "-" + String(tmr.getDate()).padStart(2, "0") : null;
         dayBtns.forEach(function (b) {
           var active = b === btn;
           b.className = active

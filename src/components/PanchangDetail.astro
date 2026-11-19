@@ -68,7 +68,12 @@ const { apiBase, citySlug, cityName, lat, lng, tz } = Astro.props;
     var errEl = document.querySelector("[data-pd-error]");
     var dateInput = document.querySelector("[data-pd-date]");
 
-    function today() { return new Date().toISOString().slice(0, 10); }
+    // local calendar date (NOT toISOString — the site's audience runs on IST,
+    // where the UTC date is still "yesterday" until 05:30 local)
+    function today() {
+      var d = new Date();
+      return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+    }
     function fmt(iso, tz) {
       try {
         return new Intl.DateTimeFormat("en-GB", { timeZone: tz, hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(iso));

@@ -73,7 +73,9 @@ const { apiBase } = Astro.props;
 
     function load() {
       var parts = remembered().split(",");
-      var url = apiBase + "/api/v1/panchang?lat=" + parts[0] + "&lng=" + parts[1] + "&tz=" + encodeURIComponent(parts[2]) + "&date=" + new Date().toISOString().slice(0, 10);
+      var d = new Date();
+      var localISO = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+      var url = apiBase + "/api/v1/panchang?lat=" + parts[0] + "&lng=" + parts[1] + "&tz=" + encodeURIComponent(parts[2]) + "&date=" + localISO;
       errEl.setAttribute("hidden", "");
       fetch(url)
         .then(function (r) { if (!r.ok) throw new Error("bad status"); return r.json(); })
