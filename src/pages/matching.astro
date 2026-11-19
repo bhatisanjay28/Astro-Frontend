@@ -1,0 +1,189 @@
+---
+/**
+ * /matching — Guna Milan (Ashtakoota 36) + Manglik UI (Epic 4.3).
+ * The page is a thin renderer: POST /api/v1/kundli/match does everything
+ * (D12). Honest fail-soft; verification status surfaced (P11).
+ */
+import Base from "../layouts/Base.astro";
+
+const inputClass =
+  "w-full px-3 py-2 rounded bg-light-surface dark:bg-dark-surface border border-light-outline-variant dark:border-dark-outline-variant text-light-on-surface dark:text-dark-on-surface font-body text-body-sm";
+const labelClass =
+  "block font-label text-label-sm font-semibold text-light-on-surface-variant dark:text-dark-on-surface-variant mb-1";
+
+type InputType = "date" | "time" | "number" | "text";
+
+function personFields(prefix: string, label: string) {
+  return {
+    prefix,
+    label,
+    fields: [
+      { name: `${prefix}-date`, label: `${label} birth date`, type: "date" },
+      { name: `${prefix}-time`, label: `${label} birth time`, type: "time" },
+      { name: `${prefix}-lat`, label: `${label} latitude`, type: "number", ph: "28.6139" },
+      { name: `${prefix}-lng`, label: `${label} longitude`, type: "number", ph: "77.209" },
+      { name: `${prefix}-tz`, label: `${label} timezone (IANA)`, type: "text", ph: "Asia/Kolkata" },
+    ] as Array<{ name: string; label: string; type: InputType; ph?: string }>,
+  };
+}
+const BOY = personFields("boy", "Boy");
+const GIRL = personFields("girl", "Girl");
+---
+
+<Base
+  title="Kundli Matching — Ashtakoota Guna Milan | Vyotish"
+  description="36-guna Ashtakoota marriage matching with per-koota explanations, plus classical Manglik checks from Lagna, Moon and Venus — computed by the Vyotish engine."
+  langPath="/matching"
+>
+  <section class="mx">
+    <h1>Kundli Matching <span class="hi-text">(गुण मिलान)</span></h1>
+    <p class="lede">
+      Classical Ashtakoota milan — eight kootas, 36 gunas, accept ≥ 18 — plus Manglik
+      dosha from Lagna, Moon and Venus. Everything computes in the Vyotish backend;
+      details are never stored.
+    </p>
+
+    <form id="match-form" class="panel" autocomplete="off">
+      <div class="grid md:grid-cols-2 gap-6">
+        {
+          [BOY, GIRL].map((p) => (
+            <fieldset class="person">
+              <legend>{p.label}</legend>
+              {p.fields.map((f) => (
+                <div>
+                  <label class={labelClass} for={f.name}>
+                    {f.label}
+                  </label>
+                  <input
+                    class={inputClass}
+                    id={f.name}
+                    name={f.name}
+                    type={f.type}
+                    placeholder={"ph" in f ? f.ph : ""}
+                    step={f.type === "number" ? "0.0001" : undefined}
+                    min={f.name.endsWith("-lat") ? -90 : f.name.endsWith("-lng") ? -180 : undefined}
+                    max={f.name.endsWith("-lat") ? 90 : f.name.endsWith("-lng") ? 180 : undefined}
+                    required={f.name.endsWith("-date") || f.name.endsWith("-tz")}
+                  />
+                </div>
+              ))}
+            </fieldset>
+          ))
+        }
+      </div>
+      <button
+        type="submit"
+        class="mt-5 w-full py-3 rounded bg-light-secondary text-light-on-secondary dark:bg-dark-secondary dark:text-dark-on-secondary font-label text-label-md font-semibold hover:opacity-95 transition-opacity"
+      >
+        Match Kundlis
+      </button>
+    </form>
+
+    <section id="match-result" class="result" aria-live="polite">
+      <p class="hint">The Ashtakoota table and Manglik verdicts appear here.</p>
+    </section>
+
+    <p class="fine">
+      Verification note: koota tables follow widely published variants and are pending
+      Jyotishi review (P11). Matching supports life decisions — consult a qualified
+      astrologer for a full reading.
+    </p>
+  </section>
+</Base>
+
+<script define:vars={{ apiBase: import.meta.env.PUBLIC_API_BASE_URL ?? "https://astro-backend.vyotish.workers.dev" }}>
+  (function () {
+    var form = document.getElementById("match-form");
+    var box = document.getElementById("match-result");
+    if (!form || !box) return;
+
+    function esc(s) {
+      return String(s == null ? "" : s).replace(/[&<>"']/g, function (ch) {
+        return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch];
+      });
+    }
+
+    form.addEventListener("submit", function (e) {
+      e.preventDefault();
+      var get = function (id) { var el = document.getElementById(id); return el ? String(el.value).trim() : ""; };
+      function person(prefix) {
+        return {
+          date: get(prefix + "-date"),
+          time: get(prefix + "-time") || "12:00",
+          lat: parseFloat(get(prefix + "-lat")),
+          lng: parseFloat(get(prefix + "-lng")),
+          tz: get(prefix + "-tz"),
+        };
+      }
+      var boy = person("boy");
+      var girl = person("girl");
+      if (!boy.date || !girl.date || !boy.tz || !girl.tz || isNaN(boy.lat) || isNaN(girl.lat)) {
+        box.innerHTML = "<p class='hint err'>Please fill at least the dates, latitudes and timezones for both charts.</p>";
+        return;
+      }
+      box.innerHTML = "<p class='hint'>Matching 36 gunas across 8 kootas…</p>";
+      fetch(apiBase + "/api/v1/kundli/match", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ boy: boy, girl: girl }),
+      })
+        .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+        .then(function (r) {
+          if (!r.ok || r.j.error) {
+            box.innerHTML = "<p class='hint err'>" + esc((r.j.error && r.j.error.message) || "Match computation failed.") + "</p>";
+            return;
+          }
+          var d = r.j.data;
+          var a = d.ashtakoota;
+          var rows = a.kootas.map(function (k) {
+            return "<tr><td>" + esc(k.koota.replace("_", " ")) + "</td><td>" + esc(k.points) + " / " + esc(k.max) + "</td><td>" + esc(k.detail) + "</td></tr>";
+          }).join("");
+          var pct = Math.round((a.total / a.max) * 100);
+          var verdict = a.acceptable
+            ? "<strong class='ok'>Acceptable match — " + esc(a.total) + "/36 (" + pct + "%) ≥ threshold " + esc(a.threshold) + "</strong>"
+            : "<strong class='warn'>Below threshold — " + esc(a.total) + "/36 (" + pct + "%) &lt; " + esc(a.threshold) + "</strong>";
+          var m = d.manglik;
+          var manglikRows =
+            "<div class='row'><span class='k'>Boy Manglik</span><span class='v'>" + (m.boy.is_manglik ? "Yes" : "No") + (m.boy.cancelled ? " (cancelled: " + esc(m.boy.cancellation_reason) + ")" : "") + "</span></div>" +
+            "<div class='row'><span class='k'>Girl Manglik</span><span class='v'>" + (m.girl.is_manglik ? "Yes" : "No") + (m.girl.cancelled ? " (cancelled: " + esc(m.girl.cancellation_reason) + ")" : "") + "</span></div>" +
+            "<div class='row'><span class='k'>Reading</span><span class='v'>" + esc(m.note) + "</span></div>" +
+            "<div class='row'><span class='k'>Boy profile</span><span class='v'>Moon " + esc(a.boy.moon_sign) + " · " + esc(a.boy.moon_nakshatra) + " pada " + esc(a.boy.moon_pada) + "</span></div>" +
+            "<div class='row'><span class='k'>Girl profile</span><span class='v'>Moon " + esc(a.girl.moon_sign) + " · " + esc(a.girl.moon_nakshatra) + " pada " + esc(a.girl.moon_pada) + "</span></div>";
+          box.innerHTML =
+            "<div class='verdict'>" + verdict + "</div>" +
+            "<table><thead><tr><th>Koota</th><th>Points</th><th>Detail</th></tr></thead><tbody>" + rows + "</tbody></table>" +
+            "<h3>Manglik dosha</h3>" + manglikRows +
+            "<p class='flagline'>Koota tables pending Jyotishi review (P11) — treat as indicative. " + esc(r.j.meta && r.j.meta.consent_note ? "" : "") + "</p>";
+        })
+        .catch(function () {
+          box.innerHTML = "<p class='hint err'>The backend could not be reached — please refresh and try again.</p>";
+        });
+    });
+  })();
+</script>
+
+<style>
+  .mx { max-width: 900px; margin: 0 auto; padding: var(--space-6) var(--space-4) var(--space-8); }
+  h1 { font-family: var(--font-display); color: var(--ivory); font-size: clamp(26px, 5vw, 36px); }
+  .hi-text { color: var(--text-dim); font-size: 0.7em; }
+  .lede { color: var(--text-muted); font-size: 14.5px; margin-top: var(--space-2); max-width: 700px; }
+  .panel { margin-top: var(--space-5); background: var(--bg-raised); border: 1px solid var(--color-border-strong); border-radius: var(--radius-card); padding: var(--space-5); }
+  fieldset.person { border: 1px solid var(--color-border); border-radius: 10px; padding: var(--space-4); display: flex; flex-direction: column; gap: var(--space-3); }
+  fieldset.person legend { color: var(--gold); font-family: var(--font-display); font-weight: 600; padding: 0 var(--space-2); font-size: 15px; }
+  .result { margin-top: var(--space-5); background: var(--bg-raised); border: 1px solid var(--color-border-strong); border-radius: var(--radius-card); padding: var(--space-5); min-height: 80px; }
+  .hint { color: var(--text-dim); font-size: 13.5px; }
+  .hint.err { color: #e0806d; }
+  .verdict { font-size: 16px; color: var(--ivory); margin-bottom: var(--space-4); }
+  .ok { color: #7fce9d; }
+  .warn { color: #e0a06d; }
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  th { text-align: left; color: var(--gold); font-weight: 600; padding: 6px 8px; border-bottom: 1px solid var(--color-border-strong); }
+  td { padding: 6px 8px; border-bottom: 1px solid var(--color-border); color: var(--text-muted); vertical-align: top; }
+  td:first-child, td:nth-child(2) { color: var(--ivory); white-space: nowrap; }
+  .result h3 { color: var(--gold); font-family: var(--font-display); font-size: 15px; margin: var(--space-5) 0 var(--space-2); }
+  .row { display: grid; grid-template-columns: 160px 1fr; gap: var(--space-3); padding: 5px 0; border-bottom: 1px solid var(--color-border); }
+  .k { color: var(--text-dim); font-size: 13px; }
+  .v { color: var(--ivory); font-size: 13.5px; }
+  .flagline { margin-top: var(--space-4); font-size: 12px; color: var(--text-dim); }
+  .fine { margin-top: var(--space-4); font-size: 12.5px; color: var(--text-faint); line-height: 1.6; }
+</style>

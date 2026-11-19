@@ -88,3 +88,40 @@ export async function fetchCities(country?: string): Promise<ApiCity[] | null> {
   );
   return body?.data.cities ?? null;
 }
+
+/** Astrologer directory row (Epic 5.2 — GET /api/v1/astrologers). */
+export interface ApiAstrologer extends HomeAstrologer {
+  session_types: Array<{ type?: string; duration_min?: number }>;
+}
+
+export async function fetchAstrologers(): Promise<ApiAstrologer[] | null> {
+  const body = await getJson<{ data: { astrologers: ApiAstrologer[] } }>(
+    `${API_BASE}/api/v1/astrologers`,
+  );
+  return body?.data.astrologers ?? null;
+}
+
+/** Puja catalogue row (Epic 5.3 — GET /api/v1/pujas). */
+export interface ApiPuja extends HomePooja {
+  name_hi: string | null;
+  muhurat_note: string;
+}
+
+export async function fetchPujas(category?: string): Promise<ApiPuja[] | null> {
+  const q = category ? `category=${encodeURIComponent(category)}&` : "";
+  const body = await getJson<{ data: { pujas: ApiPuja[] } }>(`${API_BASE}/api/v1/pujas?${q}`);
+  return body?.data.pujas ?? null;
+}
+
+/** Public site settings (Epic 1.9/5.4 — GET /api/v1/settings). */
+export interface ApiSettings {
+  engine: { ayanamsha: string; month_system: string; house_system: string; chart_style: string };
+  gemstones_site_url: string | null;
+  contact_email: string | null;
+  contact_whatsapp: string | null;
+}
+
+export async function fetchSettings(): Promise<ApiSettings | null> {
+  const body = await getJson<{ data: ApiSettings }>(`${API_BASE}/api/v1/settings`);
+  return body?.data ?? null;
+}

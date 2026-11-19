@@ -69,7 +69,7 @@ const UNAVAILABLE_LINE = "Rashiphal unavailable right now — please refresh sho
     <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3.5" data-signs>
       {
         SIGNS.map((s) => (
-          <a href={`/horoscope/${s.slug}`} class="p-4 rounded-lg bg-light-surface dark:bg-dark-surface border border-light-outline-variant/60 dark:border-dark-outline-variant/40 hover:border-light-primary dark:hover:border-dark-primary hover:shadow-sm transition-all group" data-sign={s.slug}>
+          <a href={`/horoscope/${s.slug}/daily`} class="p-4 rounded-lg bg-light-surface dark:bg-dark-surface border border-light-outline-variant/60 dark:border-dark-outline-variant/40 hover:border-light-primary dark:hover:border-dark-primary hover:shadow-sm transition-all group" data-sign={s.slug}>
             <div class="flex items-center justify-between mb-2">
               <span class="w-8 h-8 rounded-full bg-light-primary-container text-light-primary dark:bg-dark-primary-container dark:text-dark-primary flex items-center justify-center font-display font-bold text-title-sm" aria-hidden="true">{s.symbol}</span>
               <span class="font-body text-body-sm text-light-outline dark:text-dark-outline hi-text" lang="hi">{s.hi}</span>

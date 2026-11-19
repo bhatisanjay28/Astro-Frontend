@@ -1,0 +1,424 @@
+---
+import type { ExtraField } from "../../components/calculators/BirthForm.astro";
+import BirthForm from "../../components/calculators/BirthForm.astro";
+/**
+ * /calculators/{tool} — Epic 4.4 (Tier 1) + 4.6 (Tier 2) tool pages.
+ * One shared template (PRD §5.7) driven by a registry: slug/titles/input kind.
+ * Computation always happens in the backend (D12); the generic renderer below
+ * prints the contract envelope honestly (scalars, lists, nested objects),
+ * with for_fun / verified flags surfaced.
+ */
+import Base from "../../layouts/Base.astro";
+
+type ToolKind = "birth" | "date-name" | "date" | "names" | "name" | "mobile" | "age" | "transits";
+
+interface Tool {
+  slug: string;
+  title: string;
+  hi: string;
+  description: string;
+  kind: ToolKind;
+  endpoint: string;
+  submitLabel?: string;
+  extraFields?: ExtraField[];
+  forFun?: boolean;
+  note?: string;
+}
+
+// NOTE: the registry lives INSIDE getStaticPaths below — Astro's worker build
+// hoists getStaticPaths to its own scope where module-level consts are not
+// visible ("TOOLS is not defined").
+export function getStaticPaths() {
+  const TOOLS: Tool[] = [
+    // Tier 1 (§5.7 verified)
+    {
+      slug: "rashi",
+      title: "Rashi & Nakshatra Calculator",
+      hi: "चंद्र राशि",
+      description:
+        "Find your exact Moon sign (Rashi), lunar constellation (Nakshatra) and pada for your birth moment.",
+      kind: "birth",
+      endpoint: "/api/v1/calculators/rashi",
+    },
+    {
+      slug: "sade-sati",
+      title: "Shani Sade Sati Check",
+      hi: "साढ़े साती",
+      description:
+        "Saturn's 7.5-year transit relative to your Moon sign — current phase, window start/end and next window.",
+      kind: "birth",
+      endpoint: "/api/v1/calculators/sade-sati",
+    },
+    {
+      slug: "mangal-dosha",
+      title: "Mangal Dosha Check",
+      hi: "मंगल दोष",
+      description:
+        "Mars placement in houses 1, 2, 4, 7, 8, 12 from Lagna, Moon and Venus — with classical cancellations.",
+      kind: "birth",
+      endpoint: "/api/v1/kundli",
+      submitLabel: "Evaluate Mars",
+      note: "This tool runs the full kundli endpoint and highlights the Manglik verdict.",
+    },
+    {
+      slug: "kaal-sarp",
+      title: "Kaal Sarp Yoga Check",
+      hi: "काल सर्प योग",
+      description:
+        "Whether all seven grahas are hemmed within one Rahu–Ketu axis, and the classical type by Rahu's house.",
+      kind: "birth",
+      endpoint: "/api/v1/kundli",
+      submitLabel: "Check Kaal Sarp",
+    },
+    {
+      slug: "karakas",
+      title: "Atmakaraka & Jaimini Karakas",
+      hi: "आत्मकारक",
+      description:
+        "Your seven soul-significators ranked by in-sign degree — Atmakaraka, Amatyakaraka … Darakaraka.",
+      kind: "birth",
+      endpoint: "/api/v1/calculators/karakas",
+    },
+    {
+      slug: "ishta-devata",
+      title: "Ishta Devata (Atmakaraka base)",
+      hi: "इष्ट देवता",
+      description:
+        "Atmakaraka and its Navamsha sign — the classical anchor for personal worship. Deity table pending Jyotishi review.",
+      kind: "birth",
+      endpoint: "/api/v1/calculators/ishta-devata",
+    },
+    {
+      slug: "transits",
+      title: "Current Transit Chart",
+      hi: "गोचर",
+      description: "Where the nine grahas are right now, computed for your coordinates.",
+      kind: "transits",
+      endpoint: "/api/v1/calculators/transits",
+      submitLabel: "Fetch Current Positions",
+    },
+    // Tier 2 (§5.7 "build next")
+    {
+      slug: "numerology",
+      title: "Vedic Numerology",
+      hi: "अंक ज्योतिष",
+      description:
+        "Mulank (birth number), Bhagyank (destiny number) and Namank (name number) via Chaldean values.",
+      kind: "date-name",
+      endpoint: "/api/v1/calculators/numerology",
+      extraFields: [{ name: "name", label: "Full name", type: "text", placeholder: "Your name" }],
+    },
+    {
+      slug: "lo-shu",
+      title: "Lo Shu Grid",
+      hi: "लो शु ग्रिड",
+      description:
+        "Your birth-date digits on the classical 3×3 Lo Shu map — missing and repeated numbers.",
+      kind: "date",
+      endpoint: "/api/v1/calculators/lo-shu",
+    },
+    {
+      slug: "vehicle-number",
+      title: "Lucky Vehicle Number",
+      hi: "वाहन अंक",
+      description: "Favourable registration numbers from your birth-day number's planetary lord.",
+      kind: "date",
+      endpoint: "/api/v1/calculators/vehicle-number",
+    },
+    {
+      slug: "name-numerology",
+      title: "Lucky Name Numerology",
+      hi: "नाम अंक",
+      description: "Chaldean value of your name with its planetary lord.",
+      kind: "name",
+      endpoint: "/api/v1/calculators/name-numerology",
+      extraFields: [
+        {
+          name: "name",
+          label: "Full name",
+          type: "text",
+          placeholder: "Your name",
+          required: true,
+        },
+      ],
+    },
+    {
+      slug: "mobile-numerology",
+      title: "Mobile Number Numerology",
+      hi: "मोबाइल अंक",
+      description: "Digit-sum reading of your phone number (for entertainment).",
+      kind: "mobile",
+      endpoint: "/api/v1/calculators/mobile-numerology",
+      extraFields: [
+        {
+          name: "digits",
+          label: "Mobile number",
+          type: "text",
+          placeholder: "10–15 digits",
+          required: true,
+        },
+      ],
+      forFun: true,
+    },
+    {
+      slug: "age",
+      title: "Age Calculator",
+      hi: "आयु गणना",
+      description: "Exact calendar age — years, months, days, total days.",
+      kind: "age",
+      endpoint: "/api/v1/calculators/age",
+    },
+    {
+      slug: "name-compatibility",
+      title: "Name Compatibility",
+      hi: "नाम मिलान",
+      description: "Combined Chaldean name roots with a harmony band.",
+      kind: "names",
+      endpoint: "/api/v1/calculators/name-compatibility",
+      extraFields: [
+        {
+          name: "b",
+          label: "Second name",
+          type: "text",
+          placeholder: "Other name",
+          required: true,
+        },
+      ],
+      forFun: true,
+    },
+    {
+      slug: "love",
+      title: "Love Compatibility (fun)",
+      hi: "प्रेम मिलान",
+      description: "Playful name-numerology love score.",
+      kind: "names",
+      endpoint: "/api/v1/calculators/love",
+      extraFields: [
+        {
+          name: "b",
+          label: "Second name",
+          type: "text",
+          placeholder: "Other name",
+          required: true,
+        },
+      ],
+      forFun: true,
+    },
+    {
+      slug: "friendship",
+      title: "Friendship Compatibility (fun)",
+      hi: "मित्रता मिलान",
+      description: "Playful name-numerology friendship score.",
+      kind: "names",
+      endpoint: "/api/v1/calculators/friendship",
+      extraFields: [
+        {
+          name: "b",
+          label: "Second name",
+          type: "text",
+          placeholder: "Other name",
+          required: true,
+        },
+      ],
+      forFun: true,
+    },
+    {
+      slug: "flames",
+      title: "FLAMES (fun)",
+      hi: "फ्लेम्स",
+      description: "The classic letter game — labelled strictly for fun.",
+      kind: "names",
+      endpoint: "/api/v1/calculators/flames",
+      extraFields: [
+        {
+          name: "b",
+          label: "Second name",
+          type: "text",
+          placeholder: "Other name",
+          required: true,
+        },
+      ],
+      forFun: true,
+    },
+  ];
+  return TOOLS.map((tool) => ({ params: { tool: tool.slug }, props: { tool } }));
+}
+
+const { tool } = Astro.props as { tool: Tool };
+const API_NOTE =
+  "All computation happens in the Vyotish backend engine via /api/v1 — the page never calculates.";
+---
+
+<Base
+  title={`${tool.title} — Free Vedic Calculator | Vyotish`}
+  description={`${tool.description} Free, instant, no login — computed by the Vyotish backend engine.`}
+  langPath="/calculators"
+>
+  <section class="calc">
+    <nav class="crumbs" aria-label="Breadcrumb">
+      <a href="/calculators/">Calculators</a>
+      <span>/</span>
+      <span>{tool.title}</span>
+    </nav>
+
+    <h1>{tool.title} {tool.hi && <span class="hi-text">({tool.hi})</span>}</h1>
+    <p class="lede">{tool.description}</p>
+    <div class="flags">
+      {tool.forFun && <span class="flag fun">For fun — not an astrological verdict</span>}
+      <span class="flag">{API_NOTE}</span>
+    </div>
+
+    <div class="panel">
+      {
+        tool.kind === "birth" ? (
+          <BirthForm endpoint={tool.endpoint} submitLabel={tool.submitLabel ?? "Calculate"} note={tool.note} />
+        ) : tool.kind === "transits" ? (
+          <form class="grid grid-cols-2 sm:grid-cols-3 gap-3 items-end" data-calc-endpoint={tool.endpoint} autocomplete="off">
+            <div>
+              <label class="lbl" for="bf-lat">Latitude</label>
+              <input class="inp" id="bf-lat" name="lat" type="number" step="0.0001" min="-90" max="90" placeholder="28.6139" required />
+            </div>
+            <div>
+              <label class="lbl" for="bf-lng">Longitude</label>
+              <input class="inp" id="bf-lng" name="lng" type="number" step="0.0001" min="-180" max="180" placeholder="77.209" required />
+            </div>
+            <div>
+              <label class="lbl" for="bf-tz">Timezone (IANA)</label>
+              <input class="inp" id="bf-tz" name="tz" type="text" placeholder="Asia/Kolkata" required />
+            </div>
+            <button type="submit" class="btn">{tool.submitLabel ?? "Calculate"}</button>
+          </form>
+        ) : (
+          <form class="grid grid-cols-2 sm:grid-cols-3 gap-3 items-end" data-calc-endpoint={tool.endpoint} autocomplete="off">
+            <div>
+              <label class="lbl" for="bf-date">Date</label>
+              <input class="inp" id="bf-date" name="date" type="date" required={tool.kind !== "name" && tool.kind !== "names" && tool.kind !== "mobile"} />
+            </div>
+            {(tool.kind === "name" || tool.kind === "names" || tool.kind === "date-name") && (
+              <div>
+                <label class="lbl" for="bf-name">Name{tool.kind === "names" ? " 1" : ""}</label>
+                <input class="inp" id="bf-name" name="name" type="text" placeholder={tool.kind === "names" ? "First name" : "Your name"} required={tool.kind === "name" || tool.kind === "names"} />
+              </div>
+            )}
+            {tool.extraFields?.filter((f) => f.name !== "name").map((f) => (
+              <div>
+                <label class="lbl" for={`bf-${f.name}`}>{f.label}{f.required ? "" : " (optional)"}</label>
+                <input class="inp" id={`bf-${f.name}`} name={f.name} type={f.type} placeholder={f.placeholder ?? ""} required={f.required === true} />
+              </div>
+            ))}
+            <button type="submit" class="btn">{tool.submitLabel ?? "Calculate"}</button>
+          </form>
+        )
+      }
+
+      <section class="result" data-calc-result aria-live="polite">
+        <p class="hint">Results appear here — computed by the Vyotish backend; nothing is stored.</p>
+      </section>
+    </div>
+
+    <p class="more">
+      <a href="/calculators/">← All calculators</a> · Kundli with charts &amp; Dasha on the
+      <a href="/kundli">Free Kundli page</a> · Matching on the <a href="/matching">Match page</a>
+    </p>
+  </section>
+</Base>
+
+<script define:vars={{ endpoint: tool.endpoint, apiBase: (import.meta.env.PUBLIC_API_BASE_URL ?? "https://astro-backend.vyotish.workers.dev") }}>
+  (function () {
+    var form = document.querySelector("form[data-calc-endpoint]");
+    var box = document.querySelector("[data-calc-result]");
+    if (!form || !box) return;
+
+    function esc(s) {
+      return String(s == null ? "" : s).replace(/[&<>"']/g, function (ch) {
+        return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch];
+      });
+    }
+
+    function renderObject(obj) {
+      var html = "";
+      Object.keys(obj).forEach(function (k) {
+        if (k === "engine_version" || k === "consent_note") return;
+        html += "<div class='row'><span class='k'>" + esc(k) + "</span><span class='v'>" + renderValue(obj[k]) + "</span></div>";
+      });
+      return html;
+    }
+
+    function renderValue(v) {
+      if (v === null || v === undefined || v === "") return "—";
+      if (typeof v === "boolean") return v ? "Yes" : "No";
+      if (Array.isArray(v)) {
+        if (v.every(function (x) { return x === null || typeof x !== "object"; })) {
+          return v.map(function (x) { return esc(x); }).join(", ") || "—";
+        }
+        return "<div class='stack'>" + v.map(function (x) {
+          return typeof x === "object" ? "<div class='obj'>" + renderObject(x) + "</div>" : esc(x);
+        }).join("") + "</div>";
+      }
+      if (typeof v === "object") return "<div class='stack'><div class='obj'>" + renderObject(v) + "</div></div>";
+      return esc(v);
+    }
+
+    form.addEventListener("submit", function (e) {
+      e.preventDefault();
+      var fd = new FormData(form);
+      var qs = new URLSearchParams();
+      fd.forEach(function (value, key) {
+        if (String(value).trim() !== "") qs.set(key, String(value).trim());
+      });
+      var base = form.getAttribute("data-calc-endpoint");
+      var url = apiBase + base + (base.indexOf("?") >= 0 ? "&" : "?") + qs.toString();
+      box.innerHTML = "<p class='hint'>Calculating…</p>";
+      fetch(url)
+        .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+        .then(function (r) {
+          if (!r.ok || r.j.error) {
+            var msg = (r.j && r.j.error && r.j.error.message) || "The calculation failed — please check the inputs and try again.";
+            box.innerHTML = "<p class='hint err'>" + esc(msg) + "</p>";
+            return;
+          }
+          var data = r.j.data || {};
+          var html = "<div class='grid-result'>" + renderObject(data) + "</div>";
+          if (data.verified === false) {
+            html += "<p class='flagline'>Table set pending Jyotishi review (P11) — treat as indicative.</p>";
+          }
+          if (data.for_fun === true) {
+            html += "<p class='flagline'>For entertainment only.</p>";
+          }
+          box.innerHTML = html;
+        })
+        .catch(function () {
+          box.innerHTML = "<p class='hint err'>The backend could not be reached — please refresh and try again.</p>";
+        });
+    });
+  })();
+</script>
+
+<style>
+  .calc { max-width: 900px; margin: 0 auto; padding: var(--space-6) var(--space-4) var(--space-8); }
+  .crumbs { display: flex; gap: var(--space-2); font-size: 13px; color: var(--text-dim); margin-bottom: var(--space-3); }
+  .crumbs a { color: var(--gold); text-decoration: none; }
+  h1 { font-family: var(--font-display); color: var(--ivory); font-size: clamp(24px, 5vw, 34px); }
+  .hi-text { color: var(--text-dim); font-size: 0.7em; }
+  .lede { color: var(--text-muted); font-size: 14.5px; margin-top: var(--space-2); max-width: 640px; }
+  .flags { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-3); }
+  .flag { font-size: 12px; color: var(--text-dim); border: 1px solid var(--color-border); border-radius: 999px; padding: 3px 10px; }
+  .flag.fun { color: var(--gold); border-color: var(--border-gold-soft); }
+  .panel { margin-top: var(--space-5); background: var(--bg-raised); border: 1px solid var(--color-border-strong); border-radius: var(--radius-card); padding: var(--space-5); }
+  .lbl { display: block; font-size: 12px; font-weight: 600; color: var(--text-muted); margin-bottom: 4px; }
+  .inp { width: 100%; padding: 8px 10px; border-radius: 8px; background: var(--bg); border: 1px solid var(--color-border-strong); color: var(--ivory); font-size: 14px; }
+  .btn { padding: 9px 18px; border-radius: 8px; background: var(--gold); color: #17201e; font-weight: 600; font-size: 14px; border: none; cursor: pointer; }
+  .result { margin-top: var(--space-4); border-top: 1px dashed var(--color-border); padding-top: var(--space-4); }
+  .hint { color: var(--text-dim); font-size: 13.5px; }
+  .hint.err { color: #e0806d; }
+  .grid-result { display: flex; flex-direction: column; gap: 6px; }
+  .row { display: grid; grid-template-columns: 200px 1fr; gap: var(--space-3); padding: 4px 0; border-bottom: 1px solid var(--color-border); }
+  .k { color: var(--text-dim); font-size: 13px; }
+  .v { color: var(--ivory); font-size: 14px; }
+  .stack { display: flex; flex-direction: column; gap: 6px; }
+  .obj { border-left: 2px solid var(--border-gold-soft); padding-left: var(--space-3); display: flex; flex-direction: column; gap: 2px; }
+  .obj .row { border-bottom: none; grid-template-columns: 160px 1fr; }
+  .flagline { margin-top: var(--space-3); font-size: 12px; color: var(--text-dim); }
+  .more { margin-top: var(--space-5); font-size: 13.5px; color: var(--text-dim); }
+  .more a { color: var(--gold); }
+</style>

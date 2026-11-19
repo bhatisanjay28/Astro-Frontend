@@ -20,6 +20,10 @@ const { apiBase, citySlug, cityName, lat, lng, tz } = Astro.props;
       Date
       <input type="date" data-pd-date />
     </label>
+    <div class="quick" role="group" aria-label="Quick date picks">
+      <button type="button" class="quick-btn" data-pd-quick="today">Today</button>
+      <button type="button" class="quick-btn" data-pd-quick="tomorrow">Tomorrow</button>
+    </div>
     <a class="monthly" href="#" data-pd-monthly>Monthly view</a>
   </div>
 
@@ -27,6 +31,11 @@ const { apiBase, citySlug, cityName, lat, lng, tz } = Astro.props;
 
   <div class="pd-grid" data-pd-grid>
     <div class="cell skeleton">Loading…</div>
+  </div>
+
+  <h3>Festivals &amp; vrats <span class="hint">— for the selected day (from the festivals table)</span></h3>
+  <div class="festivals" data-pd-festivals>
+    <p class="fest-empty">—</p>
   </div>
 
   <h3>Five limbs <span class="hint">— with start/end times (Vedic day runs sunrise → sunrise)</span></h3>
@@ -77,10 +86,29 @@ const { apiBase, citySlug, cityName, lat, lng, tz } = Astro.props;
       grid.innerHTML = '<div class="cell skeleton">Loading…</div>';
       limbsEl.innerHTML = "";
       segsEl.innerHTML = "";
+      var festEl = document.querySelector("[data-pd-festivals]");
+      if (festEl) festEl.innerHTML = '<p class="fest-empty">—</p>';
+      fetch(apiBase + "/api/v1/festivals?date=" + dateISO)
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (jf) {
+          if (!jf || !festEl) return;
+          var list = jf.data && jf.data.festivals ? jf.data.festivals : [];
+          if (list.length === 0) {
+            festEl.innerHTML = '<p class="fest-empty">No festivals or vrats recorded for this day yet.</p>';
+          } else {
+            festEl.innerHTML = list.map(function (f) {
+              return '<div class="fest"><span class="fn">' + f.name + (f.name_hi ? ' <span class="fh">' + f.name_hi + "</span>" : "") + '</span><span class="fd">' + (f.description || "") + (f.is_sample ? " (sample)" : "") + "</span></div>";
+            }).join("");
+          }
+        })
+        .catch(function () { /* festivals are optional; panchang still renders */ });
       fetch(apiBase + "/api/v1/panchang?lat=" + lat + "&lng=" + lng + "&tz=" + encodeURIComponent(tz) + "&date=" + dateISO)
         .then(function (r) { if (!r.ok) throw new Error("bad"); return r.json(); })
         .then(function (j) {
           var p = j.data;
+          var hm = p.hindu_month || {};
+          var prim = hm.primary || hm.purnimanta || {};
+          var sv = p.samvat || {};
           grid.innerHTML =
             cell("Tithi", p.tithi[0] ? p.tithi[0].name : "—") +
             cell("Nakshatra", p.nakshatra[0] ? p.nakshatra[0].name : "—", p.nakshatra[0] ? p.nakshatra[0].name_hi : "") +
@@ -89,7 +117,9 @@ const { apiBase, citySlug, cityName, lat, lng, tz } = Astro.props;
             cell("Sunrise", fmt(p.vedic_day.sunrise, p.timezone)) +
             cell("Sunset", fmt(p.vedic_day.sunset, p.timezone)) +
             cell("Moonrise", p.moonrise ? fmt(p.moonrise, p.timezone) : "—") +
-            cell("Moonset", p.moonset ? fmt(p.moonset, p.timezone) : "—");
+            cell("Moonset", p.moonset ? fmt(p.moonset, p.timezone) : "—") +
+            cell("Hindu month", prim.name ? prim.name + (hm.adhika ? " (adhika)" : "") : "—", prim.name_hi || "") +
+            cell("Samvat", sv.vikram ? "Vikram " + sv.vikram + " · Shaka " + sv.shaka : "—");
           limbsEl.innerHTML =
             '<div class="limb-block"><h4>Tithi</h4>' + limbRows(p.tithi) + "</div>" +
             '<div class="limb-block"><h4>Nakshatra</h4>' + limbRows(p.nakshatra) + "</div>" +
@@ -109,6 +139,19 @@ const { apiBase, citySlug, cityName, lat, lng, tz } = Astro.props;
     var initial = new URLSearchParams(location.search).get("date") || today();
     dateInput.value = initial;
     load(initial);
+    document.querySelectorAll("[data-pd-quick]").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var kind = btn.getAttribute("data-pd-quick");
+        var d = new Date();
+        if (kind === "tomorrow") d.setDate(d.getDate() + 1);
+        var iso = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+        dateInput.value = iso;
+        var url = new URL(location.href);
+        url.searchParams.set("date", iso);
+        history.replaceState(null, "", url.toString());
+        load(iso);
+      });
+    });
     dateInput.addEventListener("change", function () {
       var url = new URL(location.href);
       url.searchParams.set("date", dateInput.value);
@@ -135,6 +178,19 @@ const { apiBase, citySlug, cityName, lat, lng, tz } = Astro.props;
     padding: 0 var(--space-3);
   }
   .monthly { color: var(--gold); font-size: 14px; text-decoration: none; min-height: var(--target-min); line-height: var(--target-min); }
+  .quick { display: inline-flex; gap: var(--space-2); }
+  .quick-btn {
+    min-height: var(--target-min); padding: 0 var(--space-3);
+    background: var(--bg-raised); border: 1px solid var(--color-border-strong);
+    border-radius: var(--radius-card); color: var(--text-muted); font-size: 13px; cursor: pointer;
+  }
+  .quick-btn:hover { border-color: var(--border-gold-soft); color: var(--ivory); }
+  .festivals { display: flex; flex-direction: column; gap: var(--space-2); }
+  .fest-empty { color: var(--text-faint); font-size: 13px; }
+  .fest { background: var(--bg-raised); border: 1px solid var(--border-gold-soft); border-radius: var(--radius-card); padding: var(--space-3) var(--space-4); display: flex; flex-direction: column; gap: 2px; }
+  .fest .fn { color: var(--ivory); font-weight: 500; font-size: 14px; }
+  .fest .fh { color: var(--text-dim); font-weight: 400; margin-left: var(--space-2); }
+  .fest .fd { color: var(--text-dim); font-size: 12.5px; }
   .pd-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: var(--space-3); }
   .cell { background: var(--bg-raised); border: 1px solid var(--color-border-strong); border-radius: var(--radius-card); padding: var(--space-3); min-height: 72px; }
   .cell .label { font-size: 10.5px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--text-dim); }

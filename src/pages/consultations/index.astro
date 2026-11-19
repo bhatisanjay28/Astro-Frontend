@@ -1,10 +1,98 @@
 ---
-import TabStub from "../../components/TabStub.astro";
+import BookingForm from "../../components/BookingForm.astro";
+/** /consultations/ — Astrologer directory + booking (Epic 5.2). Directory is
+ * a build-time fetch of GET /api/v1/astrologers (D12); the booking form posts
+ * live to POST /api/v1/requests/consultation. Honest empty states throughout. */
+import Base from "../../layouts/Base.astro";
+import { fetchAstrologers } from "../../lib/content";
+
+const astrologers = (await fetchAstrologers()) ?? [];
+const EMPTY =
+  "The astrologer directory is temporarily unavailable — the backend service could not be reached at build time. Please try again later.";
 ---
 
-<TabStub
-  title="Consultations | Vyotish"
-  tabLabel="Consultations"
-  description="Find an astrologer by expertise, language and availability — then request a booking."
-  epic="Epic 5"
-/>
+<Base
+  title="Consult a Jyotish Scholar — Astrologer Directory | Vyotish"
+  description="Browse verified Vedic astrologers by expertise, language and experience — request a consultation directly; requests route to the admin inbox."
+  langPath="/consultations"
+>
+  <section class="cons">
+    <h1>Consultations <span class="hi-text">(ज्योतिष परामर्श)</span></h1>
+    <p class="lede">
+      Choose a scholar by expertise, language and lineage. Requests are saved to the
+      Vyotish admin inbox — an astrologer responds personally within 24–48 hours.
+      No payment is taken online in Phase 1.
+    </p>
+
+    <div class="grid">
+      {
+        astrologers.length === 0 ? (
+          <p class="lede">{EMPTY}</p>
+        ) : (
+          astrologers.map((a) => (
+            <article class="card">
+              <div class="head">
+                <span class="badge">{a.name.replace(/^(Pt\.|Dr\.|Acharya)\s+/, "").split(/\s+/).map((w) => w[0] ?? "").join("").slice(0, 2).toUpperCase()}</span>
+                <div>
+                  <span class="name">{a.name}</span>
+                  {a.title && <span class="title">{a.title}</span>}
+                  <span class="meta">
+                    {a.experience_years ?? "—"} yrs exp · {a.languages.join(", ")}
+                  </span>
+                </div>
+              </div>
+              <p class="about">{a.about}</p>
+              <div class="tags">
+                {a.expertise.map((e) => (
+                  <span class="tag">{e}</span>
+                ))}
+              </div>
+              <div class="foot">
+                <span class="rate">{a.rate_per_min === null ? "—" : `₹${a.rate_per_min} / min`}</span>
+                <span class={`avail ${a.is_available ? "on" : ""}`}>
+                  <span class="dot" /> {a.availability_label || (a.is_available ? "Available" : "Unavailable")}
+                </span>
+              </div>
+            </article>
+          ))
+        )
+      }
+    </div>
+
+    {astrologers.length > 0 && (
+      <p class="lede">
+        Sample data for Phase 1 review — the directory is admin-managed once Epic 6.4 lands.
+      </p>
+    )}
+
+    <h2>Request a consultation</h2>
+    <div class="formpanel">
+      <BookingForm kind="consultation" subjectLabel="Topic" submitLabel="Request Consultation" />
+    </div>
+  </section>
+</Base>
+
+<style>
+  .cons { max-width: 1000px; margin: 0 auto; padding: var(--space-6) var(--space-4) var(--space-8); }
+  h1 { font-family: var(--font-display); color: var(--ivory); font-size: clamp(26px, 5vw, 38px); }
+  h2 { font-family: var(--font-display); color: var(--gold); font-size: 19px; margin-top: var(--space-7); margin-bottom: var(--space-3); }
+  .hi-text { color: var(--text-dim); font-size: 0.7em; }
+  .lede { color: var(--text-muted); margin-top: var(--space-2); font-size: 14.5px; max-width: 760px; }
+  .grid { display: grid; gap: var(--space-3); grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); margin-top: var(--space-5); }
+  .card { background: var(--bg-raised); border: 1px solid var(--color-border-strong); border-radius: var(--radius-card); padding: var(--space-4); display: flex; flex-direction: column; gap: var(--space-3); }
+  .head { display: flex; gap: var(--space-3); align-items: center; }
+  .badge { width: 52px; height: 52px; border-radius: 999px; background: var(--gold); color: #17201e; display: inline-flex; align-items: center; justify-content: center; font-weight: 700; font-size: 17px; flex-shrink: 0; }
+  .name { display: block; color: var(--ivory); font-weight: 600; font-size: 15px; }
+  .title { display: block; color: var(--text-dim); font-size: 12.5px; }
+  .meta { display: block; color: var(--gold); font-size: 12px; margin-top: 2px; }
+  .about { color: var(--text-muted); font-size: 13.5px; line-height: 1.6; }
+  .tags { display: flex; flex-wrap: wrap; gap: 6px; }
+  .tag { font-size: 11.5px; color: var(--text-dim); border: 1px solid var(--color-border); border-radius: 999px; padding: 2px 9px; }
+  .foot { display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--color-border); padding-top: var(--space-3); }
+  .rate { color: var(--gold); font-weight: 600; font-size: 14px; }
+  .avail { color: var(--text-dim); font-size: 12.5px; display: inline-flex; align-items: center; gap: 6px; }
+  .avail.on { color: #7fce9d; }
+  .dot { width: 8px; height: 8px; border-radius: 999px; background: var(--text-dim); display: inline-block; }
+  .avail.on .dot { background: #7fce9d; }
+  .formpanel { margin-top: var(--space-4); background: var(--bg-raised); border: 1px solid var(--color-border-strong); border-radius: var(--radius-card); padding: var(--space-5); }
+</style>

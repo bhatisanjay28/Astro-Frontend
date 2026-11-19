@@ -1,0 +1,79 @@
+---
+import { getCollection, render } from "astro:content";
+/** /astrology/learn/{slug} — article renderer (Epic 4.5). */
+import Base from "../../../layouts/Base.astro";
+
+export async function getStaticPaths() {
+  const articles = await getCollection("learn");
+  return articles.map((a) => ({ params: { slug: a.id }, props: { article: a } }));
+}
+
+const { article } = Astro.props as { article: any };
+const { Content } = await render(article);
+
+const others = (await getCollection("learn"))
+  .filter((a) => a.id !== article.id)
+  .sort((a, b) => a.data.order - b.data.order)
+  .slice(0, 3);
+---
+
+<Base
+  title={`${article.data.title} | Vyotish Learn`}
+  description={article.data.description}
+  langPath="/astrology/learn"
+>
+  <article class="art">
+    <nav class="crumbs" aria-label="Breadcrumb">
+      <a href="/astrology/learn/">Learn</a>
+      <span>/</span>
+      <span>{article.data.title}</span>
+    </nav>
+    <h1>{article.data.title}</h1>
+    <p class="lede">{article.data.description}</p>
+
+    <div class="prose">
+      <Content />
+    </div>
+
+    <aside class="more">
+      <h2>Keep learning</h2>
+      <ul>
+        {
+          others.map((o) => (
+            <li>
+              <a href={`/astrology/learn/${o.id}`}>{o.data.title}</a>
+            </li>
+          ))
+        }
+      </ul>
+      <p>
+        Practice on the <a href="/calculators">free calculators</a> or generate your
+        <a href="/kundli">free kundli</a>.
+      </p>
+    </aside>
+  </article>
+</Base>
+
+<style>
+  .art { max-width: 760px; margin: 0 auto; padding: var(--space-6) var(--space-4) var(--space-8); }
+  .crumbs { display: flex; gap: var(--space-2); font-size: 13px; color: var(--text-dim); margin-bottom: var(--space-3); }
+  .crumbs a { color: var(--gold); text-decoration: none; }
+  h1 { font-family: var(--font-display); color: var(--ivory); font-size: clamp(26px, 5vw, 36px); }
+  .lede { color: var(--text-muted); font-size: 15px; margin-top: var(--space-2); line-height: 1.6; }
+  .prose { margin-top: var(--space-6); border-top: 1px solid var(--color-border); padding-top: var(--space-5); }
+  .prose h2 { font-family: var(--font-display); color: var(--gold); font-size: 20px; margin: var(--space-6) 0 var(--space-3); }
+  .prose h3 { color: var(--ivory); font-size: 16px; margin: var(--space-4) 0 var(--space-2); }
+  .prose p, .prose li { color: var(--text-muted); font-size: 14.5px; line-height: 1.75; }
+  .prose p { margin: var(--space-3) 0; }
+  .prose a { color: var(--gold); }
+  .prose ul, .prose ol { margin: var(--space-3) 0 var(--space-3) var(--space-5); display: flex; flex-direction: column; gap: var(--space-2); }
+  .prose table { width: 100%; border-collapse: collapse; font-size: 13.5px; margin: var(--space-4) 0; }
+  .prose th { text-align: left; color: var(--gold); padding: 6px 8px; border-bottom: 1px solid var(--color-border-strong); font-weight: 600; }
+  .prose td { padding: 6px 8px; border-bottom: 1px solid var(--color-border); color: var(--text-muted); }
+  .prose strong { color: var(--ivory); }
+  .more { margin-top: var(--space-7); border-top: 1px solid var(--color-border-strong); padding-top: var(--space-4); }
+  .more h2 { font-family: var(--font-display); color: var(--gold); font-size: 17px; margin-bottom: var(--space-2); }
+  .more li { margin-left: var(--space-4); color: var(--text-muted); font-size: 14px; }
+  .more a { color: var(--gold); }
+  .more p { margin-top: var(--space-3); font-size: 13.5px; color: var(--text-dim); }
+</style>

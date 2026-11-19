@@ -1,0 +1,59 @@
+---
+import { getCollection } from "astro:content";
+/** /astrology/learn/ — Learn hub (Epic 4.5): original articles from the
+ * Astro content collection. */
+import Base from "../../../layouts/Base.astro";
+
+const articles = (await getCollection("learn")).sort((a, b) => a.data.order - b.data.order);
+---
+
+<Base
+  title="Learn Vedic Astrology — Original Articles | Vyotish"
+  description="Original Vedic astrology scholarship: the 12 rashis, Navagraha, 27 nakshatras, houses, panchang yogas, doshas and Vimshottari dasha."
+  langPath="/astrology/learn"
+>
+  <section class="lrn">
+    <h1>Learn Vedic Astrology</h1>
+    <p class="lede">
+      Original, no-fear scholarship: what the classical system actually says, how
+      Vyotish computes it, and where interpretation schools differ. Pair the theory
+      with the <a href="/calculators">free calculators</a>.
+    </p>
+    <div class="grid">
+      {
+        articles.length === 0 ? (
+          <p class="lede">Articles are being prepared — please check back shortly.</p>
+        ) : (
+          articles.map((a) => (
+            <a class="card" href={`/astrology/learn/${a.id}`}>
+              <span class="name">{a.data.title}</span>
+              <span class="desc">{a.data.description}</span>
+              <span class="cta">Read →</span>
+            </a>
+          ))
+        )
+      }
+    </div>
+  </section>
+</Base>
+
+<style>
+  .lrn { max-width: 900px; margin: 0 auto; padding: var(--space-6) var(--space-4) var(--space-8); }
+  h1 { font-family: var(--font-display); color: var(--ivory); font-size: clamp(26px, 5vw, 36px); }
+  .lede { color: var(--text-muted); margin-top: var(--space-2); font-size: 14.5px; max-width: 700px; }
+  .lede a { color: var(--gold); }
+  .grid { display: grid; gap: var(--space-3); margin-top: var(--space-5); grid-template-columns: 1fr; }
+  @media (min-width: 640px) { .grid { grid-template-columns: repeat(2, 1fr); } }
+  .card {
+    display: flex; flex-direction: column; gap: 5px;
+    background: var(--bg-raised);
+    border: 1px solid var(--color-border-strong);
+    border-radius: var(--radius-card);
+    padding: var(--space-4);
+    text-decoration: none;
+  }
+  .card:hover { border-color: var(--border-gold-soft); }
+  .name { color: var(--ivory); font-weight: 500; font-size: 15px; }
+  .desc { color: var(--text-dim); font-size: 13px; line-height: 1.55; }
+  .cta { color: var(--gold); font-size: 12.5px; margin-top: var(--space-2); }
+</style>

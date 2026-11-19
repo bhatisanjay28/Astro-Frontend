@@ -97,6 +97,45 @@ const themeLock = lockDark ? "dark" : null;
       <slot />
     </main>
     {chrome && <Footer />}
+
+    <!-- 2.3b consent-banner stub: no analytics load yet — the banner honestly
+         states that and remembers acceptance in localStorage. Epic 7 swaps the
+         stub for the real CMP without changing this markup contract. -->
+    {
+      chrome && (
+        <div class="consent-stub" data-consent-stub hidden role="region" aria-label="Cookie notice">
+          <span>
+            Vyotish does not load analytics or tracking yet. When that changes we will
+            ask here before anything non-essential runs.
+          </span>
+          <button type="button" data-consent-ok>Got it</button>
+        </div>
+      )
+    }
+    {
+      chrome && (
+        <script is:inline>
+          (function () {
+            var el = document.querySelector("[data-consent-stub]");
+            if (!el) return;
+            try {
+              if (!localStorage.getItem("vyotish.consent.v1")) el.removeAttribute("hidden");
+            } catch (e) {
+              /* storage blocked: show the banner (safe default) */
+              el.removeAttribute("hidden");
+            }
+            var btn = el.querySelector("[data-consent-ok]");
+            if (btn)
+              btn.addEventListener("click", function () {
+                try {
+                  localStorage.setItem("vyotish.consent.v1", "acknowledged");
+                } catch (e) {}
+                el.setAttribute("hidden", "");
+              });
+          })();
+        </script>
+      )
+    }
     <!-- global styles live in src/styles/base.css (layer order: theme → base → utilities) -->
   </body>
 </html>

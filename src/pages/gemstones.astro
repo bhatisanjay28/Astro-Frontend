@@ -1,27 +1,44 @@
 ---
 /**
- * Gemstones — "Coming soon..!" (PRD §5.8). Driven by the GEMSTONES_SITE_URL
- * site setting: while empty this page shows; once set, the tab links out to
- * the separate site (frontend reads public.* settings once the API contract
- * for settings lands with Epic 5.4).
+ * Gemstones (PRD §5.8) — wired to the GEMSTONES_SITE_URL site setting via
+ * GET /api/v1/settings (Epic 5.4). While the setting is empty this page
+ * renders; once the owner sets it, the page links straight out to the store.
  */
 import Base from "../layouts/Base.astro";
+import { fetchSettings } from "../lib/content";
+
+const settings = await fetchSettings();
+const storeUrl = settings?.gemstones_site_url ?? null;
 ---
 
 <Base
-  title="Gemstones — Coming soon..! | Vyotish"
-  description="Vyotish gemstones recommendations are coming soon."
+  title={storeUrl ? "Gemstones | Vyotish" : "Gemstones — Coming soon..! | Vyotish"}
+  description="Vyotish gemstones recommendations — lab-certified stones with traditional Vedic energisation."
   langPath="/gemstones"
   lockDark
 >
   <section class="gem">
     <div class="om" aria-hidden="true">💎</div>
-    <h1>Coming soon..!</h1>
-    <p>
-      Our gemstone recommendations are being crafted with the same care as the rest
-      of Vyotish — traditional guidance, honest sourcing, no exaggerated claims.
-    </p>
-    <a class="back" href="/">← Back to home</a>
+    {storeUrl ? (
+      <>
+        <h1>Vyotish Gemstones</h1>
+        <p>
+          Our dedicated lab-certified gemstone platform is ready — every stone ships with
+          a government-accredited certificate and traditional Vedic energisation.
+        </p>
+        <a class="cta" href={storeUrl} rel="noopener noreferrer">Visit the gemstone store →</a>
+      </>
+    ) : (
+      <>
+        <h1>Coming soon..!</h1>
+        <p>
+          Our gemstone recommendations are being crafted with the same care as the rest
+          of Vyotish — traditional guidance, honest sourcing, no exaggerated claims. The
+          moment the store launches, this page links straight to it.
+        </p>
+        <a class="back" href="/">← Back to home</a>
+      </>
+    )}
   </section>
 </Base>
 
@@ -44,5 +61,15 @@ import Base from "../layouts/Base.astro";
     margin-top: var(--space-4);
   }
   p { color: var(--text-muted); max-width: 460px; line-height: 1.7; margin-top: var(--space-4); font-size: 15px; }
+  .cta {
+    margin-top: var(--space-6);
+    color: #17201e;
+    background: var(--gold);
+    border-radius: 10px;
+    padding: 10px 22px;
+    font-weight: 600;
+    text-decoration: none;
+    display: inline-block;
+  }
   .back { margin-top: var(--space-6); color: var(--gold); text-decoration: none; min-height: var(--target-min); line-height: var(--target-min); }
 </style>

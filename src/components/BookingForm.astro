@@ -1,0 +1,192 @@
+---
+/**
+ * Shared booking-request form (Epic 5.2/5.3). `kind: consultation|puja`
+ * selects the endpoint + extra fields. Posts to the backend API (D12) and
+ * renders the honest result — never a fake success.
+ */
+interface Props {
+  kind: "consultation" | "puja";
+  /** Preselect the astrologer/puja slug (profile page embeds). */
+  slug?: string;
+  subjectLabel?: string;
+  submitLabel?: string;
+}
+const {
+  kind,
+  slug = "",
+  subjectLabel = kind === "puja" ? "Puja" : "Topic",
+  submitLabel = "Send Request",
+} = Astro.props;
+const endpoint = kind === "puja" ? "/api/v1/requests/puja" : "/api/v1/requests/consultation";
+const inputClass =
+  "w-full px-3 py-2 rounded bg-light-surface dark:bg-dark-surface border border-light-outline-variant dark:border-dark-outline-variant text-light-on-surface dark:text-dark-on-surface font-body text-body-sm";
+const labelClass =
+  "block font-label text-label-sm font-semibold text-light-on-surface-variant dark:text-dark-on-surface-variant mb-1";
+const subjects =
+  kind === "puja"
+    ? [
+        "Graha Shanti",
+        "Satyanarayan Katha",
+        "Griha Pravesh",
+        "Rudrabhishek",
+        "Navagraha",
+        "Kaal Sarp Shanti",
+        "Other",
+      ]
+    : [
+        "Vedic Kundli Reading",
+        "Career & Business",
+        "Marriage Matching",
+        "Muhurat Selection",
+        "Health & Wellbeing",
+        "Vastu Guidance",
+        "Other",
+      ];
+---
+
+<form
+  class="grid grid-cols-1 sm:grid-cols-2 gap-3 items-start"
+  data-booking-endpoint={endpoint}
+  data-booking-kind={kind}
+  data-booking-slug={slug}
+  autocomplete="off"
+>
+  <div>
+    <label class={labelClass} for="bk-name">Your name</label>
+    <input class={inputClass} id="bk-name" name="name" type="text" required minlength="2" maxlength="120" />
+  </div>
+  <div>
+    <label class={labelClass} for="bk-phone">Phone (WhatsApp preferred)</label>
+    <input class={inputClass} id="bk-phone" name="phone" type="tel" required placeholder="+91 …" />
+  </div>
+  <div>
+    <label class={labelClass} for="bk-email">Email (optional)</label>
+    <input class={inputClass} id="bk-email" name="email" type="email" />
+  </div>
+  <div>
+    <label class={labelClass} for="bk-subject">{subjectLabel}</label>
+    {
+      kind === "puja" ? (
+        <input class={inputClass} id="bk-subject" name="puja_name" type="text" placeholder="Which puja?" />
+      ) : (
+        <select class={inputClass} id="bk-subject" name="topic">
+          {subjects.map((s) => (
+            <option value={s}>{s}</option>
+          ))}
+        </select>
+      )
+    }
+  </div>
+  {
+    kind === "puja" ? (
+      <>
+        <div>
+          <label class={labelClass} for="bk-gotra">Gotra (optional)</label>
+          <input class={inputClass} id="bk-gotra" name="gotra" type="text" />
+        </div>
+        <div>
+          <label class={labelClass} for="bk-date">Preferred date (optional)</label>
+          <input class={inputClass} id="bk-date" name="date" type="date" />
+        </div>
+        <div>
+          <label class={labelClass} for="bk-location">Mode / place (optional)</label>
+          <input class={inputClass} id="bk-location" name="location" type="text" placeholder="Online / Home / Temple + city" />
+        </div>
+      </>
+    ) : (
+      <>
+        <div>
+          <label class={labelClass} for="bk-date">Preferred date (optional)</label>
+          <input class={inputClass} id="bk-date" name="preferred_date" type="date" />
+        </div>
+        <div>
+          <label class={labelClass} for="bk-time">Preferred time (optional)</label>
+          <input class={inputClass} id="bk-time" name="preferred_time" type="text" placeholder="e.g. morning / 6 pm IST" />
+        </div>
+      </>
+    )
+  }
+  <div class="sm:col-span-2">
+    <label class={labelClass} for="bk-message">Message (optional)</label>
+    <textarea class={inputClass} id="bk-message" name="message" rows="3"></textarea>
+  </div>
+  <div class="sm:col-span-2">
+    <button
+      type="submit"
+      class="px-5 py-2.5 rounded bg-light-primary text-light-on-primary dark:bg-dark-primary dark:text-dark-on-primary font-label text-label-md font-semibold hover:opacity-95 transition-opacity"
+    >
+      {submitLabel}
+    </button>
+    <p class="font-body text-body-sm text-light-outline dark:text-dark-outline mt-2">
+      Saved securely to the Vyotish admin inbox — used only to contact you about this
+      request. Birth details are never stored without explicit consent.
+    </p>
+  </div>
+</form>
+<section class="mt-4 rounded bg-light-surface-variant dark:bg-dark-surface-variant border border-light-outline-variant dark:border-dark-outline-variant p-4" data-booking-result aria-live="polite">
+  <p class="font-body text-body-sm text-light-outline dark:text-dark-outline">
+    Submitting sends a real request to the Vyotish team — no payment is taken on this page.
+  </p>
+</section>
+
+<script>
+  function initBookingForm() {
+    const form = document.querySelector<HTMLFormElement>("form[data-booking-endpoint]");
+    const box = document.querySelector<HTMLElement>("[data-booking-result]");
+    if (!form || !box) return;
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const apiBase =
+        import.meta.env.PUBLIC_API_BASE_URL ?? "https://astro-backend.vyotish.workers.dev";
+      const kind = form.getAttribute("data-booking-kind") ?? "consultation";
+      const slug = form.getAttribute("data-booking-slug") ?? "";
+      const fd = new FormData(form);
+      const get = (k: string) => String(fd.get(k) ?? "").trim();
+      const payload: Record<string, unknown> = {
+        name: get("name"),
+        phone: get("phone"),
+        email: get("email") || undefined,
+        message: get("message") || undefined,
+      };
+      if (kind === "puja") {
+        payload.puja_slug = slug || undefined;
+        payload.puja_name = get("puja_name") || undefined;
+        payload.gotra = get("gotra") || undefined;
+        payload.date = get("date") || undefined;
+        payload.location = get("location") || undefined;
+      } else {
+        payload.astrologer_slug = slug || undefined;
+        payload.topic = get("topic") || "General guidance";
+        payload.preferred_date = get("preferred_date") || undefined;
+        payload.preferred_time = get("preferred_time") || undefined;
+      }
+      box.innerHTML =
+        '<p class="font-body text-body-sm text-light-outline dark:text-dark-outline">Sending your request…</p>';
+      try {
+        const res = await fetch(`${apiBase}${form.getAttribute("data-booking-endpoint")}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const json = (await res.json()) as {
+          data?: { note?: string; status?: string };
+          error?: { message?: string; details?: string[] };
+        };
+        if (!res.ok || json.error) {
+          const msg =
+            json.error?.details?.join(" · ") ??
+            json.error?.message ??
+            "Could not send the request — please try again.";
+          box.innerHTML = `<p class="font-body text-body-sm text-error">Request not sent: ${msg}</p>`;
+          return;
+        }
+        box.innerHTML = `<p class="font-body text-body-sm text-success">✓ Request received — ${json.data?.note ?? "the Vyotish team will contact you."}</p>`;
+        form.reset();
+      } catch {
+        box.innerHTML =
+          '<p class="font-body text-body-sm text-error">The booking service could not be reached — please refresh and try again.</p>';
+      }
+    });
+  }
+  initBookingForm();
+</script>

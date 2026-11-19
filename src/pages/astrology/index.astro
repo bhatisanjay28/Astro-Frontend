@@ -1,10 +1,79 @@
 ---
-import TabStub from "../../components/TabStub.astro";
+/** /astrology/ — Astrology tab hub (Epic 4.5): kundli, matching, calculators,
+ * learn. All computation lives in the backend (D12); this page is navigation. */
+import Base from "../../layouts/Base.astro";
+
+const SECTIONS = [
+  {
+    href: "/kundli",
+    title: "Free Kundli",
+    hi: "जन्म कुंडली",
+    desc: "Full birth chart — nine grahas, Lagna, houses, Navamsha, divisionals, Sade Sati and the Vimshottari dasha table.",
+  },
+  {
+    href: "/matching",
+    title: "Kundli Matching",
+    hi: "गुण मिलान",
+    desc: "Ashtakoota 36-guna milan with per-koota explanations and Manglik dosha from Lagna, Moon and Venus.",
+  },
+  {
+    href: "/calculators",
+    title: "Calculators",
+    hi: "कैलकुलेटर",
+    desc: "Rashi, Nakshatra, Sade Sati, Kaal Sarp, numerology and the full Tier 2 tool set — instant, free.",
+  },
+  {
+    href: "/astrology/learn/",
+    title: "Learn",
+    hi: "अध्ययन",
+    desc: "Original articles: the 12 rashis, Navagraha, 27 nakshatras, houses, panchang, doshas and dasha.",
+  },
+];
 ---
 
-<TabStub
-  title="Astrology | Vyotish"
-  tabLabel="Astrology"
-  description="Free Kundli, kundli matching and original learning articles."
-  epic="Epic 4"
-/>
+<Base
+  title="Astrology — Kundli, Matching, Calculators & Learn | Vyotish"
+  description="Everything Vedic astrology on Vyotish: free kundli generation, Ashtakoota matching, free calculators and original learning articles."
+  langPath="/astrology"
+>
+  <section class="ax">
+    <h1>Astrology</h1>
+    <p class="lede">
+      Classical Jyotish computed properly — precise sidereal positions from the backend
+      engine, honest verification flags, and no fear-based readings anywhere.
+    </p>
+    <div class="grid">
+      {
+        SECTIONS.map((s) => (
+          <a class="card" href={s.href}>
+            <span class="name">{s.title}</span>
+            <span class="hi">{s.hi}</span>
+            <span class="desc">{s.desc}</span>
+            <span class="cta">Open →</span>
+          </a>
+        ))
+      }
+    </div>
+  </section>
+</Base>
+
+<style>
+  .ax { max-width: 900px; margin: 0 auto; padding: var(--space-6) var(--space-4) var(--space-8); }
+  h1 { font-family: var(--font-display); color: var(--ivory); font-size: clamp(26px, 5vw, 38px); }
+  .lede { color: var(--text-muted); margin-top: var(--space-2); font-size: 14.5px; max-width: 680px; }
+  .grid { display: grid; gap: var(--space-3); margin-top: var(--space-5); grid-template-columns: 1fr; }
+  @media (min-width: 640px) { .grid { grid-template-columns: repeat(2, 1fr); } }
+  .card {
+    display: flex; flex-direction: column; gap: 4px;
+    background: var(--bg-raised);
+    border: 1px solid var(--color-border-strong);
+    border-radius: var(--radius-card);
+    padding: var(--space-5);
+    text-decoration: none;
+  }
+  .card:hover { border-color: var(--border-gold-soft); }
+  .name { color: var(--ivory); font-weight: 500; font-size: 16px; }
+  .hi { color: var(--text-dim); font-size: 13px; }
+  .desc { color: var(--text-dim); font-size: 13px; line-height: 1.6; }
+  .cta { color: var(--gold); font-size: 12.5px; margin-top: var(--space-2); }
+</style>
