@@ -1,0 +1,91 @@
+---
+/** /admin/settings — site settings key/values + newsletter export (Epic 6.4).
+ * GEMSTONES_SITE_URL and friends live in Supabase site_settings; the public
+ * /api/v1/settings endpoint reads its allowlisted subset. */
+import Admin from "../../layouts/Admin.astro";
+---
+
+<Admin title="Settings | Vyotish Admin" active="settings">
+  <h1>Settings</h1>
+  <form id="up" class="card">
+    <div class="grid2">
+      <div>
+        <label for="key">Key (e.g. gemstones_site_url, contact_whatsapp)</label>
+        <input id="key" pattern="[a-z0-9_.-]{1,80}" required />
+      </div>
+      <div>
+        <label for="value">Value (JSON — a plain string needs quotes)</label>
+        <input id="value" required />
+      </div>
+    </div>
+    <p><button type="submit" class="btn">Save setting</button></p>
+  </form>
+  <table style="margin-top:14px">
+    <thead><tr><th>Key</th><th>Value</th><th>Updated</th></tr></thead>
+    <tbody id="rows"><tr><td colspan="3" class="empty">Loading…</td></tr></tbody>
+  </table>
+  <h2>Newsletter</h2>
+  <p><a class="btn ghost" id="export" href="/api/v1/admin/newsletter/export">Download subscriber CSV</a></p>
+</Admin>
+
+<script>
+  import { API_BASE, api, el, esc, fmtDate, renderRows, requireSession, toast, logout } from "../../scripts/admin/api";
+
+  const row = (s: Record<string, unknown>) => `<tr>
+    <td>${esc(s.key)}</td>
+    <td style="max-width:340px; word-break:break-all">${esc(typeof s.value === "string" ? s.value : JSON.stringify(s.value))}</td>
+    <td>${fmtDate(s.updated_at)}</td>
+  </tr>`;
+
+  async function load(): Promise<void> {
+    const res = await api<{ data?: { settings?: Array<Record<string, unknown>> } }>("/api/v1/admin/settings");
+    if (res.ok) renderRows("#rows", res.body.data?.settings, row, "No settings yet.");
+    else toast(res.body.error?.message ?? "Loading failed", true);
+  }
+
+  el<HTMLFormElement>("#up")!.addEventListener("submit", async (ev) => {
+    ev.preventDefault();
+    const key = el<HTMLInputElement>("#key")!.value.trim();
+    const raw = el<HTMLInputElement>("#value")!.value.trim();
+    let value: unknown;
+    try {
+      value = JSON.parse(raw);
+    } catch {
+      toast("Value must be valid JSON — wrap plain text in quotes.", true);
+      return;
+    }
+    const res = await api(`/api/v1/admin/settings/${encodeURIComponent(key)}`, {
+      method: "PUT",
+      body: JSON.stringify({ value }),
+    });
+    toast(res.ok ? "Saved." : res.body.error?.message ?? "Save failed", !res.ok);
+    if (res.ok) {
+      el<HTMLInputElement>("#key")!.value = "";
+      el<HTMLInputElement>("#value")!.value = "";
+      await load();
+    }
+  });
+
+  el<HTMLAnchorElement>("#export")!.addEventListener("click", (ev) => {
+    // the download needs the auth header, so fetch as a blob instead of a link
+    ev.preventDefault();
+    void (async () => {
+      const token = sessionStorage.getItem("vyotish.admin.token");
+      const res = await fetch(`${API_BASE}/api/v1/admin/newsletter/export`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        toast("Export failed", true);
+        return;
+      }
+      const blob = await res.blob();
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "vyotish-newsletter.csv";
+      a.click();
+      URL.revokeObjectURL(a.href);
+    })();
+  });
+  document.getElementById("admin-logout")?.addEventListener("click", logout);
+  if (await requireSession()) await load();
+</script>

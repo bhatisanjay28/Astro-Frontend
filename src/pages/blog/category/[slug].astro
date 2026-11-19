@@ -1,0 +1,61 @@
+---
+import PostCard from "../../../components/blog/PostCard.astro";
+import Base from "../../../layouts/Base.astro";
+import { fetchBlogCategories, fetchBlogPosts } from "../../../lib/content";
+
+/** /blog/category/{slug} — all published posts in one category (Epic 6.3). */
+
+export async function getStaticPaths() {
+  const categories = (await fetchBlogCategories()) ?? [];
+  const paths: Array<{
+    params: { slug: string };
+    props: { category: { slug: string; name: string } };
+  }> = [];
+  for (const category of categories) {
+    const result = await fetchBlogPosts({ category: category.slug, perPage: 50 });
+    if (result && result.posts.length > 0) {
+      paths.push({ params: { slug: category.slug }, props: { category } });
+    }
+  }
+  return paths;
+}
+
+const { category } = Astro.props as { category: { slug: string; name: string } };
+const result = await fetchBlogPosts({ category: category.slug, perPage: 50 });
+const posts = result?.posts ?? [];
+---
+
+<Base
+  title={`${category.name} Articles | Vyotish Blog`}
+  description={`All ${category.name} articles from the Vyotish team — original Vedic astrology education, computed and checked.`}
+  langPath="/blog"
+>
+  <section class="blog">
+    <nav class="crumbs" aria-label="Breadcrumb">
+      <a href="/blog">Blog</a>
+      <span>{category.name}</span>
+    </nav>
+    <h1>{category.name}</h1>
+    {
+      posts.length === 0 ? (
+        <p class="empty">No articles in this category yet — check back shortly.</p>
+      ) : (
+        <div class="grid">
+          {posts.map((p) => (
+            <PostCard post={p} />
+          ))}
+        </div>
+      )
+    }
+  </section>
+</Base>
+
+<style>
+  .blog { max-width: 900px; margin: 0 auto; padding: var(--space-6) var(--space-4) var(--space-8); }
+  .crumbs { display: flex; gap: var(--space-2); font-size: 13px; color: var(--text-dim); }
+  .crumbs a { color: var(--gold); text-decoration: none; }
+  h1 { font-family: var(--font-display); color: var(--ivory); font-size: clamp(26px, 5vw, 36px); margin-top: var(--space-2); }
+  .grid { display: grid; gap: var(--space-3); margin-top: var(--space-5); grid-template-columns: 1fr; }
+  @media (min-width: 640px) { .grid { grid-template-columns: repeat(2, 1fr); } }
+  .empty { margin-top: var(--space-6); color: var(--text-muted); font-size: 14.5px; border: 1px dashed var(--border-gold-soft); border-radius: var(--radius-card); padding: var(--space-5); }
+</style>

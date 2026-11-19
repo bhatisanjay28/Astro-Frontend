@@ -1,0 +1,70 @@
+---
+import { API_BASE } from "../../scripts/admin/api";
+---
+
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex" />
+    <title>Admin sign in | Vyotish</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet" />
+    <style>
+      body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #14100c; color: #ece5d8; font: 14px/1.55 Poppins, sans-serif; }
+      .card { width: 340px; background: #1d1710; border: 1px solid #3a2f1f; border-radius: 14px; padding: 28px; }
+      h1 { font-size: 18px; color: #d4a843; margin: 0 0 6px; }
+      p { color: #9b8f7a; font-size: 12.5px; margin: 0 0 18px; }
+      label { display: block; font-size: 12px; color: #9b8f7a; margin: 12px 0 4px; }
+      input { width: 100%; background: #241c13; border: 1px solid #3a2f1f; color: #ece5d8; border-radius: 8px; padding: 9px 10px; font: inherit; }
+      button { width: 100%; margin-top: 18px; background: #d4a843; color: #1a1206; border: 0; border-radius: 8px; padding: 10px; font-weight: 600; cursor: pointer; }
+      button:disabled { opacity: 0.6; cursor: wait; }
+      .err { color: #e08a8a; font-size: 12.5px; margin-top: 12px; min-height: 16px; }
+    </style>
+  </head>
+  <body>
+    <form class="card" id="login-form" data-api-base={API_BASE}>
+      <h1>Vyotish Admin</h1>
+      <p>Sign in with the owner/admin account created by <code>setup-first-admin.ts</code>.</p>
+      <label for="email">Email</label>
+      <input id="email" name="email" type="email" autocomplete="username" required />
+      <label for="password">Password</label>
+      <input id="password" name="password" type="password" autocomplete="current-password" required />
+      <button type="submit" id="go">Sign in</button>
+      <div class="err" id="err" role="alert"></div>
+    </form>
+    <script>
+      // Auth goes through the backend proxy (D4): the browser never talks to
+      // Supabase directly and never sees a Supabase key.
+      document.getElementById("login-form").addEventListener("submit", async (ev) => {
+        ev.preventDefault();
+        const btn = document.getElementById("go") as HTMLButtonElement;
+        const err = document.getElementById("err") as HTMLElement;
+        btn.disabled = true;
+        err.textContent = "";
+        const email = document.getElementById("email").value.trim();
+        const password = document.getElementById("password").value;
+        const apiBase = document.getElementById("login-form").dataset.apiBase || "";
+        try {
+          const res = await fetch(apiBase + "/api/v1/auth/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email, password }),
+          });
+          const body = await res.json();
+          if (!res.ok || !body?.data?.access_token) {
+            err.textContent = body?.error?.message ?? "Sign in failed";
+            btn.disabled = false;
+            return;
+          }
+          sessionStorage.setItem("vyotish.admin.token", body.data.access_token);
+          sessionStorage.setItem("vyotish.admin.refresh", body.data.refresh_token ?? "");
+          sessionStorage.setItem("vyotish.admin.email", body.data.user?.email ?? email);
+          location.href = "/admin";
+        } catch {
+          err.textContent = "Network error — is the backend reachable?";
+          btn.disabled = false;
+        }
+      });
+    </script>
+  </body>
+</html>

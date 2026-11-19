@@ -1,0 +1,95 @@
+---
+/** Admin chrome (Epic 6.4) — minimal sidebar shell; no public header/footer.
+ * The session gate is requireSession() in each page script: the backend
+ * (401/403 on every /admin route) is the real security boundary. */
+interface Props {
+  title: string;
+  active?: string;
+}
+const { title, active = "" } = Astro.props;
+const NAV = [
+  { href: "/admin", key: "home", label: "Dashboard" },
+  { href: "/admin/posts", key: "posts", label: "Blog posts" },
+  { href: "/admin/taxonomy", key: "taxonomy", label: "Categories & tags" },
+  { href: "/admin/media", key: "media", label: "Media" },
+  { href: "/admin/horoscopes", key: "horoscopes", label: "Horoscope content" },
+  { href: "/admin/catalog", key: "catalog", label: "Astrologers & poojas" },
+  { href: "/admin/inbox", key: "inbox", label: "Inbox" },
+  { href: "/admin/settings", key: "settings", label: "Settings" },
+];
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>{title}</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <aside class="side">
+      <a class="brand" href="/admin">Vyotish Admin</a>
+      <nav aria-label="Admin sections">
+        {
+          NAV.map((n) => (
+            <a class={active === n.key ? "on" : undefined} href={n.href}>
+              {n.label}
+            </a>
+          ))
+        }
+      </nav>
+      <div class="side-foot">
+        <span id="admin-email"></span>
+        <button type="button" id="admin-logout">Sign out</button>
+      </div>
+    </aside>
+    <main class="main">
+      <div id="admin-toast" class="toast" hidden role="status"></div>
+      <slot />
+    </main>
+    <style is:global>
+      :root { --a-bg: #14100c; --a-panel: #1d1710; --a-border: #3a2f1f; --a-gold: #d4a843; --a-text: #ece5d8; --a-dim: #9b8f7a; }
+      * { box-sizing: border-box; }
+      body { margin: 0; display: flex; min-height: 100vh; background: var(--a-bg); color: var(--a-text); font: 14px/1.55 Poppins, sans-serif; }
+      .side { width: 210px; flex: 0 0 210px; background: var(--a-panel); border-right: 1px solid var(--a-border); padding: 20px 14px; display: flex; flex-direction: column; gap: 4px; }
+      .brand { color: var(--a-gold); font-weight: 600; text-decoration: none; margin-bottom: 14px; }
+      .side nav { display: flex; flex-direction: column; gap: 2px; }
+      .side nav a { color: var(--a-dim); text-decoration: none; padding: 8px 10px; border-radius: 8px; }
+      .side nav a:hover { color: var(--a-text); background: rgba(212, 168, 67, 0.08); }
+      .side nav a.on { color: var(--a-gold); background: rgba(212, 168, 67, 0.12); }
+      .side-foot { margin-top: auto; display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: var(--a-dim); word-break: break-all; }
+      #admin-logout { background: none; border: 1px solid var(--a-border); color: var(--a-dim); border-radius: 8px; padding: 6px; cursor: pointer; }
+      #admin-logout:hover { color: var(--a-text); border-color: var(--a-gold); }
+      .main { flex: 1; padding: 24px 28px; min-width: 0; }
+      h1 { font-size: 20px; margin: 0 0 16px; color: var(--a-gold); font-weight: 600; }
+      h2 { font-size: 15px; color: var(--a-text); margin: 22px 0 10px; }
+      table { width: 100%; border-collapse: collapse; background: var(--a-panel); border: 1px solid var(--a-border); border-radius: 10px; overflow: hidden; }
+      th { text-align: left; font-size: 12px; color: var(--a-dim); padding: 9px 10px; border-bottom: 1px solid var(--a-border); }
+      td { padding: 9px 10px; border-bottom: 1px solid rgba(58, 47, 31, 0.55); font-size: 13px; vertical-align: top; }
+      tr:last-child td { border-bottom: 0; }
+      td.empty { color: var(--a-dim); text-align: center; padding: 22px; }
+      .btn { background: var(--a-gold); color: #1a1206; border: 0; border-radius: 8px; padding: 8px 14px; font-weight: 600; cursor: pointer; font-size: 13px; }
+      .btn.ghost { background: none; border: 1px solid var(--a-border); color: var(--a-dim); font-weight: 400; }
+      .btn.ghost:hover { border-color: var(--a-gold); color: var(--a-gold); }
+      .btn.danger { background: none; border: 1px solid #7a2f2f; color: #e08a8a; font-weight: 400; }
+      input, select, textarea { background: #241c13; border: 1px solid var(--a-border); color: var(--a-text); border-radius: 8px; padding: 8px 10px; font: inherit; width: 100%; }
+      textarea { min-height: 110px; resize: vertical; }
+      label { display: block; font-size: 12px; color: var(--a-dim); margin: 12px 0 4px; }
+      .toast { position: fixed; right: 20px; top: 20px; background: #2b2416; border: 1px solid var(--a-gold); color: var(--a-text); padding: 10px 16px; border-radius: 10px; font-size: 13px; z-index: 50; }
+      .toast.bad { border-color: #a33; }
+      .row-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+      .card { background: var(--a-panel); border: 1px solid var(--a-border); border-radius: 10px; padding: 16px; }
+      .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+      @media (max-width: 800px) { body { flex-direction: column; } .side { width: 100%; flex: none; } .grid2 { grid-template-columns: 1fr; } }
+      .pill { font-size: 11px; border: 1px solid var(--a-border); border-radius: 999px; padding: 2px 9px; color: var(--a-dim); }
+      .pill.pub { color: #8fc98f; border-color: #2f5a2f; }
+      .pill.dr { color: var(--a-gold); border-color: var(--a-border); }
+    </style>
+  </body>
+</html>

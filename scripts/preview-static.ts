@@ -31,9 +31,15 @@ Bun.serve({
     let pathname = decodeURIComponent(url.pathname);
     if (pathname.endsWith("/")) pathname += "index.html";
 
-    const file = Bun.file(root + pathname.replace(/^\//, ""));
+    let path = pathname.replace(/^\//, "");
+    let file = Bun.file(root + path);
+    // Extension-less URL (e.g. /horoscope without a trailing slash) → its directory index
+    if (!(await file.exists()) && !pathname.slice(pathname.lastIndexOf("/")).includes(".")) {
+      path = `${path}/index.html`;
+      file = Bun.file(root + path);
+    }
     if (await file.exists()) {
-      const ext = pathname.slice(pathname.lastIndexOf(".")).toLowerCase();
+      const ext = path.slice(path.lastIndexOf(".")).toLowerCase();
       return new Response(file, {
         headers: { "Content-Type": MIME[ext] ?? "application/octet-stream" },
       });

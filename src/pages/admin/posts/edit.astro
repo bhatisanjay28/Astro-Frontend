@@ -1,0 +1,152 @@
+---
+/** /admin/posts/edit — create/edit a blog post (Epic 6.4). Markdown body,
+ * taxonomy, schedule, SEO + featured image (paste a /admin/media URL). */
+import Admin from "../../../layouts/Admin.astro";
+---
+
+<Admin title="Edit post | Vyotish Admin" active="posts">
+  <h1 id="heading">New post</h1>
+  <form id="form">
+    <div class="grid2">
+      <div>
+        <label for="title">Title *</label>
+        <input id="title" required maxlength="200" />
+        <label for="slug">Slug (blank → from title)</label>
+        <input id="slug" pattern="[a-z0-9]+(-[a-z0-9]+)*" />
+        <label for="excerpt">Excerpt (≤500 chars)</label>
+        <textarea id="excerpt" maxlength="500" style="min-height:70px"></textarea>
+        <label for="category">Category</label>
+        <select id="category"><option value="">— none —</option></select>
+        <label for="tags">Tags (comma-separated)</label>
+        <input id="tags" placeholder="panchang, basics" />
+        <label for="status">Status</label>
+        <select id="status">
+          <option value="draft">Draft</option>
+          <option value="published">Published</option>
+          <option value="archived">Archived</option>
+        </select>
+        <label for="publish_at">Publish at (schedule — draft + future time)</label>
+        <input id="publish_at" type="datetime-local" />
+      </div>
+      <div>
+        <label for="content_md">Body (Markdown) *</label>
+        <textarea id="content_md" required style="min-height:280px"></textarea>
+        <label for="featured_image_url">Featured image URL</label>
+        <input id="featured_image_url" placeholder="https://…/media/2026-11/…png" />
+        <label for="alt_text">Image alt text</label>
+        <input id="alt_text" />
+        <label for="seo_title">SEO title</label>
+        <input id="seo_title" />
+        <label for="seo_description">SEO description</label>
+        <textarea id="seo_description" style="min-height:60px"></textarea>
+        <label for="canonical_url">Canonical URL (leave blank normally)</label>
+        <input id="canonical_url" />
+        <label for="og_image_url">OG image URL</label>
+        <input id="og_image_url" />
+      </div>
+    </div>
+    <p style="margin-top:18px; display:flex; gap:10px;">
+      <button type="submit" class="btn" id="save">Save post</button>
+      <a class="btn ghost" href="/admin/posts">Back</a>
+      <span id="save-state" class="pill"></span>
+    </p>
+  </form>
+</Admin>
+
+<script>
+  import { api, el, requireSession, toast, logout } from "../../../scripts/admin/api";
+
+  const id = new URLSearchParams(location.search).get("id");
+  el<HTMLHeadingElement>("#heading")!.textContent = id ? "Edit post" : "New post";
+
+  async function loadTaxonomy(): Promise<void> {
+    const cats = await api<{ data?: { categories?: Array<{ slug: string; name: string }> } }>("/api/v1/admin/categories");
+    const sel = el<HTMLSelectElement>("#category");
+    if (cats.ok && sel) {
+      for (const c of cats.body.data?.categories ?? []) {
+        const opt = document.createElement("option");
+        opt.value = c.slug;
+        opt.textContent = c.name;
+        sel.appendChild(opt);
+      }
+    }
+  }
+
+  async function load(): Promise<void> {
+    if (!id) return;
+    const res = await api<{ data?: Record<string, unknown> }>(`/api/v1/admin/posts/${id}`);
+    if (!res.ok) {
+      toast(res.body.error?.message ?? "Post not found", true);
+      return;
+    }
+    const p = res.body.data ?? {};
+    const set = (sel: string, v: unknown) => {
+      const n = el<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>(sel);
+      if (n) n.value = typeof v === "string" ? v : v == null ? "" : String(v);
+    };
+    set("#title", p.title);
+    set("#slug", p.slug);
+    set("#excerpt", p.excerpt);
+    set("#content_md", p.content_md);
+    set("#featured_image_url", p.featured_image_url);
+    set("#alt_text", p.alt_text);
+    set("#seo_title", p.seo_title);
+    set("#seo_description", p.seo_description);
+    set("#canonical_url", p.canonical_url);
+    set("#og_image_url", p.og_image_url);
+    const status = typeof p.status === "string" ? p.status : "draft";
+    const scheduled = status === "draft" && typeof p.publish_at === "string";
+    set("#status", scheduled ? "draft" : status);
+    if (typeof p.publish_at === "string") {
+      set("#publish_at", p.publish_at.slice(0, 16));
+    }
+    await loadTaxonomy();
+    const tags = (p as { tags?: string[] }).tags ?? [];
+    set("#tags", tags.join(", "));
+    const catSel = el<HTMLSelectElement>("#category");
+    if (catSel && typeof p.category === "object" && p.category !== null && "slug" in p.category) {
+      catSel.value = String((p.category as { slug: string }).slug);
+    }
+  }
+
+  el<HTMLFormElement>("#form")!.addEventListener("submit", async (ev) => {
+    ev.preventDefault();
+    const val = (sel: string) => el<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>(sel)?.value.trim() ?? "";
+    const publishAt = val("#publish_at");
+    const body: Record<string, unknown> = {
+      title: val("#title"),
+      content_md: val("#content_md"),
+      excerpt: val("#excerpt") || undefined,
+      slug: val("#slug") || undefined,
+      category: val("#category") || undefined,
+      tags: val("#tags") ? val("#tags").split(",").map((t) => t.trim()).filter(Boolean) : [],
+      status: val("#status") || "draft",
+      publish_at: publishAt ? new Date(publishAt).toISOString() : undefined,
+      featured_image_url: val("#featured_image_url") || undefined,
+      alt_text: val("#alt_text") || undefined,
+      seo_title: val("#seo_title") || undefined,
+      seo_description: val("#seo_description") || undefined,
+      canonical_url: val("#canonical_url") || undefined,
+      og_image_url: val("#og_image_url") || undefined,
+    };
+    const res = await api<{ data?: { id?: string } }>(`/api/v1/admin/posts${id ? `/${id}` : ""}`, {
+      method: id ? "PUT" : "POST",
+      body: JSON.stringify(body),
+    });
+    if (res.ok) {
+      toast("Saved.");
+      if (!id && res.body.data?.id) {
+        location.href = `/admin/posts/edit?id=${res.body.data.id}`;
+      }
+    } else {
+      const details = res.body.error?.details;
+      const msg =
+        Array.isArray(details) && details.length > 0
+          ? (details as Array<{ field: string; message: string }>).map((d) => `${d.field}: ${d.message}`).join(" · ")
+          : res.body.error?.message ?? "Save failed";
+      toast(msg, true);
+    }
+  });
+  document.getElementById("admin-logout")?.addEventListener("click", logout);
+  if (await requireSession()) await load();
+</script>

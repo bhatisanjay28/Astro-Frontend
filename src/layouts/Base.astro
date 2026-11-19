@@ -21,9 +21,29 @@ interface Props {
   lockDark?: boolean;
   /** render header/footer chrome (off for the pixel-parity Coming-Soon page) */
   chrome?: boolean;
+  /** explicit canonical override (blog articles honour admin-set URLs) */
+  canonical?: string;
+  /** Open Graph image (absolute URL) for social shares */
+  ogImage?: string;
+  /** Open Graph type — "article" on blog posts */
+  ogType?: string;
+  /** JSON-LD blocks (structured data, Epic 7.1) */
+  jsonLd?: Array<Record<string, unknown>>;
 }
 
-const { title, description, lang = "en", langPath, lockDark = false, chrome = true } = Astro.props;
+const {
+  title,
+  description,
+  lang = "en",
+  langPath,
+  lockDark = false,
+  chrome = true,
+  canonical,
+  ogImage,
+  ogType = "website",
+  jsonLd = [],
+} = Astro.props;
+const canonicalUrl = canonical ?? `https://vyotish.com${Astro.url.pathname}`;
 const themeLock = lockDark ? "dark" : null;
 ---
 
@@ -34,8 +54,20 @@ const themeLock = lockDark ? "dark" : null;
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content={description} />
     <meta name="generator" content={Astro.generator} />
+    <link rel="canonical" href={canonicalUrl} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:type" content={ogType} />
+    <meta property="og:url" content={canonicalUrl} />
+    <meta property="og:site_name" content="Vyotish" />
+    {ogImage && <meta property="og:image" content={ogImage} />}
+    <meta name="twitter:card" content={ogImage ? "summary_large_image" : "summary"} />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="alternate" type="application/rss+xml" title="Vyotish Blog" href="/blog/rss.xml" />
     <title>{title}</title>
+    {jsonLd.length > 0 && (
+      <script is:inline type="application/ld+json" set:html={JSON.stringify(jsonLd.length === 1 ? jsonLd[0] : jsonLd)} />
+    )}
     {
       langPath && (
         <link rel="alternate" hreflang="en" href={`https://vyotish.com${langPath}`} />
@@ -136,6 +168,7 @@ const themeLock = lockDark ? "dark" : null;
         </script>
       )
     }
+    {chrome && <script>import "../scripts/site-enhancements";</script>}
     <!-- global styles live in src/styles/base.css (layer order: theme → base → utilities) -->
   </body>
 </html>

@@ -125,3 +125,71 @@ export async function fetchSettings(): Promise<ApiSettings | null> {
   const body = await getJson<{ data: ApiSettings }>(`${API_BASE}/api/v1/settings`);
   return body?.data ?? null;
 }
+
+/* ------------------------------------------------------------------ */
+/* Blog (Epic 6.3 — GET /api/v1/blog/*)                                */
+/* ------------------------------------------------------------------ */
+
+/** Listing-card shape (no content_md — see backend blog.ts). */
+export interface BlogPostSummary {
+  slug: string;
+  title: string;
+  excerpt: string | null;
+  featured_image_url: string | null;
+  alt_text: string | null;
+  publish_at: string | null;
+  reading_minutes: number | null;
+}
+
+export interface BlogTag {
+  slug: string;
+  name: string;
+}
+
+export interface BlogPost extends BlogPostSummary {
+  content_md: string;
+  author: { name: string };
+  category: BlogTag | null;
+  tags: BlogTag[];
+  related: Array<{ slug: string; title: string; excerpt: string | null }>;
+  seo_title: string | null;
+  seo_description: string | null;
+  canonical_url: string | null;
+  og_image_url: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export async function fetchBlogPosts(
+  opts: { page?: number; perPage?: number; category?: string; tag?: string; q?: string } = {},
+): Promise<{ posts: BlogPostSummary[]; total: number } | null> {
+  const p = new URLSearchParams();
+  if (opts.page) p.set("page", String(opts.page));
+  p.set("per_page", String(opts.perPage ?? 10));
+  if (opts.category) p.set("category", opts.category);
+  if (opts.tag) p.set("tag", opts.tag);
+  if (opts.q) p.set("q", opts.q);
+  const body = await getJson<{ data: { posts: BlogPostSummary[] }; meta: { total: number } }>(
+    `${API_BASE}/api/v1/blog/posts?${p.toString()}`,
+  );
+  return body ? { posts: body.data.posts, total: body.meta.total } : null;
+}
+
+export async function fetchBlogPost(slug: string): Promise<BlogPost | null> {
+  const body = await getJson<{ data: BlogPost }>(
+    `${API_BASE}/api/v1/blog/posts/${encodeURIComponent(slug)}`,
+  );
+  return body?.data ?? null;
+}
+
+export async function fetchBlogCategories(): Promise<BlogTag[] | null> {
+  const body = await getJson<{ data: { categories: BlogTag[] } }>(
+    `${API_BASE}/api/v1/blog/categories`,
+  );
+  return body?.data.categories ?? null;
+}
+
+export async function fetchBlogTags(): Promise<BlogTag[] | null> {
+  const body = await getJson<{ data: { tags: BlogTag[] } }>(`${API_BASE}/api/v1/blog/tags`);
+  return body?.data.tags ?? null;
+}

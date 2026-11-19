@@ -96,12 +96,44 @@ const POOJAS = (home?.poojas ?? []).map((p) => ({
 }));
 
 const FAQS = (home?.faqs ?? []).map((f) => ({ q: f.question, a: f.answer }));
+
+// JSON-LD structured data (Epic 7.1): Organization + WebSite + FAQPage.
+const jsonLd = [
+  {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    name: "Vyotish",
+    url: "https://vyotish.com",
+    description:
+      "Authentic Vedic astrology: panchang, kundli, muhurat and horoscopes computed from modern ephemeris science.",
+  },
+  {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    name: "Vyotish",
+    url: "https://vyotish.com",
+  },
+  ...(FAQS.length > 0
+    ? [
+        {
+          "@context": "https://schema.org",
+          "@type": "FAQPage",
+          mainEntity: FAQS.map((f) => ({
+            "@type": "Question",
+            name: f.q,
+            acceptedAnswer: { "@type": "Answer", text: f.a },
+          })),
+        },
+      ]
+    : []),
+];
 ---
 
 <Base
   title="Vyotish — Authentic Vedic Astrology, Panchang & Kundli"
   description="Authentic Vedic Astrology, high-precision Swiss Ephemeris Panchang, Shubh Muhurat finder, and free Janam Kundli with Lahiri Ayanamsha."
   langPath="/"
+  jsonLd={jsonLd}
 >
   <main>
     <div class="chrome-reset">

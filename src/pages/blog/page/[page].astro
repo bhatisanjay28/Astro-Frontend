@@ -1,0 +1,62 @@
+---
+import Pager from "../../../components/blog/Pager.astro";
+import PostCard from "../../../components/blog/PostCard.astro";
+import Base from "../../../layouts/Base.astro";
+import { fetchBlogPosts } from "../../../lib/content";
+
+/** /blog/page/N — older blog listing pages (Epic 6.3). */
+
+export async function getStaticPaths() {
+  // one extra page beyond what listing page 1 reported, to avoid building
+  // stale empty pages; capped for build safety
+  const result = await fetchBlogPosts({ page: 1, perPage: 10 });
+  const pages = Math.min(40, Math.ceil((result?.total ?? 0) / 10));
+  return Array.from({ length: Math.max(0, pages - 1) }, (_, i) => ({
+    params: { page: String(i + 2) },
+  }));
+}
+
+const { page } = Astro.params;
+const pageNum = Math.max(2, Number(page) || 2);
+const perPage = 10;
+const result = await fetchBlogPosts({ page: pageNum, perPage });
+const posts = result?.posts ?? [];
+const total = result?.total ?? 0;
+---
+
+<Base
+  title={`Blog — Page ${pageNum} | Vyotish`}
+  description="More original Vedic astrology articles from the Vyotish team — signs, nakshatras, yogas, dasha and panchang guides."
+  langPath="/blog"
+>
+  <section class="blog">
+    <h1>Vyotish Blog</h1>
+    <p class="lede">
+      More articles — <a href="/blog">back to the first page</a>.
+    </p>
+    {
+      posts.length === 0 ? (
+        <p class="empty">Nothing more to show here yet.</p>
+      ) : (
+        <>
+          <div class="grid">
+            {posts.map((p) => (
+              <PostCard post={p} />
+            ))}
+          </div>
+          <Pager base="/blog" page={pageNum} perPage={perPage} total={total} />
+        </>
+      )
+    }
+  </section>
+</Base>
+
+<style>
+  .blog { max-width: 900px; margin: 0 auto; padding: var(--space-6) var(--space-4) var(--space-8); }
+  h1 { font-family: var(--font-display); color: var(--ivory); font-size: clamp(26px, 5vw, 36px); }
+  .lede { color: var(--text-muted); margin-top: var(--space-2); font-size: 14.5px; }
+  .lede a { color: var(--gold); }
+  .grid { display: grid; gap: var(--space-3); margin-top: var(--space-5); grid-template-columns: 1fr; }
+  @media (min-width: 640px) { .grid { grid-template-columns: repeat(2, 1fr); } }
+  .empty { margin-top: var(--space-6); color: var(--text-muted); font-size: 14.5px; border: 1px dashed var(--border-gold-soft); border-radius: var(--radius-card); padding: var(--space-5); }
+</style>

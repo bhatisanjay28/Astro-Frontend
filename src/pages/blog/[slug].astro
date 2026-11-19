@@ -1,0 +1,237 @@
+---
+import Base from "../../layouts/Base.astro";
+import { type BlogPost, fetchBlogPost, fetchBlogPosts } from "../../lib/content";
+import { renderArticle } from "../../lib/markdown";
+
+/** /blog/{slug} — article renderer (Epic 6.3). Markdown is sanitised at
+ * render time (D13); the TOC is read from the sanitised tree so anchors
+ * always match. Built for every published post (all pages walked). */
+
+export async function getStaticPaths() {
+  // walk every page of published posts — articles are static pages
+  const paths: Array<{ params: { slug: string }; props: { post: BlogPost } }> = [];
+  const perPage = 50;
+  for (let page = 1; page <= 40; page += 1) {
+    const result = await fetchBlogPosts({ page, perPage });
+    if (!result || result.posts.length === 0) break;
+    for (const summary of result.posts) {
+      const post = await fetchBlogPost(summary.slug);
+      if (post) paths.push({ params: { slug: post.slug }, props: { post } });
+    }
+    if (result.posts.length < perPage) break;
+  }
+  return paths;
+}
+
+const { post } = Astro.props as { post: BlogPost };
+const { html, toc } = await renderArticle(post.content_md);
+
+const dateFmt = new Intl.DateTimeFormat("en-IN", {
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+});
+const date = post.publish_at ? dateFmt.format(new Date(post.publish_at)) : null;
+
+const canonical = post.canonical_url ?? `https://vyotish.com/blog/${post.slug}`;
+const shareUrl = encodeURIComponent(canonical);
+const shareTitle = encodeURIComponent(post.seo_title ?? post.title);
+const shareLinks = [
+  { label: "WhatsApp", href: `https://wa.me/?text=${shareTitle}%20${shareUrl}` },
+  { label: "X", href: `https://twitter.com/intent/tweet?text=${shareTitle}&url=${shareUrl}` },
+  { label: "Telegram", href: `https://t.me/share/url?url=${shareUrl}&text=${shareTitle}` },
+  { label: "Facebook", href: `https://www.facebook.com/sharer/sharer.php?u=${shareUrl}` },
+];
+
+const jsonLd = [
+  {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    headline: post.title,
+    description: post.seo_description ?? post.excerpt ?? undefined,
+    image: post.og_image_url ?? post.featured_image_url ?? undefined,
+    datePublished: post.publish_at ?? post.created_at,
+    dateModified: post.updated_at,
+    author: { "@type": "Organization", name: post.author.name, url: "https://vyotish.com" },
+    publisher: { "@type": "Organization", name: "Vyotish", url: "https://vyotish.com" },
+    mainEntityOfPage: canonical,
+  },
+  {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Home", item: "https://vyotish.com" },
+      { "@type": "ListItem", position: 2, name: "Blog", item: "https://vyotish.com/blog" },
+      ...(post.category
+        ? [
+            {
+              "@type": "ListItem",
+              position: 3,
+              name: post.category.name,
+              item: `https://vyotish.com/blog/category/${post.category.slug}`,
+            },
+          ]
+        : []),
+      { "@type": "ListItem", position: post.category ? 4 : 3, name: post.title, item: canonical },
+    ],
+  },
+];
+---
+
+<Base
+  title={`${post.seo_title ?? post.title} | Vyotish Blog`}
+  description={post.seo_description ?? post.excerpt ?? post.title}
+  langPath="/blog"
+  canonical={canonical}
+  ogImage={post.og_image_url ?? post.featured_image_url ?? undefined}
+  ogType="article"
+  jsonLd={jsonLd}
+>
+  <article class="art" data-article>
+    <nav class="crumbs" aria-label="Breadcrumb">
+      <a href="/blog">Blog</a>
+      {post.category && <a href={`/blog/category/${post.category.slug}`}>{post.category.name}</a>}
+      <span>{post.title}</span>
+    </nav>
+
+    <h1>{post.title}</h1>
+    <p class="byline">
+      <span>{post.author.name}</span>
+      {date && <span>·</span>}
+      {date && <time datetime={post.publish_at ?? undefined}>{date}</time>}
+      {post.reading_minutes && <span>·</span>}
+      {post.reading_minutes && <span>{post.reading_minutes} min read</span>}
+    </p>
+
+    {
+      post.featured_image_url && (
+        <img
+          class="hero"
+          src={post.featured_image_url}
+          alt={post.alt_text ?? post.title}
+          width="1200"
+          height="675"
+        />
+      )
+    }
+
+    <div class="share" aria-label="Share this article">
+      <span>Share:</span>
+      {shareLinks.map((l) => (
+        <a href={l.href} target="_blank" rel="noopener noreferrer">{l.label}</a>
+      ))}
+      <button type="button" data-copy-link data-url={canonical}>Copy link</button>
+    </div>
+
+    <div class="body">
+      {
+        toc.length >= 3 && (
+          <aside class="toc" aria-label="Table of contents">
+            <h2>On this page</h2>
+            <ul>
+              {toc.map((t) => (
+                <li class={t.level === 3 ? "sub" : undefined}>
+                  <a href={`#${t.id}`}>{t.text}</a>
+                </li>
+              ))}
+            </ul>
+          </aside>
+        )
+      }
+      <div class="prose" set:html={html} />
+    </div>
+
+    {
+      post.tags.length > 0 && (
+        <div class="tags">
+          {post.tags.map((t) => (
+            <a class="chip" href={`/blog/tag/${t.slug}`}>#{t.name}</a>
+          ))}
+        </div>
+      )
+    }
+
+    <aside class="author">
+      <h2>About the author</h2>
+      <p>
+        <strong>{post.author.name}</strong> — the Vyotish editorial team. We write
+        original, computation-backed explanations of Vedic astrology; every claim is
+        checked against the engine that powers the site's
+        <a href="/panchang">panchang</a> and <a href="/kundli">kundli</a> tools.
+      </p>
+    </aside>
+
+    {
+      post.related.length > 0 && (
+        <aside class="related">
+          <h2>Related articles</h2>
+          <ul>
+            {post.related.map((r) => (
+              <li>
+                <a href={`/blog/${r.slug}`}>{r.title}</a>
+              </li>
+            ))}
+          </ul>
+        </aside>
+      )
+    }
+  </article>
+</Base>
+
+<style>
+  .art { max-width: 760px; margin: 0 auto; padding: var(--space-6) var(--space-4) var(--space-8); }
+  .crumbs { display: flex; flex-wrap: wrap; gap: var(--space-2); font-size: 13px; color: var(--text-dim); margin-bottom: var(--space-3); }
+  .crumbs a { color: var(--gold); text-decoration: none; }
+  h1 { font-family: var(--font-display); color: var(--ivory); font-size: clamp(26px, 5vw, 36px); }
+  .byline { display: flex; gap: var(--space-2); color: var(--text-dim); font-size: 13px; margin-top: var(--space-2); }
+  .hero { width: 100%; height: auto; border-radius: var(--radius-card); border: 1px solid var(--color-border); margin-top: var(--space-4); }
+  .share { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin-top: var(--space-4); font-size: 12.5px; color: var(--text-dim); }
+  .share a, .share button {
+    color: var(--gold); text-decoration: none; font-size: 12.5px;
+    border: 1px solid var(--border-gold-soft); border-radius: 999px; padding: 4px 12px;
+    background: none; cursor: pointer;
+  }
+  .body { margin-top: var(--space-6); border-top: 1px solid var(--color-border); padding-top: var(--space-5); display: flex; gap: var(--space-6); }
+  .toc { flex: 0 0 200px; align-self: flex-start; position: sticky; top: var(--space-4); display: none; }
+  @media (min-width: 920px) { .toc { display: block; } .body { display: flex; } }
+  .toc h2 { font-family: var(--font-display); color: var(--gold); font-size: 14px; margin-bottom: var(--space-2); }
+  .toc li { margin: var(--space-1) 0; font-size: 12.5px; }
+  .toc li.sub { margin-left: var(--space-3); }
+  .toc a { color: var(--text-muted); text-decoration: none; }
+  .toc a:hover { color: var(--gold); }
+  .prose { flex: 1; min-width: 0; }
+  .prose h2 { font-family: var(--font-display); color: var(--gold); font-size: 20px; margin: var(--space-6) 0 var(--space-3); }
+  .prose h3 { color: var(--ivory); font-size: 16px; margin: var(--space-4) 0 var(--space-2); }
+  .prose p, .prose li { color: var(--text-muted); font-size: 14.5px; line-height: 1.75; }
+  .prose p { margin: var(--space-3) 0; }
+  .prose a { color: var(--gold); }
+  .prose ul, .prose ol { margin: var(--space-3) 0 var(--space-3) var(--space-5); display: flex; flex-direction: column; gap: var(--space-2); }
+  .prose table { width: 100%; border-collapse: collapse; font-size: 13.5px; margin: var(--space-4) 0; }
+  .prose th { text-align: left; color: var(--gold); padding: 6px 8px; border-bottom: 1px solid var(--color-border-strong); font-weight: 600; }
+  .prose td { padding: 6px 8px; border-bottom: 1px solid var(--color-border); color: var(--text-muted); }
+  .prose strong { color: var(--ivory); }
+  .prose img { max-width: 100%; height: auto; border-radius: var(--radius-card); }
+  .prose pre { background: var(--bg-raised); border: 1px solid var(--color-border); border-radius: var(--radius-card); padding: var(--space-3); overflow-x: auto; font-size: 13px; }
+  .prose code { font-family: var(--font-mono, monospace); font-size: 13px; color: var(--ivory); }
+  .prose blockquote { border-left: 3px solid var(--border-gold-soft); margin: var(--space-4) 0; padding: var(--space-1) var(--space-4); color: var(--text-dim); }
+  .tags { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-6); }
+  .chip { color: var(--gold); text-decoration: none; font-size: 12.5px; border: 1px solid var(--border-gold-soft); border-radius: 999px; padding: 5px 12px; }
+  .author, .related { margin-top: var(--space-6); border-top: 1px solid var(--color-border-strong); padding-top: var(--space-4); }
+  .author h2, .related h2 { font-family: var(--font-display); color: var(--gold); font-size: 16px; margin-bottom: var(--space-2); }
+  .author p, .related li { color: var(--text-muted); font-size: 14px; line-height: 1.6; }
+  .author a, .related a { color: var(--gold); }
+  .related li { margin-left: var(--space-4); margin-top: var(--space-1); }
+</style>
+
+<script>
+  document.querySelectorAll("[data-copy-link]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      navigator.clipboard.writeText((btn as HTMLElement).dataset.url ?? "").then(() => {
+        const b = btn as HTMLButtonElement;
+        const old = b.textContent;
+        b.textContent = "Copied!";
+        setTimeout(() => { b.textContent = old; }, 2000);
+      });
+    });
+  });
+</script>

@@ -1,0 +1,212 @@
+---
+/** /admin/catalog — astrologers + poojas CRUD (Epic 6.4). Tabbed; JSON
+ * fields (expertise/languages, session_types, includes) are edited as
+ * comma lists / JSON in the dialog. */
+import Admin from "../../layouts/Admin.astro";
+---
+
+<Admin title="Catalogue | Vyotish Admin" active="catalog">
+  <h1>Astrologers & poojas</h1>
+  <p style="display:flex; gap:8px; align-items:center">
+    <button class="btn ghost" id="tab-astro" type="button">Astrologers</button>
+    <button class="btn ghost" id="tab-pujas" type="button">Poojas</button>
+    <button class="btn" id="new" type="button">+ New</button>
+  </p>
+  <table id="astro-table">
+    <thead><tr><th>Name</th><th>Slug</th><th>Exp</th><th>Rate/min</th><th>Active</th><th></th></tr></thead>
+    <tbody id="astro-rows"><tr><td colspan="6" class="empty">Loading…</td></tr></tbody>
+  </table>
+  <table id="puja-table" hidden>
+    <thead><tr><th>Name</th><th>Slug</th><th>Category</th><th>Price</th><th>Active</th><th></th></tr></thead>
+    <tbody id="puja-rows"><tr><td colspan="6" class="empty">Loading…</td></tr></tbody>
+  </table>
+
+  <dialog id="editor" style="background:#1d1710; color:#ece5d8; border:1px solid #3a2f1f; border-radius:14px; padding:22px; max-width:680px; width:92vw">
+    <h2 id="ed-title" style="margin-top:0">Edit</h2>
+    <div class="grid2">
+      <div>
+        <label for="ed-name">Name *</label>
+        <input id="ed-name" />
+        <label for="ed-slug">Slug (new only)</label>
+        <input id="ed-slug" />
+        <span class="only-astro">
+          <label for="ed-title-f">Title</label>
+          <input id="ed-title-f" />
+          <label for="ed-exp">Expertise (comma-separated)</label>
+          <input id="ed-exp" />
+          <label for="ed-lang">Languages (comma-separated)</label>
+          <input id="ed-lang" />
+          <label for="ed-years">Experience years</label>
+          <input id="ed-years" type="number" min="0" />
+          <label for="ed-rate">Price per minute (₹)</label>
+          <input id="ed-rate" type="number" min="0" step="0.01" />
+          <label for="ed-st">Session types (JSON array)</label>
+          <input id="ed-st" placeholder='[{"type":"call","duration_min":15}]' />
+        </span>
+        <span class="only-puja" hidden>
+          <label for="ed-cat">Category</label>
+          <select id="ed-cat">
+            <option value="graha_shanti">graha_shanti</option><option value="satyanarayan">satyanarayan</option>
+            <option value="griha_pravesh">griha_pravesh</option><option value="rudrabhishek">rudrabhishek</option>
+            <option value="navagraha">navagraha</option><option value="kaal_sarp">kaal_sarp</option>
+            <option value="other">other</option>
+          </select>
+          <label for="ed-mode">Mode (comma: online, home, temple)</label>
+          <input id="ed-mode" />
+          <label for="ed-price">Sample price (₹)</label>
+          <input id="ed-price" type="number" min="0" step="0.01" />
+          <label for="ed-dur">Duration label</label>
+          <input id="ed-dur" />
+          <label for="ed-inc">Includes (comma-separated)</label>
+          <input id="ed-inc" />
+          <label for="ed-note">Muhurat note</label>
+          <input id="ed-note" />
+        </span>
+      </div>
+      <div>
+        <label for="ed-about">About / description</label>
+        <textarea id="ed-about" style="min-height:150px"></textarea>
+        <label for="ed-photo">Photo URL (astrologers)</label>
+        <input id="ed-photo" />
+        <label style="margin-top:14px"><input id="ed-active" type="checkbox" style="width:auto" /> Active (visible on site)</label>
+      </div>
+    </div>
+    <p style="display:flex; gap:10px; margin-top:16px">
+      <button class="btn" type="button" id="ed-save">Save</button>
+      <button class="btn ghost" type="button" id="ed-close">Close</button>
+    </p>
+  </dialog>
+</Admin>
+
+<script>
+  import { api, el, esc, renderRows, requireSession, toast, logout } from "../../scripts/admin/api";
+
+  let kind: "astrologers" | "pujas" = "astrologers";
+  let current: Record<string, unknown> | null = null;
+
+  const split = (v: unknown) =>
+    Array.isArray(v) ? v.map(String).join(", ") : "";
+  const parseList = (s: string) => s.split(",").map((x) => x.trim()).filter(Boolean);
+
+  async function load(): Promise<void> {
+    const res = await api<{ data?: { astrologers?: Array<Record<string, unknown>>; pujas?: Array<Record<string, unknown>> } }>("/api/v1/admin/" + kind);
+    const data = res.ok ? res.body.data : undefined;
+    const rows = kind === "astrologers" ? data?.astrologers : data?.pujas;
+    const astroRow = (a: Record<string, unknown>) => `<tr>
+      <td>${esc(a.name)}</td><td>${esc(a.slug)}</td><td>${a.experience_years ?? "—"}</td>
+      <td>${a.price_per_minute != null ? `₹${a.price_per_minute}` : "—"}</td>
+      <td>${a.is_active ? "yes" : "no"}</td>
+      <td class="row-actions"><button class="btn ghost" data-edit="${a.id}">Edit</button>
+      <button class="btn danger" data-del="${a.id}">Delete</button></td></tr>`;
+    const pujaRow = (p: Record<string, unknown>) => `<tr>
+      <td>${esc(p.name)}</td><td>${esc(p.slug)}</td><td>${esc(p.category)}</td>
+      <td>${p.sample_price != null ? `₹${p.sample_price}` : "—"}</td>
+      <td>${p.is_active ? "yes" : "no"}</td>
+      <td class="row-actions"><button class="btn ghost" data-edit="${p.id}">Edit</button>
+      <button class="btn danger" data-del="${p.id}">Delete</button></td></tr>`;
+    renderRows(kind === "astrologers" ? "#astro-rows" : "#puja-rows", rows, kind === "astrologers" ? astroRow : pujaRow, "Nothing here yet.");
+  }
+
+  function setKind(k: "astrologers" | "pujas"): void {
+    kind = k;
+    (el<HTMLTableElement>("#astro-table")!).hidden = k !== "astrologers";
+    (el<HTMLTableElement>("#puja-table")!).hidden = k !== "pujas";
+    void load();
+  }
+  el<HTMLButtonElement>("#tab-astro")!.addEventListener("click", () => setKind("astrologers"));
+  el<HTMLButtonElement>("#tab-pujas")!.addEventListener("click", () => setKind("pujas"));
+
+  function openEditor(item: Record<string, unknown> | null): void {
+    current = item;
+    el<HTMLHeadingElement>("#ed-title")!.textContent = item ? `Edit ${kind === "astrologers" ? "astrologer" : "pooja"}` : `New ${kind === "astrologers" ? "astrologer" : "pooja"}`;
+    (el<HTMLElement>(".only-astro")!).hidden = kind !== "astrologers";
+    (el<HTMLElement>(".only-puja")!).hidden = kind !== "pujas";
+    const set = (sel: string, v: unknown) => {
+      const n = el<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>(sel);
+      if (n) n.value = typeof v === "string" ? v : v == null ? "" : String(v);
+    };
+    set("#ed-name", item?.name);
+    set("#ed-slug", item?.slug ?? "");
+    (el<HTMLInputElement>("#ed-slug")!).disabled = Boolean(item);
+    (el<HTMLInputElement>("#ed-active")!).checked = item ? Boolean(item.is_active) : true;
+    if (kind === "astrologers") {
+      set("#ed-title-f", item?.title);
+      set("#ed-exp", split(item?.expertise));
+      set("#ed-lang", split(item?.languages));
+      set("#ed-years", item?.experience_years);
+      set("#ed-rate", item?.price_per_minute);
+      set("#ed-st", typeof item?.session_types === "string" ? item.session_types : JSON.stringify(item?.session_types ?? "[]").replace(/^/, ""));
+      set("#ed-photo", item?.photo_url);
+      set("#ed-about", item?.about);
+    } else {
+      set("#ed-cat", item?.category ?? "graha_shanti");
+      set("#ed-mode", split(item?.mode));
+      set("#ed-price", item?.sample_price);
+      set("#ed-dur", item?.duration);
+      set("#ed-inc", Array.isArray(item?.includes) ? (item.includes as unknown[]).map(String).join(", ") : "");
+      set("#ed-note", item?.muhurat_note);
+      set("#ed-about", item?.description);
+      set("#ed-photo", "");
+    }
+    (el<HTMLDialogElement>("#editor")!).showModal();
+  }
+
+  el<HTMLButtonElement>("#new")!.addEventListener("click", () => openEditor(null));
+  el<HTMLButtonElement>("#ed-close")!.addEventListener("click", () => (el<HTMLDialogElement>("#editor")!).close());
+
+  el<HTMLButtonElement>("#ed-save")!.addEventListener("click", async () => {
+    const val = (sel: string) => el<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>(sel)?.value.trim() ?? "";
+    const body: Record<string, unknown> = {
+      name: val("#ed-name"),
+      is_active: (el<HTMLInputElement>("#ed-active")!).checked,
+      about: val("#ed-about") || undefined,
+    };
+    if (kind === "astrologers") {
+      body.title = val("#ed-title-f");
+      body.expertise = parseList(val("#ed-exp"));
+      body.languages = parseList(val("#ed-lang"));
+      if (val("#ed-years")) body.experience_years = Number(val("#ed-years"));
+      if (val("#ed-rate")) body.price_per_minute = Number(val("#ed-rate"));
+      if (val("#ed-st")) { try { body.session_types = JSON.parse(val("#ed-st")); } catch { toast("Session types: invalid JSON", true); return; } }
+      if (val("#ed-photo")) body.photo_url = val("#ed-photo");
+      body.accent = "primary";
+    } else {
+      body.category = val("#ed-cat");
+      body.mode = parseList(val("#ed-mode"));
+      if (val("#ed-price")) body.sample_price = Number(val("#ed-price"));
+      if (val("#ed-dur")) body.duration = val("#ed-dur");
+      body.includes = parseList(val("#ed-inc"));
+      if (val("#ed-note")) body.muhurat_note = val("#ed-note");
+      body.description = val("#ed-about") || undefined;
+      body.accent = "primary";
+    }
+    if (!current && val("#ed-slug")) body.slug = val("#ed-slug");
+    const res = await api(`/api/v1/admin/${kind}${current ? `/${current.id}` : ""}`, {
+      method: current ? "PATCH" : "POST",
+      body: JSON.stringify(body),
+    });
+    toast(res.ok ? "Saved." : res.body.error?.message ?? "Save failed", !res.ok);
+    if (res.ok) {
+      (el<HTMLDialogElement>("#editor")!).close();
+      await load();
+    }
+  });
+
+  document.addEventListener("click", async (ev) => {
+    const t = ev.target as HTMLElement;
+    const edit = t.closest("button[data-edit]") as HTMLElement | null;
+    const del = t.closest("button[data-del]") as HTMLElement | null;
+    if (edit) {
+      const rows = await api<{ data?: { astrologers?: Array<Record<string, unknown>>; pujas?: Array<Record<string, unknown>> } }>("/api/v1/admin/" + kind);
+      const list = (rows.ok ? (kind === "astrologers" ? rows.body.data?.astrologers : rows.body.data?.pujas) : undefined);
+      const item = list?.find((r) => r.id === edit.dataset.edit);
+      if (item) openEditor(item);
+    } else if (del && confirm("Delete this entry? (site history keeps consultation links via NULL)")) {
+      const res = await api(`/api/v1/admin/${kind}/${del.dataset.del}`, { method: "DELETE" });
+      toast(res.ok ? "Deleted." : res.body.error?.message ?? "Delete failed", !res.ok);
+      await load();
+    }
+  });
+  document.getElementById("admin-logout")?.addEventListener("click", logout);
+  if (await requireSession()) await load();
+</script>

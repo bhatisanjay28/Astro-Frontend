@@ -1,0 +1,87 @@
+---
+/** /admin/inbox — consultation/puja requests + contact messages (Epic 6.4). */
+import Admin from "../../layouts/Admin.astro";
+---
+
+<Admin title="Inbox | Vyotish Admin" active="inbox">
+  <h1>Inbox</h1>
+  <p style="display:flex; gap:8px">
+    <button class="btn ghost" id="tab-req" type="button">Requests</button>
+    <button class="btn ghost" id="tab-msg" type="button">Messages</button>
+  </p>
+  <table id="req-table">
+    <thead><tr><th>Who</th><th>Contact</th><th>Topic</th><th>Preferred</th><th>Status</th><th>When</th><th>Set status</th></tr></thead>
+    <tbody id="req-rows"><tr><td colspan="7" class="empty">Loading…</td></tr></tbody>
+  </table>
+  <table id="msg-table" hidden>
+    <thead><tr><th>Name</th><th>Email</th><th>Subject</th><th>Message</th><th>Status</th><th>When</th><th>Set status</th></tr></thead>
+    <tbody id="msg-rows"><tr><td colspan="7" class="empty">Loading…</td></tr></tbody>
+  </table>
+</Admin>
+
+<script>
+  import { api, el, esc, fmtDate, renderRows, requireSession, toast, logout } from "../../scripts/admin/api";
+
+  let kind: "requests" | "messages" = "requests";
+
+  const STATUS_BTNS = {
+    requests: ["contacted", "scheduled", "closed"],
+    messages: ["read", "closed"],
+  };
+
+  async function load(): Promise<void> {
+    if (kind === "requests") {
+      const [c, p] = await Promise.all([
+        api<{ data?: { requests?: Array<Record<string, unknown>>; type?: string } }>("/api/v1/admin/requests?type=consultation&per_page=50"),
+        api<{ data?: { requests?: Array<Record<string, unknown>>; type?: string } }>("/api/v1/admin/requests?type=puja&per_page=50"),
+      ]);
+      const all: Array<Record<string, unknown>> = [];
+      if (c.ok) for (const r of c.body.data?.requests ?? []) all.push({ ...r, _type: "consultation" });
+      if (p.ok) for (const r of p.body.data?.requests ?? []) all.push({ ...r, _type: "puja" });
+      all.sort((a, b) => String(b.created_at ?? "").localeCompare(String(a.created_at ?? "")));
+      renderRows("#req-rows", all, (r) => `<tr>
+        <td>${esc(r.name)}</td>
+        <td>${esc(r.phone)}${r.email ? `<br>${esc(r.email)}` : ""}</td>
+        <td>${esc(r.topic ?? (r._type === "puja" ? "puja booking" : "consultation"))}${r.message ? `<br><span style="color:#9b8f7a">${esc(String(r.message).slice(0, 120))}</span>` : ""}</td>
+        <td>${fmtDate(r.preferred_date)} ${esc(r.preferred_time ?? "")}</td>
+        <td><span class="pill ${r.status === "new" ? "dr" : "pub"}">${esc(r.status)}</span></td>
+        <td>${fmtDate(r.created_at)}</td>
+        <td class="row-actions">${STATUS_BTNS.requests.filter((s) => s !== r.status).map((s) => `<button class="btn ghost" data-st="${s}" data-type="${r._type}" data-id="${r.id}">${s}</button>`).join("")}</td>
+      </tr>`, "No requests yet.");
+    } else {
+      const res = await api<{ data?: { messages?: Array<Record<string, unknown>> } }>("/api/v1/admin/messages?per_page=50");
+      renderRows("#msg-rows", res.ok ? res.body.data?.messages : undefined, (m) => `<tr>
+        <td>${esc(m.name)}</td>
+        <td>${esc(m.email)}</td>
+        <td>${esc(m.subject ?? "—")}</td>
+        <td style="max-width:260px">${esc(m.message)}</td>
+        <td><span class="pill ${m.status === "new" ? "dr" : "pub"}">${esc(m.status)}</span></td>
+        <td>${fmtDate(m.created_at)}</td>
+        <td class="row-actions">${STATUS_BTNS.messages.filter((s) => s !== m.status).map((s) => `<button class="btn ghost" data-st="${s}" data-type="message" data-id="${m.id}">${s}</button>`).join("")}</td>
+      </tr>`, "No messages yet.");
+    }
+  }
+
+  function setKind(k: "requests" | "messages"): void {
+    kind = k;
+    (el<HTMLTableElement>("#req-table")!).hidden = k !== "requests";
+    (el<HTMLTableElement>("#msg-table")!).hidden = k !== "messages";
+    void load();
+  }
+  el<HTMLButtonElement>("#tab-req")!.addEventListener("click", () => setKind("requests"));
+  el<HTMLButtonElement>("#tab-msg")!.addEventListener("click", () => setKind("messages"));
+
+  document.addEventListener("click", async (ev) => {
+    const btn = (ev.target as HTMLElement).closest("button[data-st]") as HTMLElement | null;
+    if (!btn) return;
+    const { st, type, id } = btn.dataset as { st: string; type: string; id: string };
+    const res =
+      type === "message"
+        ? await api(`/api/v1/admin/messages/${id}`, { method: "PATCH", body: JSON.stringify({ status: st }) })
+        : await api(`/api/v1/admin/requests/${id}`, { method: "PATCH", body: JSON.stringify({ type, status: st }) });
+    toast(res.ok ? `Marked ${st}.` : res.body.error?.message ?? "Update failed", !res.ok);
+    await load();
+  });
+  document.getElementById("admin-logout")?.addEventListener("click", logout);
+  if (await requireSession()) await load();
+</script>

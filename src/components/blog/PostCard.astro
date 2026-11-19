@@ -1,0 +1,49 @@
+---
+/** Blog listing card (Epic 6.3). Data comes from GET /api/v1/blog/posts. */
+import type { BlogPostSummary } from "../../lib/content";
+
+interface Props {
+  post: BlogPostSummary;
+}
+
+const { post } = Astro.props;
+
+const dateFmt = new Intl.DateTimeFormat("en-IN", {
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+});
+const date = post.publish_at ? dateFmt.format(new Date(post.publish_at)) : null;
+const img = post.featured_image_url;
+---
+
+<a class="card" href={`/blog/${post.slug}`}>
+  {
+    img && (
+      <img class="thumb" src={img} alt={post.alt_text ?? post.title} loading="lazy" width="640" height="360" />
+    )
+  }
+  <span class="title">{post.title}</span>
+  {post.excerpt && <span class="excerpt">{post.excerpt}</span>}
+  <span class="meta">
+    {date && <span>{date}</span>}
+    {post.reading_minutes && <span>{post.reading_minutes} min read</span>}
+  </span>
+</a>
+
+<style>
+  .card {
+    display: flex; flex-direction: column; gap: 6px;
+    background: var(--bg-raised);
+    border: 1px solid var(--color-border-strong);
+    border-radius: var(--radius-card);
+    overflow: hidden;
+    padding: var(--space-4);
+    text-decoration: none;
+  }
+  .card:hover { border-color: var(--border-gold-soft); }
+  .thumb { width: 100%; height: auto; border-radius: var(--radius-card); border: 1px solid var(--color-border); }
+  .title { color: var(--ivory); font-weight: 500; font-size: 16px; line-height: 1.4; }
+  .excerpt { color: var(--text-dim); font-size: 13px; line-height: 1.6; }
+  .meta { display: flex; gap: var(--space-3); color: var(--gold); font-size: 12px; margin-top: var(--space-1); }
+</style>

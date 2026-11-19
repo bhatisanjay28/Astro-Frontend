@@ -1,0 +1,63 @@
+---
+/** /admin — dashboard (Epic 6.4). Live counts from the admin API. */
+import Admin from "../../layouts/Admin.astro";
+---
+
+<Admin title="Dashboard | Vyotish Admin" active="home">
+  <h1>Dashboard</h1>
+  <div class="grid2">
+    <a class="card" href="/admin/posts"><h2>Blog posts</h2><p class="stat" id="stat-posts">…</p><span class="hint">drafts waiting to publish</span></a>
+    <a class="card" href="/admin/inbox"><h2>Inbox</h2><p class="stat" id="stat-inbox">…</p><span class="hint">new requests + messages</span></a>
+  </div>
+  <div class="grid2">
+    <a class="card" href="/admin/horoscopes"><h2>Horoscope content</h2><p class="stat" id="stat-horo">…</p><span class="hint">rows in the library</span></a>
+    <a class="card" href="/admin/catalog"><h2>Catalogue</h2><p class="stat" id="stat-catalog">…</p><span class="hint">astrologers + poojas</span></a>
+  </div>
+  <h2>Getting started</h2>
+  <p class="note">
+    Blog: write under <a href="/admin/posts">posts</a> — markdown is sanitised at render time.
+    Media: upload images under <a href="/admin/media">media</a> and paste the URL into a post.
+    Requests and messages land in the <a href="/admin/inbox">inbox</a>.
+  </p>
+</Admin>
+
+<style is:global>
+  .card { display: block; text-decoration: none; }
+  .card h2 { margin: 0; }
+  .stat { font-size: 26px; color: #d4a843; margin: 6px 0 0; }
+  .hint { color: #9b8f7a; font-size: 12px; }
+  .note { color: #9b8f7a; font-size: 13px; }
+  .note a { color: #d4a843; }
+</style>
+
+<script>
+  import { api, el, requireSession, logout } from "../../scripts/admin/api";
+
+  async function counts(): Promise<void> {
+    const [posts, reqC, reqP, msgs, horo, astro, pujas] = await Promise.all([
+      api<{ data?: { posts?: unknown[] }; meta?: { total?: number } }>("/api/v1/admin/posts?per_page=1"),
+      api<{ meta?: { total?: number } }>("/api/v1/admin/requests?type=consultation&status=new&per_page=1"),
+      api<{ meta?: { total?: number } }>("/api/v1/admin/requests?type=puja&status=new&per_page=1"),
+      api<{ meta?: { total?: number } }>("/api/v1/admin/messages?status=new&per_page=1"),
+      api<{ meta?: { total?: number } }>("/api/v1/admin/horoscopes?per_page=1"),
+      api<{ data?: { astrologers?: unknown[] } }>("/api/v1/admin/astrologers"),
+      api<{ data?: { pujas?: unknown[] } }>("/api/v1/admin/pujas"),
+    ]);
+    const set = (id: string, text: string) => {
+      const n = el<HTMLParagraphElement>(id);
+      if (n) n.textContent = text;
+    };
+    const meta = (r: { ok: boolean; body: { meta?: { total?: number }; data?: unknown } }) =>
+      r.ok ? r.body.meta?.total ?? 0 : 0;
+    set("#stat-posts", `${posts.ok ? posts.body.meta?.total ?? 0 : "?"} posts`);
+    set("#stat-inbox", `${meta(reqC) + meta(reqP)} requests · ${meta(msgs)} messages`);
+    set("#stat-horo", `${meta(horo)} rows`);
+    set(
+      "#stat-catalog",
+      `${astro.ok ? astro.body.data?.astrologers?.length ?? 0 : "?"} astrologers · ${pujas.ok ? pujas.body.data?.pujas?.length ?? 0 : "?"} poojas`,
+    );
+  }
+
+  document.getElementById("admin-logout")?.addEventListener("click", logout);
+  if (await requireSession()) await counts();
+</script>

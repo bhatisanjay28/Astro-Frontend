@@ -1,0 +1,41 @@
+---
+/** Simple prev/next pagination (Epic 6.3). `base` never ends with a slash:
+ * page 1 → base, page N → base/page/N. */
+interface Props {
+  base: string;
+  page: number;
+  perPage: number;
+  total: number;
+}
+
+const { base, page, perPage, total } = Astro.props;
+const pages = Math.max(1, Math.ceil(total / perPage));
+const prev = page > 1 ? (page - 1 === 1 ? base : `${base}/page/${page - 1}`) : null;
+const next = page < pages ? `${base}/page/${page + 1}` : null;
+---
+
+{
+  pages > 1 && (
+    <nav class="pager" aria-label="Pagination">
+      <span class="info">
+        Page {page} of {pages}
+      </span>
+      <span class="links">
+        {prev ? <a href={prev}>← Newer</a> : <span aria-hidden="true" />}
+        {next ? <a href={next}>Older →</a> : <span aria-hidden="true" />}
+      </span>
+    </nav>
+  )
+}
+
+<style>
+  .pager {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-top: var(--space-6);
+    border-top: 1px solid var(--color-border);
+    padding-top: var(--space-4);
+  }
+  .info { color: var(--text-dim); font-size: 13px; }
+  .links { display: flex; gap: var(--space-4); font-size: 14px; }
+  .links a { color: var(--gold); text-decoration: none; min-height: var(--target-min); line-height: var(--target-min); }
+</style>

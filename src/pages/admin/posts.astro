@@ -1,0 +1,88 @@
+---
+/** /admin/posts — blog post list + quick actions (Epic 6.4). */
+import Admin from "../../layouts/Admin.astro";
+---
+
+<Admin title="Posts | Vyotish Admin" active="posts">
+  <h1>Blog posts</h1>
+  <p><a class="btn" href="/admin/posts/edit">+ New post</a></p>
+  <form id="filters" style="display:flex; gap:8px; margin: 14px 0;">
+    <select id="f-status" style="max-width:160px">
+      <option value="">All statuses</option>
+      <option value="draft">Draft</option>
+      <option value="scheduled">Scheduled</option>
+      <option value="published">Published</option>
+      <option value="archived">Archived</option>
+    </select>
+    <input id="f-q" placeholder="Search title…" style="max-width:240px" />
+    <button type="submit" class="btn ghost">Filter</button>
+  </form>
+  <table>
+    <thead>
+      <tr><th>Title</th><th>Status</th><th>Publish</th><th>Category</th><th>Updated</th><th>Actions</th></tr>
+    </thead>
+    <tbody id="rows"><tr><td colspan="6" class="empty">Loading…</td></tr></tbody>
+  </table>
+</Admin>
+
+<script>
+  import { api, el, esc, fmtDate, renderRows, requireSession, toast, logout } from "../../scripts/admin/api";
+
+  const row = (p: Record<string, unknown>) => {
+    const status = String(p.status ?? "draft");
+    const scheduled = status === "draft" && typeof p.publish_at === "string" && new Date(p.publish_at) > new Date();
+    const pill = scheduled ? '<span class="pill dr">scheduled</span>' : status === "published" ? '<span class="pill pub">published</span>' : `<span class="pill">${status}</span>`;
+    const next =
+      status === "published"
+        ? `<button class="btn ghost" data-act="unpublish" data-id="${p.id}" data-slug="${p.slug}">Unpublish</button>`
+        : status === "draft"
+          ? `<button class="btn ghost" data-act="publish" data-id="${p.id}" data-slug="${p.slug}">Publish</button>`
+          : "";
+    return `<tr>
+      <td><a href="/admin/posts/edit?id=${p.id}" style="color:#d4a843">${esc(p.title)}</a></td>
+      <td>${pill}</td>
+      <td>${fmtDate(p.publish_at)}</td>
+      <td>${esc((p.category_id as string) ?? "—").slice(0, 8)}</td>
+      <td>${fmtDate(p.updated_at)}</td>
+      <td class="row-actions">${next}<button class="btn danger" data-act="delete" data-id="${p.id}" data-slug="${p.slug}">Delete</button></td>
+    </tr>`;
+  };
+
+  async function load(): Promise<void> {
+    const status = el<HTMLSelectElement>("#f-status")?.value ?? "";
+    const q = el<HTMLInputElement>("#f-q")?.value.trim() ?? "";
+    const qs = new URLSearchParams({ per_page: "50" });
+    if (status) qs.set("status", status);
+    if (q) qs.set("q", q);
+    const res = await api(`/api/v1/admin/posts?${qs.toString()}`);
+    if (res.ok) {
+      const posts = (res.body.data as { posts?: Array<Record<string, unknown>> })?.posts ?? [];
+      renderRows("#rows", posts, row, "No posts yet — write the first one.");
+    } else {
+      toast(res.body.error?.message ?? "Loading failed", true);
+    }
+  }
+
+  document.addEventListener("click", async (ev) => {
+    const btn = (ev.target as HTMLElement).closest("button[data-act]") as HTMLElement | null;
+    if (!btn) return;
+    const { act, id, slug } = btn.dataset as { act: string; id: string; slug: string };
+    if (!confirm(`Are you sure you want to ${act} this post?`)) return;
+    const res =
+      act === "delete"
+        ? await api(`/api/v1/admin/posts/${id}`, { method: "DELETE" })
+        : await api(`/api/v1/admin/posts/${id}`, {
+            method: "PUT",
+            body: JSON.stringify({ status: act === "publish" ? "published" : "draft" }),
+          });
+    toast(res.ok ? `Post ${act === "delete" ? "deleted" : "updated"}.` : res.body.error?.message ?? "Action failed", !res.ok);
+    await load();
+  });
+
+  el<HTMLFormElement>("#filters")?.addEventListener("submit", (ev) => {
+    ev.preventDefault();
+    void load();
+  });
+  document.getElementById("admin-logout")?.addEventListener("click", logout);
+  if (await requireSession()) await load();
+</script>

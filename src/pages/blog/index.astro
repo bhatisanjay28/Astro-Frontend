@@ -1,10 +1,114 @@
 ---
-import TabStub from "../../components/TabStub.astro";
+import Pager from "../../components/blog/Pager.astro";
+import PostCard from "../../components/blog/PostCard.astro";
+import Base from "../../layouts/Base.astro";
+import { API_BASE, fetchBlogCategories, fetchBlogPosts } from "../../lib/content";
+
+/** /blog — public blog home (Epic 6.3). Listing page 1; later pages live at
+ * /blog/page/N. Search runs client-side against the same public endpoint. */
+
+const perPage = 10;
+const result = await fetchBlogPosts({ page: 1, perPage });
+const categories = await fetchBlogCategories();
+const posts = result?.posts ?? [];
+const total = result?.total ?? 0;
 ---
 
-<TabStub
-  title="Blog | Vyotish"
-  tabLabel="Blog"
-  description="Original astro-education articles — signs, nakshatras, yogas and more."
-  epic="Epic 6"
-/>
+<Base
+  title="Blog — Vedic Astrology Articles | Vyotish"
+  description="Original astro-education articles: rashis, nakshatras, yogas, doshas, dasha, panchang and practical astrology guides from the Vyotish team."
+  langPath="/blog"
+>
+  <section class="blog">
+    <h1>Vyotish Blog</h1>
+    <p class="lede">
+      Original articles on Vedic astrology — how the system works, what the classics
+      say and how Vyotish computes it. Also available as
+      <a href="/blog/rss.xml">RSS</a>.
+    </p>
+
+    <form class="search" data-blog-search data-api-base={API_BASE} role="search">
+      <input
+        type="search"
+        name="q"
+        placeholder="Search articles…"
+        aria-label="Search articles"
+        minlength="1"
+        maxlength="80"
+      />
+      <button type="submit">Search</button>
+    </form>
+    <div class="results" data-blog-results hidden>
+      <h2 data-blog-heading></h2>
+      <div class="grid" data-blog-grid></div>
+      <button type="button" class="clear" data-blog-clear>Show all articles</button>
+    </div>
+
+    {
+      categories && categories.length > 0 && (
+        <div class="chips">
+          {categories.map((c) => (
+            <a class="chip" href={`/blog/category/${c.slug}`}>
+              {c.name}
+            </a>
+          ))}
+        </div>
+      )
+    }
+
+    {
+      posts.length === 0 ? (
+        <p class="empty">
+          The first articles are being written and edited — check back shortly.
+          Meanwhile, the <a href="/astrology/learn">Learn library</a> is open.
+        </p>
+      ) : (
+        <>
+          <div class="grid">
+            {posts.map((p) => (
+              <PostCard post={p} />
+            ))}
+          </div>
+          <Pager base="/blog" page={1} perPage={perPage} total={total} />
+        </>
+      )
+    }
+  </section>
+</Base>
+
+<style>
+  .blog { max-width: 900px; margin: 0 auto; padding: var(--space-6) var(--space-4) var(--space-8); }
+  h1 { font-family: var(--font-display); color: var(--ivory); font-size: clamp(26px, 5vw, 36px); }
+  .lede { color: var(--text-muted); margin-top: var(--space-2); font-size: 14.5px; max-width: 700px; line-height: 1.6; }
+  .lede a { color: var(--gold); }
+  .search { display: flex; gap: var(--space-2); margin-top: var(--space-5); }
+  .search input {
+    flex: 1; min-width: 0;
+    background: var(--bg-raised); color: var(--ivory);
+    border: 1px solid var(--color-border-strong); border-radius: var(--radius-card);
+    padding: 10px 12px; font-size: 14px;
+  }
+  .search button {
+    background: var(--gold); color: #1a1206; font-weight: 600; border: 0;
+    border-radius: var(--radius-card); padding: 10px 16px; font-size: 14px; cursor: pointer;
+  }
+  .results { margin-top: var(--space-5); }
+  .results h2 { font-family: var(--font-display); color: var(--gold); font-size: 17px; }
+  .results .clear { margin-top: var(--space-4); background: none; border: 1px solid var(--color-border-strong); color: var(--gold); border-radius: var(--radius-card); padding: 8px 14px; cursor: pointer; font-size: 13px; }
+  .chips { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-4); }
+  .chip {
+    color: var(--gold); text-decoration: none; font-size: 12.5px;
+    border: 1px solid var(--border-gold-soft); border-radius: 999px;
+    padding: 5px 12px;
+  }
+  .chip:hover { background: var(--bg-raised); }
+  .grid { display: grid; gap: var(--space-3); margin-top: var(--space-5); grid-template-columns: 1fr; }
+  @media (min-width: 640px) { .grid { grid-template-columns: repeat(2, 1fr); } }
+  .empty { margin-top: var(--space-6); color: var(--text-muted); font-size: 14.5px; border: 1px dashed var(--border-gold-soft); border-radius: var(--radius-card); padding: var(--space-5); }
+  .empty a { color: var(--gold); }
+</style>
+
+<script>
+  // Client-side search over the public blog API (server does the filtering).
+  import "../../scripts/blog-search.ts";
+</script>
