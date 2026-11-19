@@ -81,7 +81,6 @@ const jsonLd = [
 <Base
   title={`${post.seo_title ?? post.title} | Vyotish Blog`}
   description={post.seo_description ?? post.excerpt ?? post.title}
-  langPath="/blog"
   canonical={canonical}
   ogImage={post.og_image_url ?? post.featured_image_url ?? undefined}
   ogType="article"
@@ -234,4 +233,6 @@ const jsonLd = [
       });
     });
   });
+  // Epic 7.4 — consent-gated analytics; no-op unless the visitor accepted
+  window.vyTrack?.("blog_read");
 </script>

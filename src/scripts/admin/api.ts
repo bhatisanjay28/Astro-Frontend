@@ -115,10 +115,10 @@ export function toast(msg: string, bad = false): void {
 }
 
 /** Renders rows into a <tbody>; empty state keeps an honest message. */
-export function renderRows(
+export function renderRows<T>(
   tbodySel: string,
-  rows: Array<Record<string, unknown>> | undefined,
-  rowHtml: (r: Record<string, unknown>) => string,
+  rows: T[] | undefined,
+  rowHtml: (r: T) => string,
   emptyText = "Nothing here yet.",
 ): void {
   const tbody = el<HTMLTableSectionElement>(tbodySel);

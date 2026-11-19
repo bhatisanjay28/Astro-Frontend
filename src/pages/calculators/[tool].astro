@@ -252,7 +252,6 @@ const API_NOTE =
 <Base
   title={`${tool.title} — Free Vedic Calculator | Vyotish`}
   description={`${tool.description} Free, instant, no login — computed by the Vyotish backend engine.`}
-  langPath="/calculators"
 >
   <section class="calc">
     <nav class="crumbs" aria-label="Breadcrumb">
@@ -323,7 +322,7 @@ const API_NOTE =
   </section>
 </Base>
 
-<script define:vars={{ endpoint: tool.endpoint, apiBase: (import.meta.env.PUBLIC_API_BASE_URL ?? "https://astro-backend.vyotish.workers.dev") }}>
+<script define:vars={{ endpoint: tool.endpoint, toolSlug: tool.slug, apiBase: (import.meta.env.PUBLIC_API_BASE_URL ?? "https://astro-backend.vyotish.workers.dev") }}>
   (function () {
     var form = document.querySelector("form[data-calc-endpoint]");
     var box = document.querySelector("[data-calc-result]");
@@ -386,6 +385,8 @@ const API_NOTE =
             html += "<p class='flagline'>For entertainment only.</p>";
           }
           box.innerHTML = html;
+          // Epic 7.4 — consent-gated analytics; no-op unless GA4 is loaded
+          if (window.vyTrack) window.vyTrack("calculator_used", { tool: toolSlug });
         })
         .catch(function () {
           box.innerHTML = "<p class='hint err'>The backend could not be reached — please refresh and try again.</p>";

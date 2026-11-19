@@ -2,7 +2,11 @@
 /**
  * Base HTML shell — Epic 2.1/2.4.
  * Theme: no-flash inline script (localStorage → prefers-color-scheme).
- * i18n: hreflang alternates when `langPath` provided (PRD §11).
+ * i18n: hreflang alternates when `langPath` provided (PRD §11). Audit
+ * (2026-11-20): only the home page has a real Hindi counterpart today, so
+ * langPath is passed ONLY by index.astro (/) and hi/index.astro — pages must
+ * never emit a hreflang="hi" link to a /hi/* URL that does not exist. When
+ * Hindi pages land per-section, re-add langPath to those pages only.
  * Fonts: hotlinked for Coming-Soon parity — self-host before launch (P3).
  */
 import "../styles/tokens.css";

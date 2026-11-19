@@ -47,8 +47,9 @@ import Admin from "../../layouts/Admin.astro";
       const n = el<HTMLParagraphElement>(id);
       if (n) n.textContent = text;
     };
-    const meta = (r: { ok: boolean; body: { meta?: { total?: number }; data?: unknown } }) =>
-      r.ok ? r.body.meta?.total ?? 0 : 0;
+    // the api() union's error branch carries an unknown meta — narrow it here
+    const meta = (r: { ok: boolean; body: { meta?: unknown } }) =>
+      r.ok ? (r.body.meta as { total?: number } | undefined)?.total ?? 0 : 0;
     set("#stat-posts", `${posts.ok ? posts.body.meta?.total ?? 0 : "?"} posts`);
     set("#stat-inbox", `${meta(reqC) + meta(reqP)} requests · ${meta(msgs)} messages`);
     set("#stat-horo", `${meta(horo)} rows`);

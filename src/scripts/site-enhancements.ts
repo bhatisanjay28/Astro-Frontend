@@ -11,6 +11,23 @@ const API_BASE = import.meta.env.PUBLIC_API_BASE_URL ?? "https://astro-backend.v
 
 const CONSENT_KEY = "vyotish.consent.v1";
 
+/**
+ * Epic 7.4 event instrumentation — the single tracking entry point for the
+ * whole site (kundli_generated, calculator_used, booking_request_sent,
+ * blog_read). It is a consent gate by construction: window.gtag only exists
+ * once loadGtag() has run, and that only happens after an explicit Accept
+ * AND a ga_measurement_id setting. Everything else is a safe no-op.
+ */
+declare global {
+  interface Window {
+    vyTrack?: (name: string, params?: Record<string, string | number | boolean>) => void;
+    gtag?: (...args: unknown[]) => void;
+  }
+}
+window.vyTrack = (name, params) => {
+  if (typeof window.gtag === "function") window.gtag("event", name, params ?? {});
+};
+
 interface PublicSettings {
   ga_measurement_id?: string | null;
   contact_whatsapp?: string | null;

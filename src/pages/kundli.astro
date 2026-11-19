@@ -20,7 +20,6 @@ const CITIES = [
 <Base
   title="Free Kundli (Janam Kundali) — No Signup | Vyotish"
   description="Free online Kundli with North/South Indian charts, planetary positions, Navamsha, Vimshottari Dasha and dosha notes. No signup; birth data never stored."
-  langPath="/kundli"
 >
   <section class="kl">
     <h1>Free Kundli</h1>
@@ -251,7 +250,7 @@ const CITIES = [
         body: JSON.stringify({ date: f.get("date"), time: f.get("time"), lat: parseFloat(city[0]), lng: parseFloat(city[1]), tz: city[2] }),
       })
         .then(function (r) { if (!r.ok) throw new Error("bad"); return r.json(); })
-        .then(function (j) { lastData = j.data; render(j.data, style); })
+        .then(function (j) { lastData = j.data; render(j.data, style); if (window.vyTrack) window.vyTrack("kundli_generated"); })
         .catch(function () { errEl.removeAttribute("hidden"); });
 
       // re-render when style changes after a successful run

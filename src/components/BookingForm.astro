@@ -182,6 +182,8 @@ const subjects =
         }
         box.innerHTML = `<p class="font-body text-body-sm text-success">✓ Request received — ${json.data?.note ?? "the Vyotish team will contact you."}</p>`;
         form.reset();
+        // Epic 7.4 — consent-gated analytics; no-op unless GA4 is loaded
+        window.vyTrack?.("booking_request_sent", { kind });
       } catch {
         box.innerHTML =
           '<p class="font-body text-body-sm text-error">The booking service could not be reached — please refresh and try again.</p>';

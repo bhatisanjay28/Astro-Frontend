@@ -33,7 +33,6 @@ const GIRL = personFields("girl", "Girl");
 <Base
   title="Kundli Matching — Ashtakoota Guna Milan | Vyotish"
   description="36-guna Ashtakoota marriage matching with per-koota explanations, plus classical Manglik checks from Lagna, Moon and Venus — computed by the Vyotish engine."
-  langPath="/matching"
 >
   <section class="mx">
     <h1>Kundli Matching <span class="hi-text">(गुण मिलान)</span></h1>
@@ -154,6 +153,8 @@ const GIRL = personFields("girl", "Girl");
             "<table><thead><tr><th>Koota</th><th>Points</th><th>Detail</th></tr></thead><tbody>" + rows + "</tbody></table>" +
             "<h3>Manglik dosha</h3>" + manglikRows +
             "<p class='flagline'>Koota tables pending Jyotishi review (P11) — treat as indicative. " + esc(r.j.meta && r.j.meta.consent_note ? "" : "") + "</p>";
+          // Epic 7.4 — consent-gated analytics; no-op unless GA4 is loaded
+          if (window.vyTrack) window.vyTrack("calculator_used", { tool: "match" });
         })
         .catch(function () {
           box.innerHTML = "<p class='hint err'>The backend could not be reached — please refresh and try again.</p>";

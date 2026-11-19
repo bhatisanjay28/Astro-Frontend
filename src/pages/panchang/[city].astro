@@ -17,7 +17,6 @@ const { info } = Astro.props as { info: ApiCity };
 <Base
   title={`Panchang for ${info.name} — Today | Vyotish`}
   description={`Today's Vedic Panchang for ${info.name}: Tithi, Nakshatra, Yoga, Karana with start/end times, sunrise/sunset, Rahu Kaal and more — in ${info.tz}.`}
-  langPath="/panchang"
 >
   <section class="ph">
     <h1>Panchang — {info.name} {info.name_hi && <span class="hi-text">({info.name_hi})</span>}</h1>
