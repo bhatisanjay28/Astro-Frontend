@@ -360,6 +360,13 @@ const API_NOTE =
 
     form.addEventListener("submit", function (e) {
       e.preventDefault();
+      // birthplace picker guard — no coordinates until a suggestion is picked
+      var latField = form.querySelector('[data-place-role="lat"]');
+      if (latField && !latField.value) {
+        var st = form.querySelector("[data-place-status]");
+        if (st) st.textContent = "Please select your place of birth from the suggestions.";
+        return;
+      }
       var fd = new FormData(form);
       var qs = new URLSearchParams();
       fd.forEach(function (value, key) {

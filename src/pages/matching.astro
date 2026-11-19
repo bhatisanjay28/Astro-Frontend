@@ -5,6 +5,7 @@
  * (D12). Honest fail-soft; verification status surfaced (P11).
  */
 import Base from "../layouts/Base.astro";
+import PlaceField from "../components/PlaceField.astro";
 
 const inputClass =
   "w-full px-3 py-2 rounded bg-light-surface dark:bg-dark-surface border border-light-outline-variant dark:border-dark-outline-variant text-light-on-surface dark:text-dark-on-surface font-body text-body-sm";
@@ -20,9 +21,6 @@ function personFields(prefix: string, label: string) {
     fields: [
       { name: `${prefix}-date`, label: `${label} birth date`, type: "date" },
       { name: `${prefix}-time`, label: `${label} birth time`, type: "time" },
-      { name: `${prefix}-lat`, label: `${label} latitude`, type: "number", ph: "28.6139" },
-      { name: `${prefix}-lng`, label: `${label} longitude`, type: "number", ph: "77.209" },
-      { name: `${prefix}-tz`, label: `${label} timezone (IANA)`, type: "text", ph: "Asia/Kolkata" },
     ] as Array<{ name: string; label: string; type: InputType; ph?: string }>,
   };
 }
@@ -58,14 +56,16 @@ const GIRL = personFields("girl", "Girl");
                     id={f.name}
                     name={f.name}
                     type={f.type}
-                    placeholder={"ph" in f ? f.ph : ""}
-                    step={f.type === "number" ? "0.0001" : undefined}
-                    min={f.name.endsWith("-lat") ? -90 : f.name.endsWith("-lng") ? -180 : undefined}
-                    max={f.name.endsWith("-lat") ? 90 : f.name.endsWith("-lng") ? 180 : undefined}
-                    required={f.name.endsWith("-date") || f.name.endsWith("-tz")}
+                    required={f.name.endsWith("-date")}
                   />
                 </div>
               ))}
+              <PlaceField
+                variant="separate"
+                label={`${p.label} birth place`}
+                inputId={`${p.prefix}-place`}
+                ids={{ lat: `${p.prefix}-lat`, lng: `${p.prefix}-lng`, tz: `${p.prefix}-tz` }}
+              />
             </fieldset>
           ))
         }
@@ -117,7 +117,7 @@ const GIRL = personFields("girl", "Girl");
       var boy = person("boy");
       var girl = person("girl");
       if (!boy.date || !girl.date || !boy.tz || !girl.tz || isNaN(boy.lat) || isNaN(girl.lat)) {
-        box.innerHTML = "<p class='hint err'>Please fill at least the dates, latitudes and timezones for both charts.</p>";
+        box.innerHTML = "<p class='hint err'>Please pick both birth dates and select each birth place from the suggestions.</p>";
         return;
       }
       box.innerHTML = "<p class='hint'>Matching 36 gunas across 8 kootas…</p>";

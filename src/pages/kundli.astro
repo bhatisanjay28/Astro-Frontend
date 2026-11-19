@@ -5,16 +5,9 @@
  * basic dosha notes. No signup, no storage.
  */
 import Base from "../layouts/Base.astro";
+import PlaceField from "../components/PlaceField.astro";
 
 const apiBase = import.meta.env.PUBLIC_API_BASE_URL ?? "https://astro-backend.vyotish.workers.dev";
-const CITIES = [
-  ["28.6139", "77.209", "Asia/Kolkata", "New Delhi"],
-  ["19.076", "72.8777", "Asia/Kolkata", "Mumbai"],
-  ["12.9716", "77.5946", "Asia/Kolkata", "Bengaluru"],
-  ["22.5726", "88.3639", "Asia/Kolkata", "Kolkata"],
-  ["13.0827", "80.2707", "Asia/Kolkata", "Chennai"],
-  ["17.385", "78.4867", "Asia/Kolkata", "Hyderabad"],
-];
 ---
 
 <Base
@@ -32,11 +25,6 @@ const CITIES = [
       <div class="row">
         <label>Birth date <input type="date" name="date" required /></label>
         <label>Birth time <input type="time" name="time" required value="10:00" /></label>
-        <label>City
-          <select name="city">
-            {CITIES.map((c) => <option value={`${c[0]},${c[1]},${c[2]}`}>{c[3]}</option>)}
-          </select>
-        </label>
         <label>Chart style
           <select name="style">
             <option value="north">North Indian</option>
@@ -44,6 +32,7 @@ const CITIES = [
           </select>
         </label>
       </div>
+      <PlaceField variant="combined" names={{ combined: "city" }} inputId="k-place" label="Place of birth" />
       <button type="submit">Generate Kundli</button>
     </form>
 
@@ -242,8 +231,15 @@ const CITIES = [
       e.preventDefault();
       errEl.setAttribute("hidden", "");
       var f = new FormData(form);
-      var city = String(f.get("city")).split(",");
+      var cityRaw = String(f.get("city") || "");
       var style = String(f.get("style") || "north");
+      if (!cityRaw) {
+        errEl.textContent = "Please select your place of birth from the suggestions.";
+        errEl.removeAttribute("hidden");
+        return;
+      }
+      var city = cityRaw.split(",");
+      errEl.setAttribute("hidden", "");
       fetch(apiBase + "/api/v1/kundli", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

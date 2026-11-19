@@ -1,7 +1,10 @@
 ---
 /** /muhurat/ — today's windows + finder form (Epic 3.4). Client islands on
- * the LIVE /api/v1/muhurat routes. */
+ * the LIVE /api/v1/muhurat routes. City pickers use the /places proxy
+ * (owner directive, 2026-11-20); the today-island keeps a New Delhi default
+ * and reloads when a place is selected. */
 import Base from "../../layouts/Base.astro";
+import PlaceField from "../../components/PlaceField.astro";
 
 const apiBase = import.meta.env.PUBLIC_API_BASE_URL ?? "https://astro-backend.vyotish.workers.dev";
 const EVENTS = [
@@ -34,16 +37,17 @@ const EVENTS = [
   <section class="today" aria-labelledby="today-h">
     <h2 id="today-h">Today</h2>
     <div class="toolbar">
-      <label>City
-        <select data-mt-city>
-          <option value="28.6139,77.209,Asia/Kolkata">New Delhi</option>
-          <option value="19.076,72.8777,Asia/Kolkata">Mumbai</option>
-          <option value="12.9716,77.5946,Asia/Kolkata">Bengaluru</option>
-          <option value="22.5726,88.3639,Asia/Kolkata">Kolkata</option>
-          <option value="13.0827,80.2707,Asia/Kolkata">Chennai</option>
-          <option value="17.385,78.4867,Asia/Kolkata">Hyderabad</option>
-        </select>
-      </label>
+      <div class="tb-city">
+        <PlaceField
+          variant="combined"
+          inputId="mt-place"
+          label="Your city"
+          names={{ combined: "city" }}
+          ids={{}}
+          hiddenAttrs={{ "data-mt-city": "", value: "28.6139,77.209,Asia/Kolkata" }}
+        />
+      </div>
+      <p class="def-note">Defaults to New Delhi — pick your city above for local windows.</p>
     </div>
     <div class="windows" data-mt-out>
       <div class="cell skeleton">Loading…</div>
@@ -61,16 +65,12 @@ const EVENTS = [
         </label>
         <label>From <input type="date" name="from" required /></label>
         <label>To <input type="date" name="to" required /></label>
-        <label>City
-          <select name="city">
-            <option value="28.6139,77.209,Asia/Kolkata">New Delhi</option>
-            <option value="19.076,72.8777,Asia/Kolkata">Mumbai</option>
-            <option value="12.9716,77.5946,Asia/Kolkata">Bengaluru</option>
-            <option value="22.5726,88.3639,Asia/Kolkata">Kolkata</option>
-            <option value="13.0827,80.2707,Asia/Kolkata">Chennai</option>
-            <option value="17.385,78.4867,Asia/Kolkata">Hyderabad</option>
-          </select>
-        </label>
+        <PlaceField
+          variant="combined"
+          inputId="mf-place"
+          label="City"
+          names={{ combined: "city" }}
+        />
       </div>
       <button type="submit">Find muhurat windows</button>
     </form>
@@ -111,6 +111,9 @@ const EVENTS = [
         }).catch(function () { out.innerHTML = '<div class="cell">Unavailable right now.</div>'; });
       }
       citySel.addEventListener("change", loadToday);
+      // the place picker writes the hidden input directly — listen for it
+      var mtField = citySel.closest("[data-place-field]");
+      if (mtField) mtField.addEventListener("place:selected", loadToday);
       loadToday();
 
       // --- finder ---
@@ -121,7 +124,13 @@ const EVENTS = [
         e.preventDefault();
         mfErr.setAttribute("hidden", "");
         var f = new FormData(form);
-        var city = String(f.get("city")).split(",");
+        var cityRaw = String(f.get("city") || "");
+        if (!cityRaw || cityRaw.split(",").length < 3) {
+          mfErr.textContent = "Please select the city from the suggestions.";
+          mfErr.removeAttribute("hidden");
+          return;
+        }
+        var city = cityRaw.split(",");
         fetch(apiBase + "/api/v1/muhurat/find", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -165,7 +174,9 @@ const EVENTS = [
     .mt h1 { font-family: var(--font-display); color: var(--ivory); font-size: 36px; }
     .mt h2 { font-family: var(--font-display); color: var(--ivory); font-size: 24px; margin-bottom: var(--space-3); }
     .lede { color: var(--text-muted); font-size: 14.5px; line-height: 1.7; margin-top: var(--space-2); }
-    .toolbar { display: flex; gap: var(--space-3); margin-bottom: var(--space-4); }
+    .toolbar { display: flex; gap: var(--space-3); margin-bottom: var(--space-4); flex-wrap: wrap; }
+    .tb-city { min-width: 260px; }
+    .def-note { color: var(--text-dim); font-size: 12.5px; margin-top: var(--space-2); }
     .mt label { color: var(--text-dim); font-size: 13px; display: grid; gap: var(--space-1); flex: 1; min-width: 160px; }
     .mt select, .mt input {
       min-height: var(--target-min);
