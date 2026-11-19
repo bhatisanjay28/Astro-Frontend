@@ -112,12 +112,12 @@ const trustPoints = [
 
   <style>
     .hero {
-      background: radial-gradient(ellipse at 50% -20%, var(--bg-night-glow) 0%, transparent 65%);
+      background: var(--color-bg);
       padding: var(--space-8) var(--space-4) var(--space-6);
       text-align: center;
     }
     .hero-inner { max-width: 760px; margin: 0 auto; }
-    .om { font-size: 40px; color: var(--gold); text-shadow: 0 0 24px var(--gold-glow); margin-bottom: var(--space-3); }
+    .om { font-size: 40px; color: var(--gold); /* glow removed — calm palette */ margin-bottom: var(--space-3); }
     h1 {
       font-family: var(--font-display);
       font-size: clamp(30px, 5.4vw, 46px);
@@ -125,7 +125,7 @@ const trustPoints = [
       color: var(--text-primary);
       line-height: 1.2;
     }
-    .gold { color: var(--gold); font-style: italic; }
+    .gold { color: var(--color-accent-text); font-style: italic; }
     .hero-sub { color: var(--text-muted); font-size: 15px; line-height: 1.7; margin: var(--space-4) auto 0; max-width: 560px; }
     .hero-actions { display: flex; gap: var(--space-3); justify-content: center; flex-wrap: wrap; margin-top: var(--space-6); }
     .hero-actions a {
@@ -139,12 +139,13 @@ const trustPoints = [
       font-weight: 500;
     }
     .primary {
-      background: linear-gradient(135deg, var(--gold-bright), var(--gold));
+      background: var(--color-accent);
       color: var(--ink-on-gold);
     }
     .secondary {
-      border: 1px solid var(--border-gold-soft);
-      color: var(--ivory);
+      background: var(--color-surface);
+      border: 1px solid var(--color-primary);
+      color: var(--color-primary);
     }
     .trust, .community, .faq { max-width: 1100px; margin: 0 auto var(--space-8); padding: 0 var(--space-4); }
     .trust-inner, .community-inner, .faq-inner {
@@ -156,7 +157,7 @@ const trustPoints = [
     h2 { font-family: var(--font-display); color: var(--ivory); font-size: 26px; margin-bottom: var(--space-4); font-weight: 600; }
     .trust ul { list-style: none; display: grid; gap: var(--space-3); }
     .trust li { color: var(--text-body); font-size: 14.5px; padding-left: var(--space-5); position: relative; }
-    .trust li::before { content: "✦"; position: absolute; left: 0; color: var(--gold); }
+    .trust li::before { content: "✦"; position: absolute; left: 0; color: var(--color-accent-text); }
     .cards { display: grid; gap: var(--space-4); grid-template-columns: 1fr; }
     .card { border: 1px dashed var(--border-faint); border-radius: var(--radius-card); padding: var(--space-4); }
     .card h3 { color: var(--ivory); font-family: var(--font-display); font-size: 18px; margin-bottom: var(--space-2); }

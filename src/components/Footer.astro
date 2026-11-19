@@ -65,8 +65,8 @@ import { LEGAL_LINKS, NAV_TABS } from "../data/navigation";
 
 <style>
   .site-footer {
-    border-top: 1px solid var(--border-faint);
-    background: var(--surface-glass);
+    background: var(--color-primary); /* teal footer, white text (usage rule) */
+    color: var(--color-on-primary);
     margin-top: var(--space-8);
   }
   .footer-inner {
@@ -79,7 +79,7 @@ import { LEGAL_LINKS, NAV_TABS } from "../data/navigation";
   }
   .col h3 {
     font-family: var(--font-display);
-    color: var(--gold);
+    color: var(--color-on-primary);
     font-size: 18px;
     margin-bottom: var(--space-3);
   }
@@ -87,23 +87,23 @@ import { LEGAL_LINKS, NAV_TABS } from "../data/navigation";
     display: block;
     min-height: 32px;
     line-height: 32px;
-    color: var(--text-muted);
+    color: rgba(255, 255, 255, 0.88);
     text-decoration: none;
     font-size: 14px;
   }
-  .col a:hover { color: var(--gold); }
+  .col a:hover { color: var(--color-on-primary); text-decoration: underline; }
   .f-brand {
     font-family: var(--font-display);
     font-size: 26px;
-    color: var(--ivory);
+    color: var(--color-on-primary);
     text-decoration: none;
   }
-  .brand-col p { color: var(--text-dim); font-size: 14px; margin-top: var(--space-3); }
+  .brand-col p { color: rgba(255, 255, 255, 0.85); font-size: 14px; margin-top: var(--space-3); }
   .social { display: flex; gap: var(--space-3); margin-top: var(--space-4); }
   .social span {
-    color: var(--text-dim);
+    color: rgba(255, 255, 255, 0.88);
     font-size: 13px;
-    border: 1px solid var(--border-faint);
+    border: 1px solid rgba(255, 255, 255, 0.45);
     border-radius: var(--radius-pill);
     padding: 6px 12px;
   }
@@ -111,30 +111,31 @@ import { LEGAL_LINKS, NAV_TABS } from "../data/navigation";
   .newsletter input {
     flex: 1;
     min-height: var(--target-min);
-    background: var(--bg-raised);
-    border: 1px solid var(--border-faint);
+    background: var(--color-surface);
+    border: none;
     border-radius: var(--radius-card);
-    color: var(--text-body);
+    color: var(--color-text);
     padding: 0 var(--space-3);
   }
+  /* secondary button on teal: sandalwood bg, teal border + teal text */
   .newsletter button {
     min-height: var(--target-min);
     padding: 0 var(--space-4);
-    background: linear-gradient(135deg, var(--gold-bright), var(--gold));
-    border: none;
+    background: var(--color-bg);
+    border: 1.5px solid var(--color-primary);
     border-radius: var(--radius-card);
-    color: var(--ink-on-gold);
+    color: var(--color-primary);
     font-weight: 500;
     cursor: pointer;
   }
-  .note { color: var(--gold); font-size: 13px; margin-top: var(--space-2); }
-  .privacy-line { color: var(--text-faint); font-size: 12px; margin-top: var(--space-3); max-width: 320px; }
+  .note { color: var(--color-accent-soft); font-size: 13px; margin-top: var(--space-2); }
+  .privacy-line { color: rgba(255, 255, 255, 0.8); font-size: 12px; margin-top: var(--space-3); max-width: 320px; }
   .legal-line {
-    border-top: 1px solid var(--border-faint);
+    border-top: 1px solid rgba(255, 255, 255, 0.28);
     padding: var(--space-4);
     text-align: center;
   }
-  .legal-line p { color: var(--text-footer); font-size: 12px; }
+  .legal-line p { color: rgba(255, 255, 255, 0.85); font-size: 12px; }
   @media (min-width: 768px) {
     .footer-inner { grid-template-columns: 2fr 1fr 1fr 1.5fr; }
   }

@@ -50,17 +50,19 @@ const themeLock = lockDark ? "dark" : null;
       )
     }
     <script is:inline>
-      // No-flash theme bootstrap (respects reduced-JS environments by defaulting)
+      // No-flash theme bootstrap: follows the SYSTEM setting by default,
+      // remembers an explicit user choice (localStorage "vyotish-theme").
       (function () {
         var locked = document.documentElement.getAttribute("data-theme") === "dark";
         if (locked) return;
+        var theme = "light";
         try {
           var saved = localStorage.getItem("vyotish-theme");
-          var theme = saved || (window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark");
-          document.documentElement.setAttribute("data-theme", theme);
+          theme = saved || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
         } catch (e) {
-          document.documentElement.setAttribute("data-theme", "dark");
+          theme = "light";
         }
+        if (theme === "dark") document.documentElement.setAttribute("data-theme", "dark");
       })();
     </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -104,13 +106,20 @@ const themeLock = lockDark ? "dark" : null;
         left: -9999px;
         top: 0;
         z-index: 100;
-        background: var(--gold);
-        color: var(--ink-on-gold);
+        background: var(--color-primary);
+        color: var(--color-on-primary);
         padding: var(--space-2) var(--space-4);
         border-radius: 0 0 var(--radius-card) 0;
       }
       .skip-link:focus-visible {
         left: 0;
+      }
+      /* Link rule: teal, deeper terracotta on hover (components may override) */
+      main a {
+        color: var(--color-primary);
+      }
+      main a:hover {
+        color: var(--color-accent-text);
       }
       [lang="hi"] .hi-text,
       .hi-text {

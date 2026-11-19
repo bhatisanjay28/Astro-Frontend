@@ -112,10 +112,14 @@ const { currentPath = "/" } = Astro.props;
     text-decoration: none;
     border-radius: var(--radius-card);
   }
-  .tabs a:hover,
+  .tabs a:hover {
+    color: var(--color-primary);
+    background: var(--color-tint);
+  }
+  /* Selected/active item: teal background, white text (usage rule) */
   .tabs a[aria-current="page"] {
-    color: var(--gold);
-    background: var(--surface-glass);
+    background: var(--color-primary);
+    color: var(--color-on-primary);
   }
   .actions {
     display: flex;
@@ -132,7 +136,7 @@ const { currentPath = "/" } = Astro.props;
     align-items: center;
     justify-content: center;
     background: none;
-    border: 1px solid var(--border-faint);
+    border: 1px solid var(--color-border-strong);
     border-radius: var(--radius-card);
     color: var(--text-body);
     cursor: pointer;
@@ -144,7 +148,7 @@ const { currentPath = "/" } = Astro.props;
     align-items: center;
     min-height: var(--target-min);
     padding: 0 var(--space-5);
-    background: linear-gradient(135deg, var(--gold-bright), var(--gold));
+    background: var(--color-accent);
     color: var(--ink-on-gold);
     font-weight: 500;
     font-size: 14px;
@@ -189,7 +193,7 @@ const { currentPath = "/" } = Astro.props;
     align-items: center;
     justify-content: center;
     min-height: var(--target-min);
-    background: linear-gradient(135deg, var(--gold-bright), var(--gold));
+    background: var(--color-accent);
     color: var(--ink-on-gold);
     font-weight: 500;
     border-radius: var(--radius-pill);

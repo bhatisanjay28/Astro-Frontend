@@ -39,12 +39,12 @@ const apiBase = import.meta.env.PUBLIC_API_BASE_URL ?? "https://astro-backend.vy
 
   <style>
     .hero {
-      background: radial-gradient(ellipse at 50% -20%, var(--bg-night-glow) 0%, transparent 65%);
+      background: var(--color-bg);
       padding: var(--space-8) var(--space-4) var(--space-6);
       text-align: center;
     }
     .hero-inner { max-width: 760px; margin: 0 auto; }
-    .om { font-size: 40px; color: var(--gold); text-shadow: 0 0 24px var(--gold-glow); margin-bottom: var(--space-3); }
+    .om { font-size: 40px; color: var(--gold); /* glow removed — calm palette */ margin-bottom: var(--space-3); }
     h1 {
       font-family: "Noto Sans Devanagari", var(--font-body);
       font-size: clamp(28px, 5.4vw, 42px);
@@ -62,8 +62,8 @@ const apiBase = import.meta.env.PUBLIC_API_BASE_URL ?? "https://astro-backend.vy
       border-radius: var(--radius-pill);
       text-decoration: none; font-size: 14px; font-weight: 500;
     }
-    .primary { background: linear-gradient(135deg, var(--gold-bright), var(--gold)); color: var(--ink-on-gold); }
-    .secondary { border: 1px solid var(--border-gold-soft); color: var(--ivory); }
+    .primary { background: var(--color-accent); color: var(--ink-on-gold); }
+    .secondary { background: var(--color-surface); border: 1px solid var(--color-primary); color: var(--color-primary); }
     .en-note { color: var(--text-faint); font-size: 13px; margin-top: var(--space-5); }
     .en-note a { color: var(--gold); }
   </style>

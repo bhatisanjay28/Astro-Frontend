@@ -24,7 +24,7 @@ import Base from "../layouts/Base.astro";
     justify-content: center;
     text-align: center;
     padding: var(--space-6);
-    background: radial-gradient(ellipse at 50% -20%, var(--bg-night-glow) 0%, var(--bg-night) 60%);
+    background: var(--color-bg);
   }
   .glyph { font-size: 44px; color: var(--gold); }
   h1 {
@@ -44,6 +44,6 @@ import Base from "../layouts/Base.astro";
     text-decoration: none;
     font-size: 14px;
   }
-  .primary { background: linear-gradient(135deg, var(--gold-bright), var(--gold)); color: var(--ink-on-gold); }
-  .secondary { border: 1px solid var(--border-gold-soft); color: var(--ivory); }
+  .primary { background: var(--color-accent); color: var(--ink-on-gold); }
+  .secondary { background: var(--color-surface); border: 1px solid var(--color-primary); color: var(--color-primary); }
 </style>

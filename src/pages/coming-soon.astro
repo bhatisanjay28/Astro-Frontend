@@ -30,7 +30,7 @@ const services = [
       .page {
         position: relative;
         min-height: 100vh;
-        background: radial-gradient(ellipse at 50% -20%, var(--bg-night-glow) 0%, var(--bg-night) 55%);
+        background: var(--color-bg);
         color: var(--text-body);
         font-family: var(--font-body);
         overflow: hidden;
@@ -76,7 +76,7 @@ const services = [
       .om {
         font-size: 44px;
         color: var(--gold);
-        text-shadow: 0 0 24px var(--gold-glow);
+        /* glow removed — calm palette */
         margin-bottom: 10px;
       }
       .brand {
@@ -96,7 +96,7 @@ const services = [
       .divider {
         width: 72px;
         height: 1px;
-        background: linear-gradient(90deg, transparent, var(--gold), transparent);
+        background: var(--color-border);
         margin: 28px auto;
       }
       h1 {
@@ -107,7 +107,7 @@ const services = [
         color: var(--text-primary);
       }
       h1 .gold {
-        color: var(--gold);
+        color: var(--color-accent-text);
         font-style: italic;
       }
       .lede {
@@ -165,17 +165,17 @@ const services = [
         gap: 8px;
         padding: 9px 16px;
         font-size: 13px;
-        color: #d9dbe8;
+        color: var(--color-text);
         border: 1px solid var(--border-faint);
         border-radius: var(--radius-pill);
         background: var(--surface-chip);
       }
       .chip .icon {
-        color: var(--gold);
+        color: var(--color-accent-text);
         font-size: 14px;
       }
       .chip .icon_clock {
-        color: var(--gold);
+        color: var(--color-accent-text);
         font-size: 13px;
       }
       .notify {
@@ -197,7 +197,7 @@ const services = [
         font-weight: 500;
         letter-spacing: 0.04em;
         color: var(--ink-on-gold);
-        background: linear-gradient(135deg, var(--gold-bright), var(--gold));
+        background: var(--color-accent);
         border: none;
         border-radius: var(--radius-pill);
         cursor: pointer;
@@ -216,7 +216,7 @@ const services = [
         color: var(--text-dim);
       }
       .contact a {
-        color: var(--gold);
+        color: var(--color-accent-text);
         text-decoration: none;
       }
       footer {

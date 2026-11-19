@@ -261,7 +261,7 @@ const CITIES = [
   })();
 </script>
 
-<style>
+<style is:global>
   .kl { max-width: 860px; margin: 0 auto; padding: var(--space-7) var(--space-4) var(--space-5); }
   h1 { font-family: var(--font-display); color: var(--ivory); font-size: 34px; }
   .lede { color: var(--text-muted); font-size: 14.5px; margin-top: var(--space-2); line-height: 1.6; }
@@ -271,14 +271,14 @@ const CITIES = [
   input, select {
     min-height: var(--target-min);
     background: var(--bg-raised);
-    border: 1px solid var(--border-faint);
+    border: 1px solid var(--color-border-strong);
     border-radius: var(--radius-card);
     color: var(--text-body);
     padding: 0 var(--space-3);
   }
   button {
     min-height: var(--target-min);
-    background: linear-gradient(135deg, var(--gold-bright), var(--gold));
+    background: var(--color-accent);
     border: none;
     border-radius: var(--radius-pill);
     color: var(--ink-on-gold);
@@ -287,7 +287,7 @@ const CITIES = [
     justify-self: start;
     padding: 0 var(--space-6);
   }
-  .k-error { color: #e07a5f; margin-top: var(--space-3); }
+  .k-error { color: var(--color-error-text); margin-top: var(--space-3); }
   .k-out { max-width: 860px; margin: 0 auto; padding: 0 var(--space-4) var(--space-8); }
   .charts { display: flex; gap: var(--space-5); flex-wrap: wrap; margin-top: var(--space-5); }
   figure { margin: 0; }
@@ -297,17 +297,17 @@ const CITIES = [
   [data-chart-svg] .pt { fill: var(--text-body); font-size: 13px; font-weight: 600; }
   .summary { margin-top: var(--space-5); }
   .s-grid { display: grid; gap: var(--space-3); grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
-  .s { background: var(--bg-raised); border: 1px solid var(--border-faint); border-radius: var(--radius-card); padding: var(--space-3) var(--space-4); }
+  .s { background: var(--bg-raised); border: 1px solid var(--color-border-strong); border-radius: var(--radius-card); padding: var(--space-3) var(--space-4); }
   .s .k { font-size: 10.5px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--text-dim); }
   .s .v { font-family: var(--font-display); font-size: 18px; color: var(--ivory); margin-top: 2px; }
   h2 { font-family: var(--font-display); color: var(--ivory); font-size: 22px; margin: var(--space-6) 0 var(--space-3); }
-  .table-wrap { overflow-x: auto; border: 1px solid var(--border-faint); border-radius: var(--radius-card); }
+  .table-wrap { overflow-x: auto; border: 1px solid var(--color-border-strong); border-radius: var(--radius-card); }
   table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
   th, td { text-align: left; padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--border-faint); color: var(--text-body); }
   th { color: var(--text-dim); font-size: 11px; text-transform: uppercase; letter-spacing: 0.12em; }
   tr:last-child td { border-bottom: none; }
   .doshas { display: grid; gap: var(--space-3); }
-  .d { background: var(--bg-raised); border: 1px solid var(--border-faint); border-radius: var(--radius-card); padding: var(--space-3) var(--space-4); }
+  .d { background: var(--bg-raised); border: 1px solid var(--color-border-strong); border-radius: var(--radius-card); padding: var(--space-3) var(--space-4); }
   .d .dn { color: var(--text-body); font-size: 14px; }
   .d .dn strong { color: var(--ivory); }
   .d .dd { color: var(--text-faint); font-size: 12.5px; margin-top: var(--space-1); line-height: 1.6; }

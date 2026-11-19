@@ -1,18 +1,22 @@
 ---
 /**
  * Swappable brand wordmark (docs/placeholders.md P1).
- * The SVG lives in ONE file — `src/assets/brand/vyotish-wordmark.svg` — so the
- * owner's final logo replaces it without touching any page. Wired into the
- * site header in Epic 2.1.
+ * The SVG lives in ONE file — `src/assets/brand/vyotish-wordmark.svg` — and is
+ * inlined here (Vite `?raw`) so its CSS-variable fills adapt to light/dark.
  */
-import wordmark from "../assets/brand/vyotish-wordmark.svg";
+import wordmarkRaw from "../assets/brand/vyotish-wordmark.svg?raw";
 ---
 
-<img class="wordmark" src={wordmark.src} width="220" height="56" alt="Vyotish — Vedic Astrology" />
+<span class="wordmark" set:html={wordmarkRaw} />
 
 <style>
   .wordmark {
-    display: block;
-    height: auto;
+    display: inline-flex;
+    height: 40px;
+    width: auto;
+  }
+  .wordmark :global(svg) {
+    height: 100%;
+    width: auto;
   }
 </style>

@@ -160,7 +160,7 @@ const EVENTS = [
     })();
   </script>
 
-  <style>
+  <style is:global>
     .mt, .today, .finder { max-width: 1000px; margin: 0 auto; padding: var(--space-5) var(--space-4); }
     .mt { padding-top: var(--space-7); }
     h1 { font-family: var(--font-display); color: var(--ivory); font-size: 36px; }
@@ -171,25 +171,29 @@ const EVENTS = [
     select, input {
       min-height: var(--target-min);
       background: var(--bg-raised);
-      border: 1px solid var(--border-faint);
+      border: 1px solid var(--color-border-strong);
       border-radius: var(--radius-card);
       color: var(--text-body);
       padding: 0 var(--space-3);
     }
     .windows { display: grid; gap: var(--space-2); grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); }
-    .cell { background: var(--bg-raised); border: 1px solid var(--border-faint); border-radius: var(--radius-card); padding: var(--space-3); min-height: 64px; }
-    .cell.good { border-color: var(--border-gold-soft); }
-    .cell.bad { opacity: 0.85; }
-    .cell .sn { color: var(--ivory); font-weight: 500; font-size: 14px; }
-    .cell .st { color: var(--text-muted); font-size: 13px; margin-top: 2px; font-variant-numeric: tabular-nums; }
-    .cell .ss { color: var(--text-faint); font-size: 11px; }
+    .cell { background: var(--bg-raised); border: 1px solid var(--color-border-strong); border-radius: var(--radius-card); padding: var(--space-3); min-height: 64px; }
+    .cell.good { background: var(--color-auspicious-bg); border-color: transparent; }
+    .cell.good .sn { color: var(--color-auspicious-text); }
+    .cell.good .sn::before { content: "✓ "; }
+    .cell.bad { background: var(--color-inauspicious-bg); }
+    .cell.bad .sn { color: var(--color-inauspicious-text); }
+    .cell.bad .sn::before { content: "⚠ "; }
+    .cell .sn { color: var(--color-text); font-weight: 500; font-size: 14px; }
+    .cell .st { color: var(--color-text-muted); font-size: 13px; margin-top: 2px; font-variant-numeric: tabular-nums; }
+    .cell .ss { color: var(--color-text-muted); font-size: 11px; }
     .cell.skeleton { display: flex; align-items: center; color: var(--text-dim); }
     .finder form { display: grid; gap: var(--space-3); }
     .finder .row { display: flex; gap: var(--space-3); flex-wrap: wrap; }
     .finder button {
       min-height: var(--target-min);
       padding: 0 var(--space-5);
-      background: linear-gradient(135deg, var(--gold-bright), var(--gold));
+      background: var(--color-accent);
       border: none;
       border-radius: var(--radius-pill);
       color: var(--ink-on-gold);
@@ -197,16 +201,18 @@ const EVENTS = [
       cursor: pointer;
       justify-self: start;
     }
-    .mf-error { color: #e07a5f; margin-top: var(--space-3); font-size: 14px; }
+    .mf-error { color: var(--color-error-text); margin-top: var(--space-3); font-size: 14px; }
     .mf-out { margin-top: var(--space-4); }
     .disc { color: var(--text-faint); font-size: 12.5px; border: 1px dashed var(--border-gold-soft); border-radius: var(--radius-card); padding: var(--space-3); margin-bottom: var(--space-4); line-height: 1.6; }
-    .day { background: var(--bg-raised); border: 1px solid var(--border-faint); border-radius: var(--radius-card); padding: var(--space-4); margin-bottom: var(--space-3); }
+    .day { background: var(--bg-raised); border: 1px solid var(--color-border-strong); border-radius: var(--radius-card); padding: var(--space-4); margin-bottom: var(--space-3); }
     .day.no { opacity: 0.75; }
     .dh { display: flex; justify-content: space-between; align-items: center; color: var(--ivory); font-weight: 500; }
     .badge { font-size: 11px; text-transform: uppercase; letter-spacing: 0.12em; border-radius: var(--radius-pill); padding: 4px 10px; }
-    .badge.ok { background: var(--gold); color: var(--ink-on-gold); }
-    .badge.cond { background: var(--surface-chip); color: var(--text-muted); }
-    .badge.no { background: none; border: 1px solid #e07a5f; color: #e07a5f; }
+    .badge.ok { background: var(--color-auspicious-bg); color: var(--color-auspicious-text); }
+    .badge.ok::before { content: "✓ "; }
+    .badge.cond { background: var(--color-tint); color: var(--color-text-muted); }
+    .badge.no { background: var(--color-inauspicious-bg); border: none; color: var(--color-inauspicious-text); }
+    .badge.no::before { content: "⚠ "; }
     .df { color: var(--text-dim); font-size: 12.5px; margin: var(--space-2) 0; }
     .win { color: var(--text-muted); font-size: 13.5px; padding: 3px 0; font-variant-numeric: tabular-nums; }
   </style>

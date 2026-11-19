@@ -90,7 +90,7 @@ const { apiBase } = Astro.props;
   })();
 </script>
 
-<style>
+<style is:global>
   .qk {
     max-width: 760px;
     margin: 0 auto var(--space-8);
@@ -119,24 +119,24 @@ const { apiBase } = Astro.props;
   input, select {
     min-height: var(--target-min);
     background: var(--bg-page);
-    border: 1px solid var(--border-faint);
+    border: 1px solid var(--color-border-strong);
     border-radius: var(--radius-card);
     color: var(--text-body);
     padding: 0 var(--space-3);
   }
   button {
     min-height: var(--target-min);
-    background: linear-gradient(135deg, var(--gold-bright), var(--gold));
+    background: var(--color-accent);
     border: none;
     border-radius: var(--radius-pill);
     color: var(--ink-on-gold);
     font-weight: 500;
     cursor: pointer;
   }
-  .qk-error { color: #e07a5f; margin-top: var(--space-3); font-size: 14px; }
+  .qk-error { color: var(--color-error-text); margin-top: var(--space-3); font-size: 14px; }
   .qk-result { margin-top: var(--space-5); }
   .res-grid { display: grid; gap: var(--space-3); grid-template-columns: 1fr; }
-  .res { background: var(--surface-glass); border: 1px solid var(--border-faint); border-radius: var(--radius-card); padding: var(--space-3) var(--space-4); }
+  .res { background: var(--surface-glass); border: 1px solid var(--color-border-strong); border-radius: var(--radius-card); padding: var(--space-3) var(--space-4); }
   .res .k { font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--text-dim); }
   .res .v { font-family: var(--font-display); font-size: 20px; color: var(--ivory); margin-top: 2px; }
   .fine { color: var(--text-faint); font-size: 12px; margin-top: var(--space-3); }

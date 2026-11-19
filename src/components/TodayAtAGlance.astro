@@ -90,7 +90,7 @@ const { apiBase } = Astro.props;
   })();
 </script>
 
-<style>
+<style is:global>
   .glance {
     max-width: 1100px;
     margin: 0 auto var(--space-8);
@@ -121,7 +121,7 @@ const { apiBase } = Astro.props;
     min-height: var(--target-min);
     background: var(--bg-raised);
     color: var(--text-body);
-    border: 1px solid var(--border-faint);
+    border: 1px solid var(--color-border-strong);
     border-radius: var(--radius-card);
     padding: 0 var(--space-3);
   }
