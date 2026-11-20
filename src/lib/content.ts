@@ -81,12 +81,33 @@ export async function fetchHomeContent(lang = "en"): Promise<HomeContent | null>
   return body?.data ?? null;
 }
 
-export async function fetchCities(country?: string): Promise<ApiCity[] | null> {
+/** /panchang/{slug} pages exist for the biggest cities — India-first (where
+ * the audience is) plus major world cities for the diaspora. The worldwide
+ * autocomplete covers every other place via coordinates. */
+export const PANCHANG_CITY_LIMIT = 150;
+
+export async function fetchCities(country?: string, limit?: number): Promise<ApiCity[] | null> {
   const q = country ? `&country=${encodeURIComponent(country)}` : "";
+  const l = limit ? `&limit=${limit}` : "";
   const body = await getJson<{ data: { cities: ApiCity[] } }>(
-    `${API_BASE}/api/v1/cities?lang=en${q}`,
+    `${API_BASE}/api/v1/cities?lang=en${q}${l}`,
   );
   return body?.data.cities ?? null;
+}
+
+/** The panchang city page set: top Indian cities first, then world cities
+ * (diaspora hubs), deduped by slug. */
+export async function fetchPanchangCities(): Promise<ApiCity[]> {
+  const [india, world] = await Promise.all([fetchCities("IN", 110), fetchCities(undefined, 60)]);
+  const seen = new Set<string>();
+  const merged: ApiCity[] = [];
+  for (const c of [...(india ?? []), ...(world ?? [])]) {
+    if (!seen.has(c.slug)) {
+      seen.add(c.slug);
+      merged.push(c);
+    }
+  }
+  return merged;
 }
 
 /** Astrologer directory row (Epic 5.2 — GET /api/v1/astrologers). */

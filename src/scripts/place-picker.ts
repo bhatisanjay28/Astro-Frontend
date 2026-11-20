@@ -23,9 +23,10 @@ interface Suggestion {
 }
 
 function esc(s: string): string {
-  return s.replace(/[&<>"']/g, (ch) => (
-    { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch] ?? ch
-  ));
+  return s.replace(
+    /[&<>"']/g,
+    (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch] ?? ch,
+  );
 }
 
 /** Dropdown styles — injected once; token vars keep it on-theme everywhere. */
@@ -66,6 +67,7 @@ function setupField(field: HTMLElement): void {
     lng: field.querySelector<HTMLInputElement>('[data-place-role="lng"]'),
     tz: field.querySelector<HTMLInputElement>('[data-place-role="tz"]'),
     combined: field.querySelector<HTMLInputElement>('[data-place-role="combined"]'),
+    place_id: field.querySelector<HTMLInputElement>('[data-place-role="place_id"]'),
   };
 
   let items: Suggestion[] = [];
@@ -74,7 +76,7 @@ function setupField(field: HTMLElement): void {
   let lastQuery = "";
 
   const clearValue = (): void => {
-    for (const el of [roles.lat, roles.lng, roles.tz, roles.combined]) {
+    for (const el of [roles.lat, roles.lng, roles.tz, roles.combined, roles.place_id]) {
       if (el) el.value = "";
     }
   };
@@ -87,7 +89,8 @@ function setupField(field: HTMLElement): void {
 
   const renderList = (): void => {
     if (items.length === 0) {
-      list.innerHTML = '<div class="pp-empty">No matching place found — try a nearby larger city.</div>';
+      list.innerHTML =
+        '<div class="pp-empty">No matching place found — try a nearby larger city.</div>';
     } else {
       list.innerHTML = items
         .map(
@@ -116,14 +119,34 @@ function setupField(field: HTMLElement): void {
           status.textContent = "Could not resolve that place — please pick another from the list.";
           return;
         }
-        const d = j.data as { lat: number; lng: number; tz: string; label: string };
+        const d = j.data as {
+          place_id?: string;
+          lat: number;
+          lng: number;
+          tz: string;
+          label: string;
+          structured?: Record<string, unknown>;
+        };
         clearValue();
+        const pid = d.place_id ?? s.place_id;
+        if (roles.place_id) roles.place_id.value = pid;
         if (roles.combined) roles.combined.value = `${d.lat},${d.lng},${d.tz}`;
         if (roles.lat) roles.lat.value = String(d.lat);
         if (roles.lng) roles.lng.value = String(d.lng);
         if (roles.tz) roles.tz.value = d.tz;
         status.textContent = `✓ ${d.label || s.label}`;
-        field.dispatchEvent(new CustomEvent("place:selected", { detail: d }));
+        // bubbles so section-level consumers can listen on a wrapper
+        field.dispatchEvent(
+          new CustomEvent("place:selected", {
+            bubbles: true,
+            detail: {
+              ...d,
+              place_id: pid,
+              // city-table picks expose their slug (panchang city URLs use it)
+              slug: pid.startsWith("city:") ? pid.slice(5) : undefined,
+            },
+          }),
+        );
       })
       .catch(() => {
         status.textContent = "Could not reach the place service — please try again.";

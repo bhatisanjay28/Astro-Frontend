@@ -1,12 +1,14 @@
 ---
-/** /panchang/ — city picker landing (Epic 3.2). D12: the city grid is
- * fetched at BUILD time from the backend city API (Supabase `cities` table);
- * when the backend is unreachable at build, an honest empty state renders —
- * never a mirrored baked list. */
+import PlaceField from "../../components/PlaceField.astro";
+/** /panchang/ — city landing (Epic 3.2). The city grid shows the biggest
+ * cities (build-time from the backend API; panchang city pages exist for
+ * these); the place field searches ALL ~70k worldwide places and opens the
+ * matching city page. When the backend is unreachable at build, an honest
+ * empty state renders — never a mirrored baked list. */
 import Base from "../../layouts/Base.astro";
-import { fetchCities } from "../../lib/content";
+import { fetchPanchangCities } from "../../lib/content";
 
-const cities = (await fetchCities()) ?? [];
+const cities = await fetchPanchangCities();
 ---
 
 <Base
@@ -16,6 +18,16 @@ const cities = (await fetchCities()) ?? [];
   <section class="pl">
     <h1>Panchang</h1>
     <p class="lede">Choose a city — every city has its own page, computed in its own timezone.</p>
+    <div class="pp-wrap">
+      <PlaceField
+        variant="combined"
+        inputId="pl-place"
+        label="Search any city worldwide"
+        required={false}
+        placeholder="Start typing your city…"
+        names={{ combined: "pl-city" }}
+      />
+    </div>
     <div class="grid">
       {
         cities.length === 0 ? (
@@ -36,11 +48,36 @@ const cities = (await fetchCities()) ?? [];
   </section>
 </Base>
 
+<script>
+  // The place field opens the matching /panchang/{slug} page (city-table
+  // picks carry a slug in the event detail). Dedicated pages exist for the
+  // biggest 150 cities; other picks are still fully supported — any city
+  // page's place field switches to them via coordinates — so point there.
+  document.querySelector("#pl-place")?.closest("[data-place-field]")?.addEventListener(
+    "place:selected",
+    (e) => {
+      const detail = (e as CustomEvent<{ slug?: string }>).detail;
+      const status = document.querySelector("#pl-place")
+        ?.closest("[data-place-field]")
+        ?.querySelector("[data-place-status]");
+      if (detail?.slug && document.querySelector(`a[href="/panchang/${detail.slug}"]`)) {
+        window.location.href = `/panchang/${detail.slug}`;
+        return;
+      }
+      if (detail?.slug && status) {
+        status.textContent =
+          "This town has no dedicated page yet — open a nearby city below and switch its place field to it (or use the Panchang page's own place field).";
+      }
+    },
+  );
+</script>
+
 <style>
   .pl { max-width: 1000px; margin: 0 auto; padding: var(--space-8) var(--space-4); }
   h1 { font-family: var(--font-display); color: var(--ivory); font-size: 34px; }
   .lede { color: var(--text-muted); margin-top: var(--space-2); font-size: 14.5px; }
   .lede a { color: var(--gold); }
+  .pp-wrap { max-width: 460px; margin-top: var(--space-4); }
   .grid { display: grid; gap: var(--space-3); grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); margin-top: var(--space-5); }
   .card {
     display: flex; flex-direction: column; gap: 2px;

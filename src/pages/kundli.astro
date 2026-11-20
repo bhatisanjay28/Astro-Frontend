@@ -1,11 +1,11 @@
 ---
+import PlaceField from "../components/PlaceField.astro";
 /**
  * /kundli — Free Kundli page (Epic 4.2): form → LIVE /api/v1/kundli →
  * North/South Indian SVG charts (printable), planetary table, Vimshottari,
  * basic dosha notes. No signup, no storage.
  */
 import Base from "../layouts/Base.astro";
-import PlaceField from "../components/PlaceField.astro";
 
 const apiBase = import.meta.env.PUBLIC_API_BASE_URL ?? "https://astro-backend.vyotish.workers.dev";
 ---

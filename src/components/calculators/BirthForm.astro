@@ -17,6 +17,7 @@ interface Props {
   extraFields?: ExtraField[];
   note?: string;
 }
+
 import PlaceField from "../PlaceField.astro";
 
 const { endpoint, submitLabel = "Calculate", extraFields = [], note } = Astro.props;

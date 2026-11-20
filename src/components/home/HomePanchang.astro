@@ -1,12 +1,14 @@
 ---
 /**
  * Home "Today at a Glance" — home design §6 (D11) wired to the live
- * /api/v1/panchang (city mode; Epic 3.1 + 1.7 fields incl. Hindu month &
- * Samvat). D12: the city <select> is populated at RUNTIME from
- * /api/v1/cities (no baked city data), and current/next limbs come from the
- * server-picked `active` field — the client never computes them.
+ * /api/v1/panchang (Epic 3.1 + 1.7 fields incl. Hindu month & Samvat).
+ * The city is a PlaceField autocomplete (owner directive) — worldwide
+ * places from the backend /places proxy; defaults to New Delhi and fetches
+ * in lat/lng/tz mode. Current/next limbs come from the server-picked
+ * `active` field — the client never computes them.
  * Today/Tomorrow toggles the ?date parameter.
  */
+import PlaceField from "../PlaceField.astro";
 ---
 
 <section id="panchang" class="py-10 px-4 sm:px-8 border-b border-light-outline-variant/40 dark:border-dark-outline-variant/30 bg-light-surface dark:bg-dark-surface">
@@ -23,17 +25,21 @@
         </h2>
       </div>
 
-      <!-- City Selector & Date Controls -->
-      <div class="flex items-center gap-2">
-        <div class="relative">
-          <select data-city-select class="pl-8 pr-8 py-2 rounded bg-light-surface-variant dark:bg-dark-surface-variant border border-light-outline-variant dark:border-dark-outline-variant text-light-on-surface dark:text-dark-on-surface font-title text-title-sm focus-visible:ring-2 focus-visible:ring-light-primary" aria-label="Select city">
-            <option value="">Loading cities…</option>
-          </select>
-          <span class="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-title-md text-light-outline dark:text-dark-outline pointer-events-none">location_on</span>
+      <!-- City Picker & Date Controls (autocomplete via the backend /places proxy) -->
+      <div class="flex flex-col sm:flex-row items-stretch sm:items-end gap-2">
+        <div class="w-full sm:w-[290px]">
+          <PlaceField
+            variant="combined"
+            inputId="hp-place"
+            label="City"
+            required={false}
+            placeholder="New Delhi (default) — type your city"
+            names={{ combined: "hp-city" }}
+          />
         </div>
 
         <!-- Quick Day Switcher -->
-        <div class="inline-flex rounded border border-light-outline-variant dark:border-dark-outline-variant bg-light-surface-variant dark:bg-dark-surface-variant p-0.5" role="group" aria-label="Day">
+        <div class="inline-flex self-end rounded border border-light-outline-variant dark:border-dark-outline-variant bg-light-surface-variant dark:bg-dark-surface-variant p-0.5" role="group" aria-label="Day">
           <button type="button" data-day="today" class="px-3 py-1.5 rounded bg-light-surface dark:bg-dark-surface text-light-primary dark:text-dark-primary font-label text-label-sm font-semibold shadow-xs">Today</button>
           <button type="button" data-day="tomorrow" class="px-3 py-1.5 rounded text-light-outline dark:text-dark-outline hover:text-light-on-surface dark:hover:text-dark-on-surface font-label text-label-sm font-medium">Tomorrow</button>
         </div>
@@ -120,16 +126,17 @@
 </section>
 
 <script define:vars={{ apiBase: import.meta.env.PUBLIC_API_BASE_URL ?? "https://astro-backend.vyotish.workers.dev" }}>
-  // Live wiring (Epic 3.1 + D12): cities from /api/v1/cities, panchang from
-  // /api/v1/panchang (city mode); current/next limbs rendered from the
+  // Live wiring (Epic 3.1 + D12): panchang from /api/v1/panchang in lat/lng/tz
+  // mode (PlaceField resolves the city); current/next limbs rendered from the
   // server-picked `active` field — the client never computes picks itself.
   (function () {
     var API = apiBase;
     var root = document.querySelector("#panchang");
     if (!root) return;
-    var citySel = root.querySelector("[data-city-select]");
     var dayBtns = root.querySelectorAll("[data-day]");
-    var state = { slug: null, date: null }; // null = today; slug set once cities load
+    // Default view = New Delhi until the visitor picks their city.
+    var DEFAULT_PLACE = { lat: 28.6139, lng: 77.209, tz: "Asia/Kolkata" };
+    var state = { place: DEFAULT_PLACE, date: null };
 
     function fmt(iso) {
       try {
@@ -142,27 +149,6 @@
       // display in the site viewer's local clock (approximation of city clock is
       // avoided on purpose: instants are absolute ISO)
       return fmt(iso);
-    }
-
-    function populateCities() {
-      return fetch(API + "/api/v1/cities?lang=en")
-        .then(function (r) { return r.ok ? r.json() : Promise.reject(new Error("http " + r.status)); })
-        .then(function (body) {
-          var cities = (body.data && body.data.cities) || [];
-          if (!citySel) return cities;
-          citySel.textContent = "";
-          cities.forEach(function (c, i) {
-            var opt = document.createElement("option");
-            opt.value = c.slug;
-            opt.textContent = c.name + (c.country === "IN" ? ", India" : "") + " (" +
-              c.lat.toFixed(2) + "° " + (c.lat >= 0 ? "N" : "S") + ", " +
-              c.lng.toFixed(2) + "° " + (c.lng >= 0 ? "E" : "W") + ")";
-            if (i === 0) opt.selected = true;
-            citySel.appendChild(opt);
-          });
-          if (cities.length && !state.slug) state.slug = cities[0].slug;
-          return cities;
-        });
     }
 
     function render(p) {
@@ -203,8 +189,10 @@
     }
 
     function load() {
-      if (!state.slug) return;
-      var qs = "?city=" + encodeURIComponent(state.slug);
+      if (!state.place) return;
+      var qs = "?lat=" + encodeURIComponent(state.place.lat) +
+        "&lng=" + encodeURIComponent(state.place.lng) +
+        "&tz=" + encodeURIComponent(state.place.tz);
       if (state.date) qs += "&date=" + state.date;
       fetch(API + "/api/v1/panchang" + qs)
         .then(function (r) { return r.ok ? r.json() : Promise.reject(new Error("http " + r.status)); })
@@ -214,7 +202,18 @@
         });
     }
 
-    if (citySel) citySel.addEventListener("change", function () { state.slug = citySel.value; load(); });
+    // PlaceField resolves the picked city → reload local panchang
+    var hpInput = document.querySelector('input[name="hp-city"]');
+    var hpField = hpInput ? hpInput.closest("[data-place-field]") : null;
+    if (hpField) {
+      hpField.addEventListener("place:selected", function (e) {
+        var d = e.detail || {};
+        if (typeof d.lat === "number" && typeof d.lng === "number" && d.tz) {
+          state.place = { lat: d.lat, lng: d.lng, tz: d.tz };
+          load();
+        }
+      });
+    }
     dayBtns.forEach(function (btn) {
       btn.addEventListener("click", function () {
         var tmr = new Date();
@@ -229,12 +228,6 @@
         load();
       });
     });
-    populateCities().then(load).catch(function () {
-      if (citySel) citySel.textContent = "";
-      var opt = document.createElement("option");
-      opt.value = "";
-      opt.textContent = "Cities unavailable";
-      if (citySel) citySel.appendChild(opt);
-    });
+    load();
   })();
 </script>

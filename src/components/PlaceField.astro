@@ -10,6 +10,8 @@
  * inputs by role so the pages' existing submit logic keeps working:
  *   data-place-role="lat"|"lng"|"tz" → separate hidden inputs (names/ids kept)
  *   data-place-role="combined"       → one hidden input "lat,lng,tz"
+ *   data-place-role="place_id"       → the backend place reference (city:slug
+ *                                      or Google id) — always emitted
  * The script dispatches a "place:selected" event on the wrapper after a
  * successful resolve (used by the muhurat today-island to reload).
  */
@@ -20,8 +22,10 @@ interface Props {
   variant?: "separate" | "combined";
   /** id for the visible input (labels/aria) */
   inputId?: string;
+  /** visible input placeholder (e.g. to hint a default place) */
+  placeholder?: string;
   /** hidden input names — separate defaults to lat/lng/tz */
-  names?: { lat?: string; lng?: string; tz?: string; combined?: string };
+  names?: { lat?: string; lng?: string; tz?: string; combined?: string; place_id?: string };
   /** ids for the hidden inputs when page JS reads by id (e.g. boy-lat) */
   ids?: { lat?: string; lng?: string; tz?: string };
   /** extra attributes for the combined hidden input (e.g. data-mt-city) */
@@ -32,6 +36,7 @@ const {
   required = true,
   variant = "separate",
   inputId,
+  placeholder = "Start typing your city…",
   names = {},
   ids = {},
   hiddenAttrs = {},
@@ -45,7 +50,7 @@ const {
     id={inputId}
     type="text"
     data-place-input
-    placeholder="Start typing your city…"
+    placeholder={placeholder}
     autocomplete="off"
     aria-expanded="false"
     aria-autocomplete="list"
@@ -57,9 +62,13 @@ const {
         <input type="hidden" name={names.lat ?? "lat"} id={ids.lat} data-place-role="lat" />
         <input type="hidden" name={names.lng ?? "lng"} id={ids.lng} data-place-role="lng" />
         <input type="hidden" name={names.tz ?? "tz"} id={ids.tz} data-place-role="tz" />
+        <input type="hidden" name={names.place_id ?? "place_id"} data-place-role="place_id" />
       </>
     ) : (
-      <input type="hidden" name={names.combined ?? "city"} data-place-role="combined" {...hiddenAttrs} />
+      <>
+        <input type="hidden" name={names.combined ?? "city"} data-place-role="combined" {...hiddenAttrs} />
+        <input type="hidden" name={names.place_id ?? "place_id"} data-place-role="place_id" />
+      </>
     )
   }
   <p class="pp-status" data-place-status role="status" aria-live="polite"></p>

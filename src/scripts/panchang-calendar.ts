@@ -13,15 +13,26 @@ interface DayPayload {
 }
 
 const MONTHS = [
-  "January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December",
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
 ];
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 function esc(s: string): string {
-  return s.replace(/[&<>"']/g, (ch) => (
-    { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch] ?? ch
-  ));
+  return s.replace(
+    /[&<>"']/g,
+    (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch] ?? ch,
+  );
 }
 
 function todayISO(): string {
@@ -43,9 +54,15 @@ function parseMonth(raw: string | null): [number, number] {
   return [y, mo];
 }
 
-async function fetchDay(apiBase: string, citySlug: string, dateISO: string): Promise<DayPayload | null> {
+async function fetchDay(
+  apiBase: string,
+  citySlug: string,
+  dateISO: string,
+): Promise<DayPayload | null> {
   try {
-    const res = await fetch(`${apiBase}/api/v1/panchang?city=${encodeURIComponent(citySlug)}&date=${dateISO}`);
+    const res = await fetch(
+      `${apiBase}/api/v1/panchang?city=${encodeURIComponent(citySlug)}&date=${dateISO}`,
+    );
     if (!res.ok) return null;
     const body = (await res.json()) as { data?: DayPayload };
     return body.data ?? null;

@@ -1,10 +1,10 @@
 ---
+import PlaceField from "../../components/PlaceField.astro";
 /** /muhurat/ — today's windows + finder form (Epic 3.4). Client islands on
  * the LIVE /api/v1/muhurat routes. City pickers use the /places proxy
  * (owner directive, 2026-11-20); the today-island keeps a New Delhi default
  * and reloads when a place is selected. */
 import Base from "../../layouts/Base.astro";
-import PlaceField from "../../components/PlaceField.astro";
 
 const apiBase = import.meta.env.PUBLIC_API_BASE_URL ?? "https://astro-backend.vyotish.workers.dev";
 const EVENTS = [

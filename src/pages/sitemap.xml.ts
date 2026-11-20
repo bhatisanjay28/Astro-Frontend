@@ -5,7 +5,12 @@
  * only where a real date exists (blog publish time) — honest metadata.
  */
 import { getCollection } from "astro:content";
-import { fetchBlogCategories, fetchBlogPosts, fetchBlogTags, fetchCities } from "../lib/content";
+import {
+  fetchBlogCategories,
+  fetchBlogPosts,
+  fetchBlogTags,
+  fetchPanchangCities,
+} from "../lib/content";
 
 const SITE = "https://vyotish.com";
 
@@ -74,7 +79,7 @@ interface Entry {
 
 export async function GET() {
   const [cities, posts, categories, tags] = await Promise.all([
-    fetchCities(),
+    fetchPanchangCities(),
     fetchBlogPosts({ perPage: 50 }),
     fetchBlogCategories(),
     fetchBlogTags(),
