@@ -1,8 +1,10 @@
 ---
 /**
- * Consultation booking modal — home design (D11) trigger wiring. The endpoint
- * for consultation_requests lands with Epic 5.2; until then the submit shows
- * an honest Phase-1 notice (never a fake success — PRD §18 no-fake-data rule).
+ * Consultation booking modal — home design (D11) trigger wiring. Submits to
+ * the live Epic 5.2 endpoint POST /api/v1/requests/consultation (201 = stored
+ * in consultation_requests + routed to the admin inbox). Birth details are
+ * not collected here: the backend stores birth_details only after the Epic
+ * 6.4 consent flow, so asking for them would silently drop user input.
  * Turnstile badge renders as designed; enforcement is Epic 7.2.
  */
 ---
@@ -62,10 +64,8 @@
         </div>
       </div>
 
-      <div>
-        <label class="block font-label text-label-sm font-medium mb-1 text-light-on-surface dark:text-dark-on-surface" for="bk-birth">Birth Details (Optional - Date, Time, City)</label>
-        <textarea id="bk-birth" rows="2" placeholder="e.g. 24 Oct 1995, 14:35, Varanasi UP" class="w-full px-3 py-2 rounded bg-light-surface-variant dark:bg-dark-surface-variant border border-light-outline-variant dark:border-dark-outline-variant text-light-on-surface dark:text-dark-on-surface font-body text-body-sm"></textarea>
-      </div>
+      <!-- Birth details intentionally not collected: consultation_requests
+           stores birth_details only after the Epic 6.4 consent flow lands. -->
 
       <!-- Consent Checkbox (Section 15 DPDP Act) -->
       <div class="flex items-start gap-2 pt-1">
@@ -118,16 +118,58 @@
 
     var form = modal.querySelector("[data-booking-form]");
     if (form) {
+      var ok = modal.querySelector("[data-booking-ok]");
+      var fail = modal.querySelector("[data-booking-fail]");
+      var failDefault = fail ? fail.textContent : "";
+      var submitBtn = form.querySelector('[type="submit"]');
       form.addEventListener("submit", function (e) {
         e.preventDefault();
-        var ok = modal.querySelector("[data-booking-ok]");
-        var fail = modal.querySelector("[data-booking-fail]");
-        // Phase 1: consultation_requests endpoint lands with Epic 5.2 — the
-        // request payload is NOT stored anywhere yet, so we say so honestly.
-        if (ok) ok.classList.remove("hidden");
-        if (fail) fail.classList.add("hidden");
-        form.reset();
-        setTimeout(function () { modal.classList.add("hidden"); }, 4000);
+        if (ok) ok.classList.add("hidden");
+        if (fail) { fail.classList.add("hidden"); fail.textContent = failDefault; }
+        if (submitBtn) submitBtn.disabled = true;
+        // POST /api/v1/requests/consultation (Epic 5.2) — 201 stores the
+        // request in consultation_requests and routes it to the admin inbox.
+        fetch(apiBase + "/api/v1/requests/consultation", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: form.querySelector("#bk-name").value.trim(),
+            phone: form.querySelector("#bk-phone").value.trim(),
+            email: form.querySelector("#bk-email").value.trim(),
+            topic: form.querySelector("#bk-topic").value,
+            preferred_date: form.querySelector("#bk-date").value,
+            preferred_time: form.querySelector("#bk-window").value,
+          }),
+        })
+          .then(function (res) {
+            if (res.ok) return res.json();
+            return res
+              .json()
+              .catch(function () { return null; })
+              .then(function (err) {
+                var msg = err && err.error ? err.error.message : null;
+                var details =
+                  err && err.error && Array.isArray(err.error.details)
+                    ? " " + err.error.details.join(" ")
+                    : "";
+                throw new Error(
+                  msg ? msg + details : "Could not submit right now — please try again.",
+                );
+              });
+          })
+          .then(function () {
+            if (ok) ok.classList.remove("hidden");
+            form.reset();
+            setTimeout(function () { modal.classList.add("hidden"); }, 4000);
+          })
+          .catch(function (err) {
+            if (fail) {
+              fail.textContent =
+                err && err.message ? err.message : "Could not submit right now — please try again.";
+              fail.classList.remove("hidden");
+            }
+          })
+          .finally(function () { if (submitBtn) submitBtn.disabled = false; });
       });
     }
   })();
