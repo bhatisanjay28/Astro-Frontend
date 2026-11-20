@@ -1,12 +1,17 @@
 ---
 import BookingForm from "../../components/BookingForm.astro";
+import OfferStrip from "../../components/OfferStrip.astro";
 /** /consultations/ — Astrologer directory + booking (Epic 5.2). Directory is
  * a build-time fetch of GET /api/v1/astrologers (D12); the booking form posts
- * live to POST /api/v1/requests/consultation. Honest empty states throughout. */
+ * live to POST /api/v1/requests/consultation. Offers come from the admin
+ * settings (public.offers_config, audience=consultation) — honest empty state
+ * when unset. Honest empty states throughout. */
 import Base from "../../layouts/Base.astro";
-import { fetchAstrologers } from "../../lib/content";
+import { fetchAstrologers, fetchSettings, parseOffers } from "../../lib/content";
 
 const astrologers = (await fetchAstrologers()) ?? [];
+const settings = await fetchSettings();
+const offers = parseOffers(settings?.offers_config, "consultation");
 const EMPTY =
   "The astrologer directory is temporarily unavailable — the backend service could not be reached at build time. Please try again later.";
 ---
@@ -22,6 +27,8 @@ const EMPTY =
       Vyotish admin inbox — an astrologer responds personally within 24–48 hours.
       No payment is taken online in Phase 1.
     </p>
+
+    <OfferStrip offers={offers} />
 
     <div class="grid">
       {
@@ -52,6 +59,7 @@ const EMPTY =
                   <span class="dot" /> {a.availability_label || (a.is_available ? "Available" : "Unavailable")}
                 </span>
               </div>
+              <a class="profile" href={`/consultations/${a.slug}`}>View profile →</a>
             </article>
           ))
         )
@@ -93,5 +101,7 @@ const EMPTY =
   .avail.on { color: #7fce9d; }
   .dot { width: 8px; height: 8px; border-radius: 999px; background: var(--text-dim); display: inline-block; }
   .avail.on .dot { background: #7fce9d; }
+  .profile { color: var(--gold); font-size: 13px; text-decoration: none; margin-top: auto; }
+  .profile:hover { text-decoration: underline; }
   .formpanel { margin-top: var(--space-4); background: var(--bg-raised); border: 1px solid var(--color-border-strong); border-radius: var(--radius-card); padding: var(--space-5); }
 </style>

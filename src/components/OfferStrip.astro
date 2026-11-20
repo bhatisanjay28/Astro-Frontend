@@ -1,0 +1,47 @@
+---
+/**
+ * Offers strip (Epic 5.2) — renders the admin-authored offers_config from
+ * GET /api/v1/settings (site_settings key `public.offers_config`). The page
+ * pre-filters by audience via parseOffers(); empty array → renders nothing
+ * (honest empty state — no fake offers, ever).
+ */
+import type { ApiOffer } from "../lib/content";
+
+interface Props {
+  offers: ApiOffer[];
+}
+const { offers } = Astro.props;
+---
+
+{
+  offers.length > 0 && (
+    <aside class="offers" aria-label="Current offers">
+      {offers.map((o) => (
+        <div class="offer">
+          <span class="tag" aria-hidden="true">
+            Offer
+          </span>
+          {o.href ? <a href={o.href}>{o.text}</a> : <span>{o.text}</span>}
+        </div>
+      ))}
+    </aside>
+  )
+}
+
+<style>
+  .offers { display: grid; gap: var(--space-2, 8px); margin-top: var(--space-4, 16px); }
+  .offer {
+    display: flex; gap: 10px; align-items: center;
+    background: var(--bg-raised, transparent);
+    border: 1px solid var(--border-gold-soft, #d4a84355);
+    border-radius: var(--radius-card, 12px);
+    padding: 10px 14px; font-size: 13.5px; color: var(--text-body, inherit);
+  }
+  .offer a { color: var(--gold, #d4a843); text-decoration: none; }
+  .offer a:hover { text-decoration: underline; }
+  .tag {
+    font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--gold, #d4a843); border: 1px solid var(--border-gold-soft, #d4a84355);
+    border-radius: 999px; padding: 2px 8px; flex-shrink: 0;
+  }
+</style>

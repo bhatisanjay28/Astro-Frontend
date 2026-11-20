@@ -1,0 +1,121 @@
+---
+import BookingForm from "../../components/BookingForm.astro";
+/** /poojan/[slug] — puja detail + inline booking (Epic 5.3 follow-up).
+ * Build-time fetch of GET /api/v1/pujas (D12); the catalogue list is the
+ * source of truth, so unknown slugs simply don't generate a page. */
+import Base from "../../layouts/Base.astro";
+import { type ApiPuja, fetchPujas } from "../../lib/content";
+
+export async function getStaticPaths() {
+  const pujas = (await fetchPujas()) ?? [];
+  return pujas.map((p) => ({ params: { slug: p.slug }, props: { puja: p } }));
+}
+
+interface Props {
+  puja: ApiPuja;
+}
+const { puja: p } = Astro.props;
+const description =
+  p.purpose ||
+  p.description?.slice(0, 150) ||
+  `${p.name} — Vedic puja on Vyotish. Request a booking directly.`;
+---
+
+<Base title={`${p.name} — Vedic Puja | Vyotish Poojan`} description={description}>
+  <section class="prof">
+    <nav class="crumbs" aria-label="Breadcrumb">
+      <a href="/">Home</a> › <a href="/poojan">Poojan</a> › <span aria-current="page">{p.name}</span>
+    </nav>
+
+    <div class="head">
+      <div>
+        <h1>{p.name} <span class="hi-text">(पूजा)</span></h1>
+        {p.name_hi && <p class="title">{p.name_hi}</p>}
+      </div>
+      <span class="cat">{p.category.replace(/_/g, " ")}</span>
+    </div>
+
+    {p.purpose && (
+      <p class="purpose"><strong>Purpose:</strong> {p.purpose}</p>
+    )}
+    {p.description && <p class="about">{p.description}</p>}
+
+    <div class="facts">
+      <div class="fact"><span class="k">Duration</span><span class="v">{p.duration_label || "—"}</span></div>
+      <div class="fact">
+        <span class="k">Mode</span>
+        <span class="v">{p.mode.length > 0 ? p.mode.join(" / ") : "—"}</span>
+      </div>
+      <div class="fact">
+        <span class="k">Dakshina</span>
+        <span class="v">{p.price_inr === null ? "On request" : `₹${p.price_inr.toLocaleString("en-IN")}`}</span>
+      </div>
+    </div>
+
+    {
+      p.includes.length > 0 && (
+        <div class="block">
+          <h2>What's included</h2>
+          <ul class="includes">
+            {p.includes.map((i) => (
+              <li>{i}</li>
+            ))}
+          </ul>
+        </div>
+      )
+    }
+
+    {p.muhurat_note && (
+      <div class="block">
+        <h2>Muhurat note</h2>
+        <p class="note">{p.muhurat_note}</p>
+      </div>
+    )}
+
+    {p.is_sample && (
+      <p class="note">Sample listing for Phase 1 review — the catalogue is admin-managed in the Vyotish admin area.</p>
+    )}
+
+    <h2>Request {p.name}</h2>
+    <div class="formpanel">
+      <BookingForm kind="puja" slug={p.slug} subjectLabel="Puja" submitLabel="Request Puja" />
+    </div>
+
+    <p class="fine">Exploring options? <a href="/poojan">Back to the full catalogue</a>.</p>
+  </section>
+</Base>
+
+<script is:inline type="application/ld+json" set:html={JSON.stringify({
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  itemListElement: [
+    { "@type": "ListItem", position: 1, name: "Home", item: "https://vyotish.com/" },
+    { "@type": "ListItem", position: 2, name: "Poojan", item: "https://vyotish.com/poojan" },
+    { "@type": "ListItem", position: 3, name: p.name },
+  ],
+})} />
+
+<style>
+  .prof { max-width: 860px; margin: 0 auto; padding: var(--space-6) var(--space-4) var(--space-8); }
+  .crumbs { color: var(--text-dim); font-size: 13px; }
+  .crumbs a { color: var(--gold); text-decoration: none; }
+  .head { display: flex; gap: var(--space-4); align-items: flex-start; justify-content: space-between; margin-top: var(--space-4); flex-wrap: wrap; }
+  h1 { font-family: var(--font-display); color: var(--ivory); font-size: clamp(24px, 4.5vw, 34px); }
+  .hi-text { color: var(--text-dim); font-size: 0.7em; }
+  .title { color: var(--text-dim); font-size: 15px; margin-top: 2px; }
+  .cat { font-size: 11.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--gold); border: 1px solid var(--border-gold-soft); border-radius: 999px; padding: 4px 12px; white-space: nowrap; }
+  .purpose { color: var(--text-muted); font-size: 14.5px; margin-top: var(--space-4); }
+  .purpose strong { color: var(--ivory); }
+  .about { color: var(--text-muted); font-size: 14px; line-height: 1.7; margin-top: var(--space-3); max-width: 720px; }
+  .facts { display: grid; gap: var(--space-3); grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); margin-top: var(--space-5); }
+  .fact { background: var(--bg-raised); border: 1px solid var(--color-border-strong); border-radius: var(--radius-card); padding: var(--space-3) var(--space-4); }
+  .fact .k { font-size: 10.5px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--text-dim); display: block; }
+  .fact .v { font-family: var(--font-display); font-size: 16px; color: var(--ivory); margin-top: 2px; }
+  .block { margin-top: var(--space-5); }
+  h2 { font-family: var(--font-display); color: var(--gold); font-size: 18px; margin: var(--space-6) 0 var(--space-3); }
+  .includes { margin: 0; padding-left: 18px; color: var(--text-muted); font-size: 13.5px; line-height: 1.9; }
+  .note { color: var(--text-muted); font-size: 13px; line-height: 1.6; }
+  .formpanel { background: var(--bg-raised); border: 1px solid var(--color-border-strong); border-radius: var(--radius-card); padding: var(--space-5); }
+  .fine { color: var(--text-faint); font-size: 12.5px; margin-top: var(--space-6); }
+  .fine a { color: var(--gold); }
+</style>

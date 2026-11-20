@@ -2,12 +2,16 @@
 import PlaceField from "../components/PlaceField.astro";
 /**
  * /kundli — Free Kundli page (Epic 4.2): form → LIVE /api/v1/kundli →
- * North/South Indian SVG charts (printable), planetary table, Vimshottari,
- * basic dosha notes. No signup, no storage.
+ * North/South Indian SVG charts (printable), planetary table (incl. Navamsha
+ * column), Vimshottari, API verdicts (Mangal dosha, Kaal Sarp, Sade Sati) and
+ * the admin-authored interpretation notes (Epic 4.2b, GET /content/blocks
+ * prefix=kundli.). No signup, no storage.
  */
 import Base from "../layouts/Base.astro";
+import { fetchContentBlocks } from "../lib/content";
 
 const apiBase = import.meta.env.PUBLIC_API_BASE_URL ?? "https://astro-backend.vyotish.workers.dev";
+const notes = (await fetchContentBlocks("kundli.")) ?? {};
 ---
 
 <Base
@@ -58,18 +62,29 @@ const apiBase = import.meta.env.PUBLIC_API_BASE_URL ?? "https://astro-backend.vy
     <h2>Dosha notes</h2>
     <div class="doshas" data-doshas></div>
 
+    <h2 data-interp-head hidden>Understanding your kundli</h2>
+    <div class="interp" data-interp></div>
+
     <p class="fine">
-      Interpretations arrive with Epic 4 completion. Always cross-check major
-      decisions with a qualified astrologer.
+      The short notes above are curated by the Vyotish team and are indicative,
+      not a full reading. Always cross-check major decisions with a qualified
+      astrologer.
     </p>
   </section>
 </Base>
 
-<script is:inline define:vars={{ apiBase }}>
+<script is:inline define:vars={{ apiBase, notes }}>
   (function () {
     var SIGNS = ["Aries", "Taurus", "Gemini", "Cancer", "Leo", "Virgo", "Libra", "Scorpio", "Sagittarius", "Capricorn", "Aquarius", "Pisces"];
     var SIGN_SHORT = { Aries: "Ar", Taurus: "Ta", Gemini: "Ge", Cancer: "Cn", Leo: "Le", Virgo: "Vi", Libra: "Li", Scorpio: "Sc", Sagittarius: "Sg", Capricorn: "Cp", Aquarius: "Aq", Pisces: "Pi" };
     var ABBR = { Sun: "Su", Moon: "Mo", Mars: "Ma", Mercury: "Me", Jupiter: "Ju", Venus: "Ve", Saturn: "Sa", Rahu: "Ra", Ketu: "Ke" };
+
+    function esc(s) {
+      return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
+    function fmtDay(iso) {
+      return iso ? new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" }) : "—";
+    }
 
     var form = document.querySelector("[data-k-form]");
     var out = document.querySelector("[data-k-out]");
@@ -80,6 +95,8 @@ const apiBase = import.meta.env.PUBLIC_API_BASE_URL ?? "https://astro-backend.vy
     var planetsEl = document.querySelector("[data-planets]");
     var dashaEl = document.querySelector("[data-dasha]");
     var doshasEl = document.querySelector("[data-doshas]");
+    var interpEl = document.querySelector("[data-interp]");
+    var interpHead = document.querySelector("[data-interp-head]");
     var lastData = null;
 
     /* ---------- SVG charts ---------- */
@@ -149,47 +166,39 @@ const apiBase = import.meta.env.PUBLIC_API_BASE_URL ?? "https://astro-backend.vy
       return s + "</svg>";
     }
 
-    /* ---------- doshas (basic, from birth chart) ---------- */
-    function doshaNotes(grahas, houses, lagnaLon) {
-      var notes = [];
-      var marsH = houses["Mars"];
-      var manglikHouses = [1, 2, 4, 7, 8, 12];
-      var fromLagna = manglikHouses.indexOf(marsH) >= 0;
-      // from Moon
-      var moonLon = (grahas.filter(function (g) { return g.planet === "Moon"; })[0] || {}).lon ?? 0;
-      var lagnaSign = Math.floor(((lagnaLon % 360) + 360) % 360 / 30);
-      var moonSign = Math.floor(((moonLon % 360) + 360) % 360 / 30);
-      var marsLon = (grahas.filter(function (g) { return g.planet === "Mars"; })[0] || {}).lon ?? 0;
-      var marsSign = Math.floor(((marsLon % 360) + 360) % 360 / 30);
-      var marsFromMoon = ((marsSign - moonSign + 12) % 12) + 1;
-      var fromMoon = manglikHouses.indexOf(marsFromMoon) >= 0;
-      notes.push({
-        name: "Mangal Dosha (basic house check)",
-        verdict: fromLagna || fromMoon ? "Present (from " + (fromLagna ? "Lagna" : "") + (fromLagna && fromMoon ? " and " : "") + (fromMoon ? "Moon" : "") + ")" : "Not indicated",
-        detail: "Mars in houses 1/2/4/7/8/12 from Lagna or Moon. Cancellation rules and nuance need an astrologer — this is a mechanical check only.",
-      });
-      // Kaal Sarp: all 7 planets between Rahu→Ketu arc
-      var rahuLon = (grahas.filter(function (g) { return g.planet === "Rahu"; })[0] || {}).lon ?? 0;
-      var others = grahas.filter(function (g) { return g.planet !== "Rahu" && g.planet !== "Ketu"; });
-      var inArc = others.every(function (g) {
-        var d = ((g.lon - rahuLon) % 360 + 360) % 360;
-        return d > 0 && d < 180;
-      });
-      var inArc2 = others.every(function (g) {
-        var d = ((g.lon - rahuLon) % 360 + 360) % 360;
-        return d > 180 && d < 360;
-      });
-      notes.push({
-        name: "Kaal Sarp (axis check)",
-        verdict: inArc || inArc2 ? "All planets on one side of the Rahu–Ketu axis" : "Not indicated",
-        detail: "Mechanical placement check only; classical analysis requires an astrologer.",
-      });
-      notes.push({
-        name: "Shani Sade Sati",
-        verdict: "Coming with Epic 4 (needs Saturn transit tables)",
-        detail: "Requires current Saturn transit vs natal Moon sign — engine support planned.",
-      });
-      return notes;
+    /* ---------- doshas — API verdicts (engine 1.8/1.10; D12: logic in backend) ---------- */
+    function doshaNotes(d) {
+      var m = d.manglik || {};
+      var manglikVerdict = m.cancelled
+        ? "Present but cancelled"
+        : m.is_manglik
+          ? "Present"
+          : "Not indicated";
+      var manglikDetail = m.detail || "";
+      if (m.cancelled && m.cancellation_reason) manglikDetail += " Cancellation: " + m.cancellation_reason;
+
+      var k = d.kaal_sarp || {};
+      var ksVerdict = k.present ? (k.type ? k.type + " — present" : "Present") : "Not indicated";
+
+      var s = d.sade_sati || {};
+      var ssVerdict, ssDetail;
+      if (s.in_sade_sati) {
+        ssVerdict = "Running — phase " + (s.phase ?? "—") + " of 3";
+        ssDetail = "Saturn in " + s.saturn_sign + " vs natal Moon in " + s.moon_sign + ".";
+        if (s.current) ssDetail += " Window: " + fmtDay(s.current.start) + " to " + fmtDay(s.current.end) + ".";
+      } else {
+        ssVerdict = "Not running";
+        ssDetail = s.next
+          ? "Next window: " + fmtDay(s.next.start) + " to " + fmtDay(s.next.end) + "."
+          : "";
+      }
+      ssDetail += " " + (s.note || "");
+
+      return [
+        { name: "Mangal Dosha", verdict: manglikVerdict, detail: manglikDetail },
+        { name: "Kaal Sarp", verdict: ksVerdict, detail: k.note || "" },
+        { name: "Shani Sade Sati", verdict: ssVerdict, detail: ssDetail.trim() },
+      ];
     }
 
     /* ---------- render ---------- */
@@ -207,9 +216,10 @@ const apiBase = import.meta.env.PUBLIC_API_BASE_URL ?? "https://astro-backend.vy
         "</div>";
 
       planetsEl.innerHTML =
-        "<thead><tr><th>Planet</th><th>Longitude</th><th>Sign</th><th>Nakshatra (pada)</th><th>Motion</th></tr></thead><tbody>" +
+        "<thead><tr><th>Planet</th><th>Longitude</th><th>Sign</th><th>Nakshatra (pada)</th><th>Navamsha (D9)</th><th>Motion</th></tr></thead><tbody>" +
         d.grahas.map(function (g) {
-          return "<tr><td>" + g.planet + "</td><td>" + g.lon.toFixed(2) + "°</td><td>" + g.sign + "</td><td>" + g.nakshatra + " (" + g.pada + ")</td><td>" + (g.retrograde ? "Retrograde*" : "Direct") + "</td></tr>";
+          var d9 = d.divisionals && d.divisionals[g.planet] ? d.divisionals[g.planet].D9 : null;
+          return "<tr><td>" + g.planet + "</td><td>" + g.lon.toFixed(2) + "°</td><td>" + g.sign + "</td><td>" + g.nakshatra + " (" + g.pada + ")</td><td>" + (d9 == null ? "—" : SIGNS[d9]) + "</td><td>" + (g.retrograde ? "Retrograde*" : "Direct") + "</td></tr>";
         }).join("") +
         "</tbody>";
 
@@ -220,9 +230,23 @@ const apiBase = import.meta.env.PUBLIC_API_BASE_URL ?? "https://astro-backend.vy
         }).join("") +
         "</tbody>";
 
-      doshasEl.innerHTML = doshaNotes(d.grahas, d.houses, d.lagna.lon).map(function (n) {
-        return '<div class="d"><div class="dn">' + n.name + ': <strong>' + n.verdict + "</strong></div><div class=" + '"dd"' + ">" + n.detail + "</div></div>";
+      doshasEl.innerHTML = doshaNotes(d).map(function (n) {
+        return '<div class="d"><div class="dn">' + esc(n.name) + ': <strong>' + esc(n.verdict) + "</strong></div><div class=" + '"dd"' + ">" + esc(n.detail) + "</div></div>";
       }).join("");
+
+      /* Epic 4.2b — admin-authored interpretation notes (build-time fetch of
+       * GET /content/blocks?prefix=kundli.). Fail-soft per block; nothing
+       * renders when the team has published none (honest empty state). */
+      var noteKeys = Object.keys(notes || {}).sort();
+      var noteHtml = "";
+      for (var i = 0; i < noteKeys.length; i++) {
+        var p = notes[noteKeys[i]];
+        if (p && typeof p === "object" && typeof p.title === "string" && typeof p.body === "string" && p.title && p.body) {
+          noteHtml += '<div class="in"><div class="in-t">' + esc(p.title) + '</div><div class="in-b">' + esc(p.body) + "</div></div>";
+        }
+      }
+      interpEl.innerHTML = noteHtml;
+      if (noteHtml) interpHead.removeAttribute("hidden"); else interpHead.setAttribute("hidden", "");
 
       out.removeAttribute("hidden");
     }
@@ -306,5 +330,9 @@ const apiBase = import.meta.env.PUBLIC_API_BASE_URL ?? "https://astro-backend.vy
   .d .dn { color: var(--text-body); font-size: 14px; }
   .d .dn strong { color: var(--ivory); }
   .d .dd { color: var(--text-faint); font-size: 12.5px; margin-top: var(--space-1); line-height: 1.6; }
+  .interp { display: grid; gap: var(--space-3); }
+  .in { background: var(--bg-raised); border: 1px solid var(--border-gold-soft); border-radius: var(--radius-card); padding: var(--space-3) var(--space-4); }
+  .in-t { color: var(--gold); font-family: var(--font-display); font-size: 15px; }
+  .in-b { color: var(--text-muted); font-size: 13.5px; line-height: 1.7; margin-top: var(--space-1); }
   .fine { color: var(--text-faint); font-size: 12.5px; margin-top: var(--space-6); }
 </style>

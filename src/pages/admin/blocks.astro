@@ -1,0 +1,126 @@
+---
+/** /admin/blocks — keyed content-block editor (Epic 4.2b). Backs the kundli
+ * interpretation notes (block_key prefix "kundli.", e.g. payload
+ * {"title": "Lagna", "body": "…"}) and any future keyed-block surface.
+ * Writes go through the admin CRUD; published rows are public via RLS. */
+import Admin from "../../layouts/Admin.astro";
+---
+
+<Admin title="Content blocks | Vyotish Admin" active="blocks">
+  <h1>Content blocks</h1>
+  <p style="color:var(--a-dim); font-size:13px; margin:0 0 14px">
+    Keyed JSONB content served by <code>GET /api/v1/content/blocks?prefix=</code>. The kundli
+    page reads every published block under the <code>kundli.</code> prefix (payload shape:
+    <code>&#123;"title": "…", "body": "…"&#125;</code>).
+  </p>
+  <form id="up" class="card">
+    <div class="grid2">
+      <div>
+        <label for="key">Block key (e.g. kundli.lagna — lowercase a-z 0-9 . _ -)</label>
+        <input id="key" pattern="[a-z0-9_.-]{1,80}" required />
+      </div>
+      <div>
+        <label for="lang">Language</label>
+        <select id="lang">
+          <option value="en">en</option>
+          <option value="hi">hi</option>
+        </select>
+      </div>
+      <div>
+        <label for="status">Status</label>
+        <select id="status">
+          <option value="published">published</option>
+          <option value="draft">draft</option>
+        </select>
+      </div>
+    </div>
+    <div style="margin-top:10px">
+      <label for="title">Title</label>
+      <input id="title" required maxlength="120" />
+    </div>
+    <div style="margin-top:10px">
+      <label for="body">Body</label>
+      <textarea id="body" rows="5" required maxlength="4000"></textarea>
+    </div>
+    <p><button type="submit" class="btn">Save block</button></p>
+  </form>
+  <table style="margin-top:14px">
+    <thead><tr><th>Key</th><th>Lang</th><th>Status</th><th>Updated</th><th></th></tr></thead>
+    <tbody id="rows"><tr><td colspan="5" class="empty">Loading…</td></tr></tbody>
+  </table>
+</Admin>
+
+<script>
+  import { api, el, esc, fmtDate, renderRows, requireSession, toast, logout } from "../../scripts/admin/api";
+
+  const PREFIX = "kundli.";
+
+  const row = (b: Record<string, unknown>) => {
+    const key = String(b.block_key ?? "");
+    const payload = (b.payload ?? {}) as Record<string, unknown>;
+    return `<tr>
+      <td><strong>${esc(key)}</strong><br><span style="color:var(--a-dim)">${esc(String(payload.title ?? ""))}</span></td>
+      <td>${esc(String(b.lang))}</td>
+      <td>${esc(String(b.status))}${b.is_sample ? ' <span style="color:var(--a-dim)">(sample)</span>' : ""}</td>
+      <td>${fmtDate(b.updated_at)}</td>
+      <td style="white-space:nowrap">
+        <button class="btn ghost" data-edit="${esc(key)}" data-lang="${esc(String(b.lang))}" data-title="${esc(String(payload.title ?? ""))}" data-body="${esc(String(payload.body ?? ""))}">Edit</button>
+        <button class="btn danger" data-del="${esc(key)}" data-lang="${esc(String(b.lang))}">Delete</button>
+      </td>
+    </tr>`;
+  };
+
+  async function load(): Promise<void> {
+    const res = await api<{ data?: { blocks?: Array<Record<string, unknown>> } }>(
+      `/api/v1/admin/content-blocks?prefix=${encodeURIComponent(PREFIX)}`,
+    );
+    if (res.ok) renderRows("#rows", res.body.data?.blocks, row, "No kundli.* blocks yet — save the first one above.");
+    else toast(res.body.error?.message ?? "Loading failed", true);
+  }
+
+  el<HTMLFormElement>("#up")!.addEventListener("submit", async (ev) => {
+    ev.preventDefault();
+    const key = el<HTMLInputElement>("#key")!.value.trim();
+    if (!key.startsWith(PREFIX)) {
+      toast(`Key must start with "${PREFIX}"`, true);
+      return;
+    }
+    const res = await api(`/api/v1/admin/content-blocks/${encodeURIComponent(key)}`, {
+      method: "PUT",
+      body: JSON.stringify({
+        lang: el<HTMLSelectElement>("#lang")!.value,
+        status: el<HTMLSelectElement>("#status")!.value,
+        payload: {
+          title: el<HTMLInputElement>("#title")!.value.trim(),
+          body: el<HTMLTextAreaElement>("#body")!.value.trim(),
+        },
+      }),
+    });
+    toast(res.ok ? "Saved." : res.body.error?.message ?? "Save failed", !res.ok);
+    if (res.ok) await load();
+  });
+
+  document.querySelector("tbody")!.addEventListener("click", async (ev) => {
+    const t = ev.target as HTMLElement;
+    const editKey = t.getAttribute("data-edit");
+    if (editKey) {
+      el<HTMLInputElement>("#key")!.value = editKey;
+      el<HTMLSelectElement>("#lang")!.value = t.getAttribute("data-lang") ?? "en";
+      el<HTMLInputElement>("#title")!.value = t.getAttribute("data-title") ?? "";
+      el<HTMLTextAreaElement>("#body")!.value = t.getAttribute("data-body") ?? "";
+      toast(`Loaded ${editKey} — adjust and Save to overwrite.`);
+      return;
+    }
+    const delKey = t.getAttribute("data-del");
+    if (delKey && confirm(`Delete ${delKey} (${t.getAttribute("data-lang")})? This un-publishes it immediately.`)) {
+      const res = await api(
+        `/api/v1/admin/content-blocks/${encodeURIComponent(delKey)}?lang=${encodeURIComponent(t.getAttribute("data-lang") ?? "en")}`,
+        { method: "DELETE" },
+      );
+      toast(res.ok ? "Deleted." : res.body.error?.message ?? "Delete failed", !res.ok);
+      if (res.ok) await load();
+    }
+  });
+  document.getElementById("admin-logout")?.addEventListener("click", logout);
+  if (await requireSession()) await load();
+</script>

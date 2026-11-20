@@ -40,7 +40,11 @@ const labelClass =
     <label class={labelClass} for="bf-time">Birth time</label>
     <input class={inputClass} id="bf-time" name="time" type="time" />
   </div>
-  <PlaceField variant="separate" inputId="bf-place" label="Place of birth" />
+  {/* full row: the PlaceField's live-status line sits below its input, so
+      confining it to one grid cell broke the items-end bottom alignment */}
+  <div class="col-span-2 sm:col-span-3">
+    <PlaceField variant="separate" inputId="bf-place" label="Place of birth" />
+  </div>
   {
     extraFields.map((f) => (
       <div>

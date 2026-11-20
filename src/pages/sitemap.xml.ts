@@ -6,10 +6,12 @@
  */
 import { getCollection } from "astro:content";
 import {
+  fetchAstrologers,
   fetchBlogCategories,
   fetchBlogPosts,
   fetchBlogTags,
   fetchPanchangCities,
+  fetchPujas,
 } from "../lib/content";
 
 const SITE = "https://vyotish.com";
@@ -78,11 +80,13 @@ interface Entry {
 }
 
 export async function GET() {
-  const [cities, posts, categories, tags] = await Promise.all([
+  const [cities, posts, categories, tags, astrologers, pujas] = await Promise.all([
     fetchPanchangCities(),
     fetchBlogPosts({ perPage: 50 }),
     fetchBlogCategories(),
     fetchBlogTags(),
+    fetchAstrologers(),
+    fetchPujas(),
   ]);
   const learn = await getCollection("learn");
 
@@ -90,6 +94,8 @@ export async function GET() {
   entries.push({ loc: "/hi" });
   for (const s of SIGNS) for (const per of PERIODS) entries.push({ loc: `/horoscope/${s}/${per}` });
   for (const t of TOOLS) entries.push({ loc: `/calculators/${t}` });
+  for (const a of astrologers ?? []) entries.push({ loc: `/consultations/${a.slug}` });
+  for (const p of pujas ?? []) entries.push({ loc: `/poojan/${p.slug}` });
   for (const c of cities ?? []) entries.push({ loc: `/panchang/${c.slug}` });
   for (const a of learn) entries.push({ loc: `/astrology/learn/${a.id}` });
   for (const p of posts?.posts ?? []) {

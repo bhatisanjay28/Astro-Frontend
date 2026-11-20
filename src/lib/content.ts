@@ -134,17 +134,63 @@ export async function fetchPujas(category?: string): Promise<ApiPuja[] | null> {
   return body?.data.pujas ?? null;
 }
 
+/** Keyed published content blocks by block_key prefix (Epic 4.2b —
+ * GET /api/v1/content/blocks). Null on any failure → honest empty state. */
+export async function fetchContentBlocks(
+  prefix: string,
+  lang = "en",
+): Promise<Record<string, unknown> | null> {
+  const body = await getJson<{
+    data: { blocks: Record<string, unknown>; is_sample: boolean };
+  }>(`${API_BASE}/api/v1/content/blocks?lang=${lang}&prefix=${encodeURIComponent(prefix)}`);
+  return body?.data.blocks ?? null;
+}
+
 /** Public site settings (Epic 1.9/5.4 — GET /api/v1/settings). */
 export interface ApiSettings {
   engine: { ayanamsha: string; month_system: string; house_system: string; chart_style: string };
   gemstones_site_url: string | null;
   contact_email: string | null;
   contact_whatsapp: string | null;
+  /** Epic 5.2 — admin-authored offers banner JSON; renderer validates shape. */
+  offers_config: unknown;
 }
 
 export async function fetchSettings(): Promise<ApiSettings | null> {
   const body = await getJson<{ data: ApiSettings }>(`${API_BASE}/api/v1/settings`);
   return body?.data ?? null;
+}
+
+/* ------------------------------------------------------------------ */
+/* Offers (Epic 5.2 — admin-authored public.offers_config JSON)         */
+/* ------------------------------------------------------------------ */
+
+/** One offer banner. Admin contract (settings UI, key `offers_config`):
+ * `[{"text": "Diwali muhurat bookings open", "href": "/muhurat", "audience": "puja"}]`
+ * — audience (optional) filters where it shows: consultation | puja | all. */
+export interface ApiOffer {
+  text: string;
+  href?: string;
+  audience?: "consultation" | "puja" | "all";
+}
+
+/** Fail-soft shape check: anything that isn't an array of text-bearing
+ * objects degrades to an empty list (never renders broken markup). */
+export function parseOffers(raw: unknown, audience: "consultation" | "puja"): ApiOffer[] {
+  if (!Array.isArray(raw)) return [];
+  const out: ApiOffer[] = [];
+  for (const o of raw) {
+    if (typeof o !== "object" || o === null) continue;
+    const rec = o as Record<string, unknown>;
+    const text = typeof rec.text === "string" ? rec.text.trim() : "";
+    if (!text || text.length > 300) continue;
+    const a = rec.audience;
+    if (a !== undefined && a !== "all" && a !== audience) continue;
+    const aud = a === "all" || a === audience ? (a as ApiOffer["audience"]) : undefined;
+    const href = typeof rec.href === "string" && rec.href.startsWith("/") ? rec.href : undefined;
+    out.push({ text, href, audience: aud });
+  }
+  return out.slice(0, 5);
 }
 
 /* ------------------------------------------------------------------ */
