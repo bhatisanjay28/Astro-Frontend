@@ -21,26 +21,32 @@ const { lang = "en" } = Astro.props;
       <span class="hidden md:inline font-body text-body-sm">Calculated from local sunrise &amp; true astronomical coordinates</span>
     </div>
     <div class="flex items-center gap-4">
-      <!-- Language Switcher -->
-      <div class="flex items-center gap-1 bg-light-surface dark:bg-dark-surface rounded px-2 py-0.5 border border-light-outline-variant dark:border-dark-outline-variant">
-        <a
-          href={lang === "hi" ? "/" : "javascript:void(0)"}
-          class={`font-label text-label-sm px-1 ${lang === "en" ? "font-semibold text-light-primary dark:text-dark-primary hover:underline" : "font-medium text-light-outline dark:text-dark-outline"}`}
-          aria-current={lang === "en" ? "true" : undefined}>English</a
-        >
+      <!-- Language Switcher. The ACTIVE language renders as a plain span
+           (aria-current) — a javascript:void(0) link is both a fake link for
+           AT and would be blocked once CSP ships (UX audit F5). Inactive one
+           is a real link, padded to a 24px-min tap target (F6). -->
+      <div class="flex items-center gap-1 bg-light-surface dark:bg-dark-surface rounded px-2 py-1 border border-light-outline-variant dark:border-dark-outline-variant">
+        {
+          lang === "en" ? (
+            <span class="inline-flex items-center font-label text-label-sm px-2 py-1.5 font-semibold text-light-primary dark:text-dark-primary" aria-current="true">English</span>
+          ) : (
+            <a href="/" class="inline-flex items-center font-label text-label-sm px-2 py-1.5 font-medium text-light-outline dark:text-dark-outline hover:text-light-on-surface dark:hover:text-dark-on-surface">English</a>
+          )
+        }
         <span class="text-light-outline font-label text-label-sm">/</span>
-        <a
-          href={lang === "hi" ? "javascript:void(0)" : "/hi/"}
-          lang="hi"
-          class={`font-label text-label-sm px-1 hi-text ${lang === "hi" ? "font-semibold text-light-primary dark:text-dark-primary" : "font-medium text-light-outline dark:text-dark-outline hover:text-light-on-surface dark:hover:text-dark-on-surface"}`}
-          aria-current={lang === "hi" ? "true" : undefined}>हिन्दी</a
-        >
+        {
+          lang === "hi" ? (
+            <span lang="hi" class="inline-flex items-center hi-text font-label text-label-sm px-2 py-1.5 font-semibold text-light-primary dark:text-dark-primary" aria-current="true">हिन्दी</span>
+          ) : (
+            <a href="/hi/" lang="hi" class="inline-flex items-center hi-text font-label text-label-sm px-2 py-1.5 font-medium text-light-outline dark:text-dark-outline hover:text-light-on-surface dark:hover:text-dark-on-surface">हिन्दी</a>
+          )
+        }
       </div>
-      <!-- Light / Dark Mode Toggle -->
+      <!-- Light / Dark Mode Toggle (44×44 tap target, UX audit F6) -->
       <button
         type="button"
         data-theme-toggle
-        class="p-1 rounded text-light-outline dark:text-dark-outline hover:text-light-on-surface dark:hover:text-dark-on-surface focus-visible:ring-2 focus-visible:ring-light-primary"
+        class="inline-flex h-11 w-11 items-center justify-center rounded text-light-outline dark:text-dark-outline hover:text-light-on-surface dark:hover:text-dark-on-surface focus-visible:ring-2 focus-visible:ring-light-primary"
         title="Toggle Light/Dark Theme"
         aria-label="Toggle Theme"
       >

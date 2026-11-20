@@ -66,11 +66,11 @@ const legal = [
     <!-- Quick Nav: 9 Main Tabs -->
     <nav aria-label="Portals">
       <h4 class="font-title text-title-sm font-semibold text-light-on-surface dark:text-dark-on-surface mb-3">Portals</h4>
-      <ul class="space-y-2 font-body text-body-sm text-light-outline dark:text-dark-outline">
+      <ul class="space-y-1 font-body text-body-sm text-light-outline dark:text-dark-outline">
         {
           portals.map((p) => (
             <li>
-              <a href={p.href} class="hover:text-light-primary dark:hover:text-dark-primary">
+              <a href={p.href} class="inline-flex items-center py-1 hover:text-light-primary dark:hover:text-dark-primary">
                 {p.n}. {p.display}
                 {p.suffix}
               </a>
@@ -83,11 +83,11 @@ const legal = [
     <!-- Free Calculators Tier 1 -->
     <nav aria-label="Popular Tools">
       <h4 class="font-title text-title-sm font-semibold text-light-on-surface dark:text-dark-on-surface mb-3">Popular Tools</h4>
-      <ul class="space-y-2 font-body text-body-sm text-light-outline dark:text-dark-outline">
+      <ul class="space-y-1 font-body text-body-sm text-light-outline dark:text-dark-outline">
         {
           tools.map((t) => (
             <li>
-              <a href={t.href} class="hover:text-light-primary dark:hover:text-dark-primary">{t.label}</a>
+              <a href={t.href} class="inline-flex items-center py-1 hover:text-light-primary dark:hover:text-dark-primary">{t.label}</a>
             </li>
           ))
         }
@@ -97,11 +97,11 @@ const legal = [
     <!-- Legal & Trust Policies (Mandatory Section 15) -->
     <nav aria-label="Trust and Legal">
       <h4 class="font-title text-title-sm font-semibold text-light-on-surface dark:text-dark-on-surface mb-3">Trust &amp; Legal</h4>
-      <ul class="space-y-2 font-body text-body-sm text-light-outline dark:text-dark-outline">
+      <ul class="space-y-1 font-body text-body-sm text-light-outline dark:text-dark-outline">
         {
           legal.map((l) => (
             <li>
-              <a href={l.href} class="hover:text-light-primary dark:hover:text-dark-primary">{l.label}</a>
+              <a href={l.href} class="inline-flex items-center py-1 hover:text-light-primary dark:hover:text-dark-primary">{l.label}</a>
             </li>
           ))
         }
@@ -115,11 +115,11 @@ const legal = [
       <strong>Astrological Disclaimer:</strong> Astrology content, horoscope readings, and calculation tools provided on Vyotish are for philosophical guidance, self-discovery, and cultural informational purposes only. Astrological outcomes cannot be guaranteed. This platform does not provide or replace certified medical diagnoses, legal counsel, psychiatric therapy, or licensed financial planning.
     </p>
     <div class="flex flex-col sm:flex-row items-center justify-between pt-4 font-body text-body-sm">
-      <div>© {new Date().getFullYear()} Vyotish Platform. All rights reserved. Phase 1 Local Build.</div>
+      <div>© {new Date().getFullYear()} Vyotish Platform. All rights reserved.</div>
       <div class="flex gap-4 mt-2 sm:mt-0">
-        <span>Security: Cloudflare RLS &amp; CSP Compliant</span>
-        <span>•</span>
-        <span>Zero OTP Policy Active</span>
+        {/* CSP claim intentionally absent — story 7.2 hasn't shipped; only
+            promises that are true today are shown (UX audit F14) */}
+        <span>Zero OTP — we never ask for one-time passwords</span>
       </div>
     </div>
   </div>

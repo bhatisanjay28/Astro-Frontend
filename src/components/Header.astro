@@ -38,7 +38,7 @@ const isActive = (href: string) =>
           <a
             href={t.href}
             aria-current={isActive(t.href) ? "page" : undefined}
-            class={`px-2.5 py-1.5 rounded font-medium transition-colors ${
+            class={`px-2.5 py-1.5 rounded font-medium whitespace-nowrap transition-colors ${
               t.label === "Gemstones"
                 ? "text-light-outline dark:text-dark-outline hover:text-light-on-surface dark:hover:text-dark-on-surface relative"
                 : isActive(t.href)
@@ -61,7 +61,7 @@ const isActive = (href: string) =>
         <span class="material-symbols-outlined text-title-md">support_agent</span>
         <span>Talk to Astrologer</span>
       </a>
-      <button type="button" data-drawer-toggle aria-label="Open mobile menu" aria-expanded="false" class="xl:hidden p-2 rounded text-light-on-surface dark:text-dark-on-surface">
+      <button type="button" data-drawer-toggle aria-label="Open mobile menu" aria-expanded="false" aria-controls="mobile-drawer" class="xl:hidden p-2 rounded text-light-on-surface dark:text-dark-on-surface">
         <span class="material-symbols-outlined text-headline-sm">menu</span>
       </button>
     </div>
@@ -87,16 +87,32 @@ const isActive = (href: string) =>
 </header>
 
 <script>
-  // Drawer (progressive enhancement — markup is server-rendered)
-  const btn = document.querySelector("[data-drawer-toggle]");
+  // Drawer (progressive enhancement — markup is server-rendered).
+  // Keyboard support (UX audit F7): Escape closes and returns focus to the
+  // toggle; opening moves focus to the first link so keyboard users are
+  // inside the drawer they just revealed.
+  const btn = document.querySelector<HTMLElement>("[data-drawer-toggle]");
   const drawer = document.getElementById("mobile-drawer");
   if (btn && drawer) {
-    btn.addEventListener("click", () => {
-      const open = drawer.hasAttribute("hidden");
+    const setOpen = (open: boolean) => {
       if (open) drawer.removeAttribute("hidden");
       else drawer.setAttribute("hidden", "");
       btn.setAttribute("aria-expanded", String(open));
       btn.setAttribute("aria-label", open ? "Close menu" : "Open menu");
+    };
+    btn.addEventListener("click", () => {
+      const open = drawer.hasAttribute("hidden");
+      setOpen(open);
+      if (open) {
+        const first = drawer.querySelector("a");
+        if (first) first.focus();
+      }
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && !drawer.hasAttribute("hidden")) {
+        setOpen(false);
+        btn.focus();
+      }
     });
   }
 </script>
