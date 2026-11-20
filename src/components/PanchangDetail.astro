@@ -24,7 +24,7 @@ const { apiBase, citySlug, cityName, lat, lng, tz } = Astro.props;
       <button type="button" class="quick-btn" data-pd-quick="today">Today</button>
       <button type="button" class="quick-btn" data-pd-quick="tomorrow">Tomorrow</button>
     </div>
-    <a class="monthly" href="#" data-pd-monthly>Monthly view</a>
+    <button type="button" class="monthly" data-pd-monthly>Monthly view</button>
   </div>
 
   <div class="pd-error" data-pd-error hidden>Could not load Panchang — please try again shortly.</div>
@@ -203,7 +203,7 @@ const { apiBase, citySlug, cityName, lat, lng, tz } = Astro.props;
     color: var(--text-body);
     padding: 0 var(--space-3);
   }
-  .monthly { color: var(--gold); font-size: 14px; text-decoration: none; min-height: var(--target-min); line-height: var(--target-min); }
+  .monthly { background: none; border: 0; padding: 0; cursor: pointer; font: inherit; color: var(--gold); font-size: 14px; text-decoration: none; min-height: var(--target-min); line-height: var(--target-min); }
   .quick { display: inline-flex; gap: var(--space-2); }
   .quick-btn {
     min-height: var(--target-min); padding: 0 var(--space-3);

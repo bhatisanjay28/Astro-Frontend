@@ -74,7 +74,7 @@ async function fetchDay(
 function setup(): void {
   const section = document.querySelector<HTMLElement>(".pd[data-city-slug]");
   const calEl = section?.querySelector<HTMLElement>("[data-pd-calendar]");
-  const link = section?.querySelector<HTMLAnchorElement>("[data-pd-monthly]");
+  const link = section?.querySelector<HTMLButtonElement>("[data-pd-monthly]");
   if (!section || !calEl || !link) return;
   const apiBase = section.dataset.apiBase ?? "";
   const citySlug = section.dataset.citySlug ?? "";
