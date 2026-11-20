@@ -52,10 +52,12 @@ const {
     data-place-input
     placeholder={placeholder}
     autocomplete="off"
+    role="combobox"
     aria-expanded="false"
     aria-autocomplete="list"
+    aria-controls={`${inputId}-listbox`}
   />
-  <div class="pp-list" data-place-list role="listbox" hidden></div>
+  <div class="pp-list" id={`${inputId}-listbox`} data-place-list role="listbox" hidden></div>
   {
     variant === "separate" ? (
       <>
