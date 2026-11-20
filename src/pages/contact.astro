@@ -1,10 +1,596 @@
 ---
-import LegalPage from "../components/LegalPage.astro";
+/**
+ * Contact page — polished redesign (Sally UX pass, 2026-11-20).
+ * Design source: Stitch "Vyotish — UX Designs (Sally)" project, Contact desktop+mobile.
+ * Layout copied 1:1 (hero → email card → WhatsApp/booking cards → trust callout →
+ * self-serve shortcuts → footnote); colours/fonts/radii mapped onto the site's own
+ * token layer (tokens.css aliases) so light/dark theming follows the site for free.
+ * Copy corrections vs the Stitch mock: no invented 24-hour SLA, no "vetted scholar",
+ * WhatsApp stays the audit-approved honest "coming soon" state (ux-audit F15).
+ */
+import Base from "../layouts/Base.astro";
+
+const EMAIL = "vyotish@gmail.com";
 ---
 
-<LegalPage
+<Base
   title="Contact | Vyotish"
-  heading="Contact"
-  intro="Contact Vyotish — we would love to hear from you."
-  body={["Reach us for consultations, corrections or feedback.", "Email: vyotish@gmail.com.", "WhatsApp chat support is coming soon.", "We respond to every genuine message. We never ask for OTPs or passwords."]}
-/>
+  description="Contact Vyotish — consultations, corrections, feedback or just a hello. Every genuine message reaches a human."
+>
+  <article class="contact">
+    <!-- 1. Page header block -->
+    <header class="hero">
+      <p class="eyebrow">
+        <span class="eyebrow-dot" aria-hidden="true"></span>
+        We're here to help
+      </p>
+      <h1>Contact Vyotish</h1>
+      <p class="intro">
+        Consultations, corrections, feedback or just a hello — every genuine
+        message reaches a human.
+      </p>
+    </header>
+
+    <!-- 2. Primary contact card -->
+    <section class="card email-card" aria-labelledby="email-title">
+      <div class="chip chip-email" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="2" y="4" width="20" height="16" rx="2"></rect>
+          <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"></path>
+        </svg>
+      </div>
+      <h2 id="email-title">Email us</h2>
+      <p class="sub">For consultations, corrections, feedback and support</p>
+      <div class="email-actions">
+        <a class="btn btn-primary" href={`mailto:${EMAIL}`}>
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="2" y="4" width="20" height="16" rx="2"></rect>
+            <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"></path>
+          </svg>
+          <span>{EMAIL}</span>
+        </a>
+        <button
+          type="button"
+          class="btn btn-icon"
+          data-copy-email
+          data-email={EMAIL}
+          aria-label={`Copy email address ${EMAIL}`}
+          title="Copy email address"
+        >
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="8" y="8" width="14" height="14" rx="2"></rect>
+            <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path>
+          </svg>
+        </button>
+        <span class="copy-feedback" data-copy-feedback role="status"></span>
+      </div>
+      <p class="email-note">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <polyline points="20 6 9 17 4 12"></polyline>
+        </svg>
+        We read and reply to every genuine message.
+      </p>
+    </section>
+
+    <!-- 3. WhatsApp (honest coming-soon) + booking cards -->
+    <div class="card-grid">
+      <section class="card" aria-labelledby="wa-title">
+        <div class="chip chip-wa" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"></path>
+            <path d="M8 12h.01"></path>
+            <path d="M12 12h.01"></path>
+            <path d="M16 12h.01"></path>
+          </svg>
+        </div>
+        <h2 id="wa-title">WhatsApp chat</h2>
+        <p class="sub">WhatsApp chat support is coming soon.</p>
+        <div class="pill-disabled" aria-disabled="true">
+          <span>Chat on WhatsApp</span>
+          <span class="badge-soon">Coming soon</span>
+        </div>
+      </section>
+
+      <section class="card" aria-labelledby="book-title">
+        <div class="chip chip-book" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="4" width="18" height="18" rx="2"></rect>
+            <line x1="16" y1="2" x2="16" y2="6"></line>
+            <line x1="8" y1="2" x2="8" y2="6"></line>
+            <line x1="3" y1="10" x2="21" y2="10"></line>
+            <path d="m9 16 2 2 4-4"></path>
+          </svg>
+        </div>
+        <h2 id="book-title">Book a consultation</h2>
+        <p class="sub">Live 1:1 session with a Vedic astrologer.</p>
+        <a class="btn btn-book" href="/consultations">
+          <span>Find an astrologer</span>
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M5 12h14"></path>
+            <path d="m12 5 7 7-7 7"></path>
+          </svg>
+        </a>
+      </section>
+    </div>
+
+    <!-- 4. Trust callout -->
+    <aside class="callout" aria-label="Safety note">
+      <span class="callout-chip" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+          <path d="m9 12 2 2 4-4"></path>
+        </svg>
+      </span>
+      <div>
+        <strong>Your safety first.</strong>
+        <p>
+          We never ask for OTPs, passwords or payments over chat. All bookings
+          happen on vyotish.com itself.
+        </p>
+      </div>
+    </aside>
+
+    <!-- 5. Self-serve shortcuts -->
+    <section class="shortcuts" aria-labelledby="shortcuts-title">
+      <h2 id="shortcuts-title">Quick answers, no wait</h2>
+      <div class="shortcut-grid">
+        <a class="shortcut" href="/panchang">
+          <span class="chip chip-sm chip-sun" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="4"></circle>
+              <path d="M12 2v2"></path><path d="M12 20v2"></path>
+              <path d="m4.93 4.93 1.41 1.41"></path><path d="m17.66 17.66 1.41 1.41"></path>
+              <path d="M2 12h2"></path><path d="M20 12h2"></path>
+              <path d="m6.34 17.66-1.41 1.41"></path><path d="m19.07 4.93-1.41 1.41"></path>
+            </svg>
+          </span>
+          <span class="shortcut-text">
+            <span class="shortcut-label">Today's panchang</span>
+            <span class="shortcut-desc">Tithi, nakshatra &amp; muhurat for your city</span>
+          </span>
+          <svg class="arrow" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="m9 18 6-6-6-6"></path>
+          </svg>
+        </a>
+        <a class="shortcut" href="/calculators">
+          <span class="chip chip-sm chip-calc" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="4" y="2" width="16" height="20" rx="2"></rect>
+              <line x1="8" y1="6" x2="16" y2="6"></line>
+              <line x1="16" y1="14" x2="16" y2="18"></line>
+              <path d="M16 10h.01"></path><path d="M12 10h.01"></path><path d="M8 10h.01"></path>
+              <path d="M12 14h.01"></path><path d="M8 14h.01"></path>
+              <path d="M12 18h.01"></path><path d="M8 18h.01"></path>
+            </svg>
+          </span>
+          <span class="shortcut-text">
+            <span class="shortcut-label">17 free calculators</span>
+            <span class="shortcut-desc">Kundli, matching, dasha &amp; more</span>
+          </span>
+          <svg class="arrow" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="m9 18 6-6-6-6"></path>
+          </svg>
+        </a>
+        <a class="shortcut" href="/astrology/learn">
+          <span class="chip chip-sm chip-learn" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z"></path>
+              <path d="M6 6h10"></path><path d="M6 10h10"></path>
+            </svg>
+          </span>
+          <span class="shortcut-text">
+            <span class="shortcut-label">Learn astrology</span>
+            <span class="shortcut-desc">Planets, houses &amp; basics, explained simply</span>
+          </span>
+          <svg class="arrow" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="m9 18 6-6-6-6"></path>
+          </svg>
+        </a>
+      </div>
+    </section>
+
+    <!-- 6. Footnote -->
+    <p class="footnote">
+      Write to <a href={`mailto:${EMAIL}`}>{EMAIL}</a> for anything urgent — a
+      human reads it.
+    </p>
+  </article>
+</Base>
+
+<style>
+  .contact {
+    max-width: 880px;
+    margin: 0 auto;
+    padding: var(--space-7) var(--space-4) var(--space-8);
+  }
+
+  /* ---- 1. Hero ---- */
+  .eyebrow {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin: 0 0 var(--space-3);
+    color: var(--color-accent-text);
+    font-family: var(--font-body);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .eyebrow-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--color-accent-text);
+  }
+  h1 {
+    margin: 0 0 var(--space-3);
+    font-family: var(--font-display);
+    font-size: clamp(30px, 4.5vw, 40px);
+    font-weight: 600;
+    line-height: 1.2;
+    color: var(--color-text);
+  }
+  .intro {
+    margin: 0;
+    max-width: 60ch;
+    color: var(--color-text-muted);
+    font-family: var(--font-body);
+    font-size: 16px;
+    line-height: 1.65;
+  }
+
+  /* ---- Cards (shared) ---- */
+  .card {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-card);
+    padding: var(--space-5);
+    box-shadow: 0 4px 20px -2px var(--gold-shadow);
+  }
+  .card h2,
+  .shortcuts h2 {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--color-text);
+  }
+  .sub {
+    margin: var(--space-1) 0 var(--space-4);
+    color: var(--color-text-muted);
+    font-family: var(--font-body);
+    font-size: 14px;
+    line-height: 1.6;
+  }
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    margin-bottom: var(--space-4);
+    flex-shrink: 0;
+  }
+  .chip-sm {
+    width: 40px;
+    height: 40px;
+    margin-bottom: 0;
+    border-radius: 10px;
+  }
+
+  /* ---- 2. Email card ---- */
+  .email-card {
+    margin-top: var(--space-6);
+    padding: var(--space-5);
+  }
+  .chip-email {
+    background: var(--color-accent-soft);
+    color: var(--color-primary);
+  }
+  .email-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-3);
+  }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    min-height: var(--target-min);
+    border-radius: var(--radius-pill);
+    font-family: var(--font-body);
+    font-size: 14px;
+    font-weight: 500;
+    text-decoration: none;
+    cursor: pointer;
+  }
+  .btn-primary {
+    padding: 0 var(--space-5);
+    background: var(--color-primary);
+    color: var(--color-on-primary);
+    border: none;
+  }
+  .btn-icon {
+    width: var(--target-min);
+    height: var(--target-min);
+    padding: 0;
+    background: var(--color-tint);
+    border: 1px solid var(--color-border);
+    color: var(--color-text-muted);
+  }
+  .copy-feedback {
+    min-height: var(--target-min);
+    display: inline-flex;
+    align-items: center;
+    color: var(--color-accent-text);
+    font-family: var(--font-body);
+    font-size: 13px;
+    font-weight: 500;
+    opacity: 0;
+    transition: opacity 0.25s ease;
+  }
+  .copy-feedback.show {
+    opacity: 1;
+  }
+  .email-note {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin: var(--space-4) 0 0;
+    color: var(--color-text-muted);
+    font-family: var(--font-body);
+    font-size: 13px;
+  }
+  .email-note svg {
+    color: var(--color-primary);
+    flex-shrink: 0;
+  }
+
+  /* ---- 3. WhatsApp + booking cards ---- */
+  .card-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--space-4);
+    margin-top: var(--space-4);
+  }
+  .chip-wa {
+    background: var(--color-auspicious-bg);
+    color: var(--color-auspicious-text);
+  }
+  .pill-disabled {
+    display: inline-flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    min-height: var(--target-min);
+    max-width: 300px;
+    padding: 0 var(--space-4);
+    border-radius: var(--radius-pill);
+    background: var(--color-tint);
+    color: var(--color-text-muted);
+    font-family: var(--font-body);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: not-allowed;
+    user-select: none;
+  }
+  .badge-soon {
+    padding: 2px 10px;
+    border-radius: var(--radius-pill);
+    background: var(--color-accent-soft);
+    color: var(--color-accent-text);
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .chip-book {
+    background: var(--color-secondary-light);
+    color: var(--color-light-secondary);
+  }
+  :global([data-theme="dark"]) .chip-book {
+    color: var(--color-dark-secondary);
+  }
+  .btn-book {
+    padding: 0 var(--space-5);
+    background: var(--color-light-secondary);
+    color: var(--color-light-on-secondary);
+    border: none;
+  }
+  :global([data-theme="dark"]) .btn-book {
+    background: var(--color-dark-secondary);
+    color: var(--color-dark-on-secondary);
+  }
+
+  /* ---- 4. Trust callout ---- */
+  .callout {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-4);
+    margin-top: var(--space-4);
+    padding: var(--space-5);
+    border-radius: var(--radius-card);
+    background: var(--color-accent-soft);
+  }
+  .callout-chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--color-surface);
+    color: var(--color-primary);
+    flex-shrink: 0;
+  }
+  .callout strong {
+    display: block;
+    font-family: var(--font-body);
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--color-text);
+  }
+  .callout p {
+    margin: var(--space-1) 0 0;
+    color: var(--color-text-muted);
+    font-family: var(--font-body);
+    font-size: 13.5px;
+    line-height: 1.6;
+  }
+
+  /* ---- 5. Shortcuts ---- */
+  .shortcuts {
+    margin-top: var(--space-6);
+  }
+  .shortcut-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--space-3);
+    margin-top: var(--space-4);
+  }
+  .shortcut {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-4);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-card);
+    background: var(--color-surface);
+    text-decoration: none;
+    transition: border-color 0.2s ease;
+  }
+  .shortcut:hover {
+    border-color: var(--color-border-strong);
+  }
+  .shortcut-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+  .shortcut-label {
+    font-family: var(--font-body);
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--color-text);
+  }
+  .shortcut:hover .shortcut-label {
+    color: var(--color-primary);
+  }
+  .shortcut-desc {
+    font-family: var(--font-body);
+    font-size: 12.5px;
+    color: var(--color-text-muted);
+  }
+  .arrow {
+    margin-left: auto;
+    color: var(--color-text-muted);
+    transition: transform 0.2s ease, color 0.2s ease;
+  }
+  .shortcut:hover .arrow {
+    transform: translateX(3px);
+    color: var(--color-primary);
+  }
+  .chip-sun {
+    background: var(--color-accent-soft);
+    color: var(--color-accent-text);
+  }
+  .chip-calc {
+    background: var(--color-accent-soft);
+    color: var(--color-primary);
+  }
+  .chip-learn {
+    background: var(--color-secondary-light);
+    color: var(--color-light-secondary);
+  }
+  :global([data-theme="dark"]) .chip-learn {
+    color: var(--color-dark-secondary);
+  }
+
+  /* ---- 6. Footnote ---- */
+  .footnote {
+    margin: var(--space-6) 0 0;
+    text-align: center;
+    color: var(--color-text-muted);
+    font-family: var(--font-body);
+    font-size: 14px;
+  }
+  .footnote a {
+    color: var(--color-primary);
+    font-weight: 500;
+  }
+
+  /* ---- Focus (site-wide ring) ---- */
+  .btn:focus-visible,
+  .shortcut:focus-visible,
+  .footnote a:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+  }
+
+  /* ---- Responsive ---- */
+  @media (min-width: 640px) {
+    .contact { padding-top: var(--space-8); }
+    .card { padding: var(--space-6); }
+    .email-card { padding: var(--space-6); }
+    .card-grid { grid-template-columns: 1fr 1fr; }
+  }
+  @media (min-width: 768px) {
+    .shortcut-grid { grid-template-columns: repeat(3, 1fr); }
+    .shortcut { flex-direction: row; }
+  }
+</style>
+
+<script is:inline>
+  // Copy-email affordance (progressive enhancement): clipboard API first,
+  // textarea fallback for non-secure contexts; honest feedback either way.
+  (function () {
+    var btn = document.querySelector("[data-copy-email]");
+    var feedback = document.querySelector("[data-copy-feedback]");
+    if (!btn || !feedback) return;
+    var EMAIL = btn.getAttribute("data-email") || "vyotish@gmail.com";
+    var timer = null;
+    function show(msg) {
+      feedback.textContent = msg;
+      feedback.classList.add("show");
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(function () {
+        feedback.classList.remove("show");
+      }, 2200);
+    }
+    btn.addEventListener("click", function () {
+      function fallback() {
+        var ta = document.createElement("textarea");
+        ta.value = EMAIL;
+        ta.setAttribute("readonly", "");
+        ta.style.position = "fixed";
+        ta.style.opacity = "0";
+        document.body.appendChild(ta);
+        ta.select();
+        var ok = false;
+        try {
+          ok = document.execCommand("copy");
+        } catch (e) {
+          ok = false;
+        }
+        document.body.removeChild(ta);
+        show(ok ? "Copied to clipboard" : "Copy failed — select it above instead");
+      }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(EMAIL).then(
+          function () {
+            show("Copied to clipboard");
+          },
+          function () {
+            fallback();
+          }
+        );
+      } else {
+        fallback();
+      }
+    });
+  })();
+</script>
