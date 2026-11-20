@@ -15,8 +15,10 @@ const { source, placeholder, buttonClass, inputClass, success } = Astro.props;
 ---
 
 <form data-newsletter-form data-source={source} class="max-w-md w-full mx-auto flex flex-col sm:flex-row gap-2 mt-2">
-  <input type="email" required placeholder={placeholder} class={inputClass} />
-  <button type="submit" class={buttonClass}>
+  {/* min-h appended here so every call site gets the 44px tap target without
+      each caller having to remember it (UX audit F6) */}
+  <input type="email" required placeholder={placeholder} aria-label="Email address" class={`${inputClass} min-h-[44px]`} />
+  <button type="submit" class={`${buttonClass} min-h-[44px]`}>
     {source === "gemstones_notify" ? "Notify Me" : "Subscribe"}
   </button>
 </form>

@@ -246,13 +246,12 @@ export function getStaticPaths() {
 }
 
 const { tool } = Astro.props as { tool: Tool };
-const API_NOTE =
-  "All computation happens in the Vyotish backend engine via /api/v1 — the page never calculates.";
+const API_NOTE = "Free · instant · computed live — nothing is stored.";
 ---
 
 <Base
   title={`${tool.title} — Free Vedic Calculator | Vyotish`}
-  description={`${tool.description} Free, instant, no login — computed by the Vyotish backend engine.`}
+  description={`${tool.description} Free, instant, no login — computed live by the Vyotish engine.`}
 >
   <section class="calc">
     <nav class="crumbs" aria-label="Breadcrumb">
@@ -301,7 +300,7 @@ const API_NOTE =
       }
 
       <section class="result" data-calc-result aria-live="polite">
-        <p class="hint">Results appear here — computed by the Vyotish backend; nothing is stored.</p>
+        <p class="hint">Your result will appear here — instant, and nothing is stored.</p>
       </section>
     </div>
 
@@ -404,8 +403,8 @@ const API_NOTE =
   .flag.fun { color: var(--gold); border-color: var(--border-gold-soft); }
   .panel { margin-top: var(--space-5); background: var(--bg-raised); border: 1px solid var(--color-border-strong); border-radius: var(--radius-card); padding: var(--space-5); }
   .lbl { display: block; font-size: 12px; font-weight: 600; color: var(--text-muted); margin-bottom: 4px; }
-  .inp { width: 100%; padding: 8px 10px; border-radius: 8px; background: var(--bg); border: 1px solid var(--color-border-strong); color: var(--ivory); font-size: 14px; }
-  .btn { padding: 9px 18px; border-radius: 8px; background: var(--gold); color: #17201e; font-weight: 600; font-size: 14px; border: none; cursor: pointer; }
+  .inp { width: 100%; min-height: 44px; padding: 8px 10px; border-radius: 8px; background: var(--bg); border: 1px solid var(--color-border-strong); color: var(--ivory); font-size: 14px; }
+  .btn { min-height: 44px; padding: 9px 18px; border-radius: 8px; background: var(--gold); color: #17201e; font-weight: 600; font-size: 14px; border: none; cursor: pointer; }
   .result { margin-top: var(--space-4); border-top: 1px dashed var(--color-border); padding-top: var(--space-4); }
   .hint { color: var(--text-dim); font-size: 13.5px; }
   .hint.err { color: #e0806d; }
@@ -416,6 +415,11 @@ const API_NOTE =
   .stack { display: flex; flex-direction: column; gap: 6px; }
   .obj { border-left: 2px solid var(--border-gold-soft); padding-left: var(--space-3); display: flex; flex-direction: column; gap: 2px; }
   .obj .row { border-bottom: none; grid-template-columns: 160px 1fr; }
+  /* narrow phones: stack label above value instead of a 200px label column
+     eating most of the card (UX audit F8) */
+  @media (max-width: 480px) {
+    .row, .obj .row { grid-template-columns: 1fr; gap: 2px; }
+  }
   .flagline { margin-top: var(--space-3); font-size: 12px; color: var(--text-dim); }
   .more { margin-top: var(--space-5); font-size: 13.5px; color: var(--text-dim); }
   .more a { color: var(--gold); }

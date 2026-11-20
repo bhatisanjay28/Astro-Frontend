@@ -22,7 +22,7 @@ import PlaceField from "../PlaceField.astro";
 
 const { endpoint, submitLabel = "Calculate", extraFields = [], note } = Astro.props;
 const inputClass =
-  "w-full px-3 py-2 rounded bg-light-surface dark:bg-dark-surface border border-light-outline-variant dark:border-dark-outline-variant text-light-on-surface dark:text-dark-on-surface font-body text-body-sm";
+  "w-full px-3 py-2 min-h-[44px] rounded bg-light-surface dark:bg-dark-surface border border-light-outline-variant dark:border-dark-outline-variant text-light-on-surface dark:text-dark-on-surface font-body text-body-sm";
 const labelClass =
   "block font-label text-label-sm font-semibold text-light-on-surface-variant dark:text-dark-on-surface-variant mb-1";
 ---
@@ -65,7 +65,7 @@ const labelClass =
   }
   <button
     type="submit"
-    class="px-5 py-2 rounded bg-light-primary text-light-on-primary dark:bg-dark-primary dark:text-dark-on-primary font-label text-label-md font-semibold hover:opacity-95 transition-opacity whitespace-nowrap"
+    class="px-5 py-2 min-h-[44px] rounded bg-light-primary text-light-on-primary dark:bg-dark-primary dark:text-dark-on-primary font-label text-label-md font-semibold hover:opacity-95 transition-opacity whitespace-nowrap"
   >
     {submitLabel}
   </button>
