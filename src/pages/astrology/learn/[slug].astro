@@ -60,16 +60,22 @@ const others = (await getCollection("learn"))
   h1 { font-family: var(--font-display); color: var(--ivory); font-size: clamp(26px, 5vw, 36px); }
   .lede { color: var(--text-muted); font-size: 15px; margin-top: var(--space-2); line-height: 1.6; }
   .prose { margin-top: var(--space-6); border-top: 1px solid var(--color-border); padding-top: var(--space-5); }
-  .prose h2 { font-family: var(--font-display); color: var(--gold); font-size: 20px; margin: var(--space-6) 0 var(--space-3); }
-  .prose h3 { color: var(--ivory); font-size: 16px; margin: var(--space-4) 0 var(--space-2); }
-  .prose p, .prose li { color: var(--text-muted); font-size: 14.5px; line-height: 1.75; }
-  .prose p { margin: var(--space-3) 0; }
-  .prose a { color: var(--gold); }
-  .prose ul, .prose ol { margin: var(--space-3) 0 var(--space-3) var(--space-5); display: flex; flex-direction: column; gap: var(--space-2); }
-  .prose table { width: 100%; border-collapse: collapse; font-size: 13.5px; margin: var(--space-4) 0; }
-  .prose th { text-align: left; color: var(--gold); padding: 6px 8px; border-bottom: 1px solid var(--color-border-strong); font-weight: 600; }
-  .prose td { padding: 6px 8px; border-bottom: 1px solid var(--color-border); color: var(--text-muted); }
-  .prose strong { color: var(--ivory); }
+  /* Markdown-rendered content (from <Content />) carries no Astro scope
+     attribute, so plain scoped descendant rules never matched it — the gold
+     h2s, muted body text and table styling below were silently dead until the
+     2026-11-20 UX audit. :global() under the scoped .prose restores them. */
+  .prose :global(h2) { font-family: var(--font-display); color: var(--gold); font-size: 20px; margin: var(--space-6) 0 var(--space-3); }
+  .prose :global(h3) { color: var(--ivory); font-size: 16px; margin: var(--space-4) 0 var(--space-2); }
+  .prose :global(p), .prose :global(li) { color: var(--text-muted); font-size: 14.5px; line-height: 1.75; max-width: 68ch; }
+  .prose :global(p) { margin: var(--space-3) 0; }
+  .prose :global(a) { color: var(--gold); }
+  .prose :global(ul), .prose :global(ol) { margin: var(--space-3) 0 var(--space-3) var(--space-5); display: flex; flex-direction: column; gap: var(--space-2); }
+  /* block + overflow-x: wide reference tables scroll inside the article at
+     small widths instead of pushing the page wide (UX audit F2) */
+  .prose :global(table) { display: block; width: 100%; border-collapse: collapse; font-size: 13.5px; margin: var(--space-4) 0; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .prose :global(th) { text-align: left; color: var(--gold); padding: 6px 8px; border-bottom: 1px solid var(--color-border-strong); font-weight: 600; }
+  .prose :global(td) { padding: 6px 8px; border-bottom: 1px solid var(--color-border); color: var(--text-muted); }
+  .prose :global(strong) { color: var(--ivory); }
   .more { margin-top: var(--space-7); border-top: 1px solid var(--color-border-strong); padding-top: var(--space-4); }
   .more h2 { font-family: var(--font-display); color: var(--gold); font-size: 17px; margin-bottom: var(--space-2); }
   .more li { margin-left: var(--space-4); color: var(--text-muted); font-size: 14px; }

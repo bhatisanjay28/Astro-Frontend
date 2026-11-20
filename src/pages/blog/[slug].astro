@@ -199,20 +199,26 @@ const jsonLd = [
   .toc a { color: var(--text-muted); text-decoration: none; }
   .toc a:hover { color: var(--gold); }
   .prose { flex: 1; min-width: 0; }
-  .prose h2 { font-family: var(--font-display); color: var(--gold); font-size: 20px; margin: var(--space-6) 0 var(--space-3); }
-  .prose h3 { color: var(--ivory); font-size: 16px; margin: var(--space-4) 0 var(--space-2); }
-  .prose p, .prose li { color: var(--text-muted); font-size: 14.5px; line-height: 1.75; }
-  .prose p { margin: var(--space-3) 0; }
-  .prose a { color: var(--gold); }
-  .prose ul, .prose ol { margin: var(--space-3) 0 var(--space-3) var(--space-5); display: flex; flex-direction: column; gap: var(--space-2); }
-  .prose table { width: 100%; border-collapse: collapse; font-size: 13.5px; margin: var(--space-4) 0; }
-  .prose th { text-align: left; color: var(--gold); padding: 6px 8px; border-bottom: 1px solid var(--color-border-strong); font-weight: 600; }
-  .prose td { padding: 6px 8px; border-bottom: 1px solid var(--color-border); color: var(--text-muted); }
-  .prose strong { color: var(--ivory); }
-  .prose img { max-width: 100%; height: auto; border-radius: var(--radius-card); }
-  .prose pre { background: var(--bg-raised); border: 1px solid var(--color-border); border-radius: var(--radius-card); padding: var(--space-3); overflow-x: auto; font-size: 13px; }
-  .prose code { font-family: var(--font-mono, monospace); font-size: 13px; color: var(--ivory); }
-  .prose blockquote { border-left: 3px solid var(--border-gold-soft); margin: var(--space-4) 0; padding: var(--space-1) var(--space-4); color: var(--text-dim); }
+  /* Markdown-rendered content (from <Content />) carries no Astro scope
+     attribute, so plain scoped descendant rules never matched it — the gold
+     h2s, muted body text and table styling below were silently dead until the
+     2026-11-20 UX audit. :global() under the scoped .prose restores them. */
+  .prose :global(h2) { font-family: var(--font-display); color: var(--gold); font-size: 20px; margin: var(--space-6) 0 var(--space-3); }
+  .prose :global(h3) { color: var(--ivory); font-size: 16px; margin: var(--space-4) 0 var(--space-2); }
+  .prose :global(p), .prose :global(li) { color: var(--text-muted); font-size: 14.5px; line-height: 1.75; max-width: 68ch; }
+  .prose :global(p) { margin: var(--space-3) 0; }
+  .prose :global(a) { color: var(--gold); }
+  .prose :global(ul), .prose :global(ol) { margin: var(--space-3) 0 var(--space-3) var(--space-5); display: flex; flex-direction: column; gap: var(--space-2); }
+  /* block + overflow-x: wide tables scroll inside the article at small
+     widths instead of pushing the page wide (UX audit F2) */
+  .prose :global(table) { display: block; width: 100%; border-collapse: collapse; font-size: 13.5px; margin: var(--space-4) 0; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .prose :global(th) { text-align: left; color: var(--gold); padding: 6px 8px; border-bottom: 1px solid var(--color-border-strong); font-weight: 600; }
+  .prose :global(td) { padding: 6px 8px; border-bottom: 1px solid var(--color-border); color: var(--text-muted); }
+  .prose :global(strong) { color: var(--ivory); }
+  .prose :global(img) { max-width: 100%; height: auto; border-radius: var(--radius-card); }
+  .prose :global(pre) { background: var(--bg-raised); border: 1px solid var(--color-border); border-radius: var(--radius-card); padding: var(--space-3); overflow-x: auto; font-size: 13px; }
+  .prose :global(code) { font-family: var(--font-mono, monospace); font-size: 13px; color: var(--ivory); }
+  .prose :global(blockquote) { border-left: 3px solid var(--border-gold-soft); margin: var(--space-4) 0; padding: var(--space-1) var(--space-4); color: var(--text-dim); }
   .tags { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-6); }
   .chip { color: var(--gold); text-decoration: none; font-size: 12.5px; border: 1px solid var(--border-gold-soft); border-radius: 999px; padding: 5px 12px; }
   .author, .related { margin-top: var(--space-6); border-top: 1px solid var(--color-border-strong); padding-top: var(--space-4); }

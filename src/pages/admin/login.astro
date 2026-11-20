@@ -10,13 +10,16 @@ import "../../styles/fonts.css";
     <meta name="robots" content="noindex" />
     <title>Admin sign in | Vyotish</title>
     <style>
-      body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #14100c; color: #ece5d8; font: 14px/1.55 Poppins, sans-serif; }
-      .card { width: 340px; background: #1d1710; border: 1px solid #3a2f1f; border-radius: 14px; padding: 28px; }
+      /* box-sizing here (no Tailwind preflight on this standalone page):
+         without it width:340px + 28px padding overflows 360px screens. */
+      *, *::before, *::after { box-sizing: border-box; }
+      body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #14100c; color: #ece5d8; font: 14px/1.55 Poppins, sans-serif; padding: 16px; }
+      .card { width: min(340px, 100%); background: #1d1710; border: 1px solid #3a2f1f; border-radius: 14px; padding: 28px; }
       h1 { font-size: 18px; color: #d4a843; margin: 0 0 6px; }
       p { color: #9b8f7a; font-size: 12.5px; margin: 0 0 18px; }
       label { display: block; font-size: 12px; color: #9b8f7a; margin: 12px 0 4px; }
       input { width: 100%; background: #241c13; border: 1px solid #3a2f1f; color: #ece5d8; border-radius: 8px; padding: 9px 10px; font: inherit; }
-      button { width: 100%; margin-top: 18px; background: #d4a843; color: #1a1206; border: 0; border-radius: 8px; padding: 10px; font-weight: 600; cursor: pointer; }
+      button { width: 100%; margin-top: 18px; background: #d4a843; color: #1a1206; border: 0; border-radius: 8px; padding: 10px; font: inherit; font-weight: 600; cursor: pointer; }
       button:disabled { opacity: 0.6; cursor: wait; }
       .err { color: #e08a8a; font-size: 12.5px; margin-top: 12px; min-height: 16px; }
     </style>
@@ -24,7 +27,7 @@ import "../../styles/fonts.css";
   <body>
     <form class="card" id="login-form" data-api-base={API_BASE}>
       <h1>Vyotish Admin</h1>
-      <p>Sign in with the owner/admin account created by <code>setup-first-admin.ts</code>.</p>
+      <p>Sign in with your Vyotish admin account.</p>
       <label for="email">Email</label>
       <input id="email" name="email" type="email" autocomplete="username" required />
       <label for="password">Password</label>
