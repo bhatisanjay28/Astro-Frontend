@@ -18,10 +18,34 @@ body {
 main {
   flex: 1;
 }
+/* no border-radius here: the ring must follow the element's own shape —
+   forcing 4px visibly squared off pill buttons while focused (UX audit F4) */
 :where(a, button, input, select, textarea, [tabindex]):focus-visible {
   outline: none;
   box-shadow: var(--focus-ring);
-  border-radius: 4px;
+}
+:where(button, input, select, textarea) {
+  /* Tailwind preflight is off for this site, so form controls fell back to
+     the browser UI font (Arial) instead of the brand stack (UX audit F3) */
+  font: inherit;
+  letter-spacing: inherit;
+}
+/* Reduced motion: hover/active transitions and scale effects are decoration
+   only (UX audit F20). !important is deliberate — the overrides must also
+   beat unlayered rules and inline styles. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    /* biome-ignore lint/complexity/noImportantStyles: reduced-motion override must beat utility classes */
+    animation-duration: 0.01ms !important;
+    /* biome-ignore lint/complexity/noImportantStyles: reduced-motion override must beat utility classes */
+    animation-iteration-count: 1 !important;
+    /* biome-ignore lint/complexity/noImportantStyles: reduced-motion override must beat utility classes */
+    transition-duration: 0.01ms !important;
+    /* biome-ignore lint/complexity/noImportantStyles: reduced-motion override must beat utility classes */
+    scroll-behavior: auto !important;
+  }
 }
 .skip-link {
   position: absolute;

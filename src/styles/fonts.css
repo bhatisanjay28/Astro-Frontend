@@ -239,6 +239,8 @@
  * line-height still wins. Keep in sync with Google's icon CSS if ever updated.
  */
 .material-symbols-outlined {
+  /* biome-ignore lint/a11y/useGenericFontNames: icon font with its own glyph
+     set — replicating Google's icon CSS verbatim (see note above) */
   font-family: "Material Symbols Outlined";
   font-weight: normal;
   font-style: normal;
