@@ -1,10 +1,118 @@
 ---
+/**
+ * Astrological Disclaimer — Epic 7.3 final draft.
+ * Grounded in the standard disclaimers of AstroSage, AstroTalk, GaneshaSpeaks,
+ * ClickAstro and Cafe Astrology (informational/faith-based purpose, not a
+ * substitute for licensed professionals, no guaranteed outcomes, remedies are
+ * good-faith suggestions), plus India-specific rules: no disease-cure claims
+ * (Drugs and Magic Remedies Act 1954), no outcome promises in advertising
+ * (ASCI Code / CPA 2019). Owner review pending (epics.md 7.3 / launch-blockers.md).
+ */
 import LegalPage from "../components/LegalPage.astro";
+
+const UPDATED = "21 November 2026";
+
+const sections = [
+  {
+    id: "purpose",
+    heading: "What this disclaimer covers",
+    paragraphs: [
+      "This disclaimer applies to everything on Vyotish: kundli charts, matching scores, panchang data, muhurat suggestions, calculators, daily horoscopes, Learn and blog content, and consultations. It sits alongside our <a href=\"/terms\">Terms of Use</a>.",
+    ],
+  },
+  {
+    id: "faith-based",
+    heading: "Astrology is a faith-based advisory tradition",
+    paragraphs: [
+      "Vedic astrology is a traditional shastra — a faith-based advisory practice, not an exact science. What astrology can do with real precision is astronomy: the positions of planets in the sky at a given moment can be computed exactly, and we do that rigorously. What no one can guarantee is the <em>interpretation</em> — what those positions mean for a particular life. Interpretations on Vyotish are informed opinions rooted in classical tradition, and different astrologers may read the same chart differently.",
+    ],
+  },
+  {
+    id: "not-professional-advice",
+    heading: "Not a substitute for professional advice",
+    paragraphs: [
+      "Nothing you receive from Vyotish — a chart, a horoscope, a consultation, a remedy suggestion — is a substitute for advice, diagnosis or treatment from a licensed professional such as a doctor, psychiatrist, lawyer, chartered accountant or financial adviser.",
+      "If you have a medical condition, take astrology’s view alongside your doctor’s — never instead of it. Never delay or discontinue professional medical, legal or financial care based on anything you read here.",
+    ],
+  },
+  {
+    id: "no-guarantees",
+    heading: "No guaranteed outcomes",
+    paragraphs: [
+      "We do not promise that any prediction, timing, remedy or consultation will produce a particular result — marriage, a job, wealth, recovery or anything else. Life outcomes depend on far more than a chart, and results vary from person to person. You will never find “100% guaranteed” claims on Vyotish; where you see that language anywhere, it is not us, and we would like to know about it.",
+    ],
+  },
+  {
+    id: "decisions",
+    heading: "Your decisions are yours",
+    paragraphs: [
+      "How you interpret and act on anything Vyotish shows or tells you is entirely your decision and your responsibility. Content on the Site is general in nature and is not tailored advice for your specific situation unless it comes to you through a booked consultation.",
+    ],
+  },
+  {
+    id: "calculation-accuracy",
+    heading: "Calculation accuracy",
+    paragraphs: [
+      "The astronomical layer of Vyotish uses published, open astronomical methods: planetary positions computed with the open-source <strong>astronomy-engine</strong> library, the sidereal zodiac with the <strong>Lahiri ayanamsha</strong> (the standard used in India’s official panchang calculations), and local time handled through the <strong>IANA Time Zone database</strong>. Our engine runs behind a growing automated test suite, and city data comes from the GeoNames database.",
+      "Even with rigorous computation, rounding conventions and edge cases exist. If a computed value looks wrong — a tithi boundary, a nakshatra span, an ayanamsha offset — tell us at <a href=\"mailto:vyotish@gmail.com\">vyotish@gmail.com</a> and we will investigate and correct it. Report the page, the inputs and what you expected; every correction makes the tool better for everyone.",
+    ],
+  },
+  {
+    id: "birth-details",
+    heading: "Birth details are your responsibility",
+    paragraphs: [
+      "A chart is only as accurate as the birth date, time and place entered. If you do not know your exact birth time, say so when booking a consultation — our astrologers work with rectification and prashna approaches rather than pretending to precision. We are not responsible for results computed from incorrect inputs.",
+    ],
+  },
+  {
+    id: "remedies",
+    heading: "Remedies: gemstones, mantras and rituals",
+    paragraphs: [
+      "Recommendations such as gemstones, mantras, rudraksha or specific poojas are faith-based suggestions offered in good faith, drawing on classical practice. They are always voluntary — you decide whether to adopt them. We present remedies as traditional practices, never as cures: <strong>Vyotish does not claim that any gemstone, ritual or remedy treats, cures or prevents any disease or medical condition.</strong>",
+    ],
+  },
+  {
+    id: "horoscopes",
+    heading: "Horoscopes, blog and Learn content",
+    paragraphs: [
+      "Daily, weekly and monthly horoscopes, and all editorial content, are written for general audiences — sun/moon sign or transit based — and cannot account for your full birth chart. They are editorial content, not personalised advice. When our content cites classical sources or traditions, we name them; when something is our interpretation, it is ours.",
+    ],
+  },
+  {
+    id: "astrologers",
+    heading: "Consulting astrologers",
+    paragraphs: [
+      "Each astrologer or pujari you consult through Vyotish is an independent professional, solely responsible for the accuracy, appropriateness and consequences of the advice they personally give. Their interpretations may differ from one another and from general Site content — that is inherent to a tradition of interpretation, and it is honest to say so.",
+    ],
+  },
+  {
+    id: "third-party",
+    heading: "Third-party content and links",
+    paragraphs: [
+      "External links are provided for reference. We do not control third-party sites, do not endorse their content, and are not responsible for their accuracy or practices.",
+    ],
+  },
+  {
+    id: "no-fabrication",
+    heading: "Our no-fabrication policy",
+    paragraphs: [
+      "We do not invent reviews, ratings, user counts, awards or credentials — not for the Site and not for its astrologers. Where testimonials exist, they are real; until then, review areas stay empty rather than filled with sample praise. Content that is illustrative or sample is clearly marked as such. If anything on Vyotish ever looks like a fabricated claim, please report it — honesty is not just policy here, it is the product.",
+    ],
+  },
+  {
+    id: "contact",
+    heading: "Questions and corrections",
+    paragraphs: [
+      "Found an error, or want to question a claim? Email <a href=\"mailto:vyotish@gmail.com\">vyotish@gmail.com</a> or use our <a href=\"/contact\">contact page</a>. We publish corrections — silence is not our style.",
+    ],
+  },
+];
 ---
 
 <LegalPage
-  title="Disclaimer | Vyotish"
-  heading="Disclaimer"
-  intro="What Vyotish astrology content is — and is not."
-  body={["Astrology content on Vyotish is for guidance and information. Outcomes are not guaranteed.", "It is not a substitute for medical, legal or financial advice.", "No fear-based messaging, no disease-cure claims, no guaranteed results.", "Muhurat rules undergo qualified Jyotishi review before public launch."]}
+  title="Astrological Disclaimer | Vyotish"
+  heading="Astrological Disclaimer"
+  intro="What Vyotish astrology content is — and what it is not. Written plainly, because trust starts with honesty."
+  updated={UPDATED}
+  sections={sections}
 />

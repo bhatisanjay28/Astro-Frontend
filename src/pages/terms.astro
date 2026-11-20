@@ -1,10 +1,175 @@
 ---
+/**
+ * Terms of Use — Epic 7.3 final draft.
+ * Grounded in Indian astrology-industry terms (AstroTalk, ClickAstro, GaneshaSpeaks)
+ * and the Consumer Protection (E-Commerce) Rules, 2020: grievance officer displayed
+ * (Rule 4(4)), complaint acknowledged in 48 hours and redressed within one month
+ * (Rule 4(5)), no pre-ticked consent (Rule 4(9)), liability capped at amounts paid.
+ * Phase 1 = booking requests only, no online payments. Owner review pending
+ * (epics.md 7.3 / launch-blockers.md): registered entity name + address (Rule 4(2)).
+ */
 import LegalPage from "../components/LegalPage.astro";
+
+const UPDATED = "21 November 2026";
+
+const sections = [
+  {
+    id: "acceptance",
+    heading: "Acceptance of these terms",
+    paragraphs: [
+      "By accessing or using <strong>vyotish.com</strong> (the “Site”), you agree to these Terms of Use. If you do not agree, please do not use the Site. These terms apply to every visitor and user, whether you browse, use the free tools, read content or submit a booking request.",
+    ],
+  },
+  {
+    id: "about",
+    heading: "About these terms",
+    paragraphs: [
+      "In these terms, “Vyotish”, “we”, “our” and “us” mean the operator of the Site, and “you” means the user. Our <a href=\"/privacy\">Privacy Policy</a> is part of these terms, and so is our <a href=\"/disclaimer\">Astrological Disclaimer</a> — please read all three.",
+    ],
+  },
+  {
+    id: "eligibility",
+    heading: "Who can use Vyotish",
+    paragraphs: [
+      "You must be at least 18 years old to submit booking requests or newsletter subscriptions on your own behalf. If you are below 18, a parent or lawful guardian must provide the necessary consent — and their contact details — on your behalf, consistent with our <a href=\"/privacy#children\">Privacy Policy</a> and India’s Digital Personal Data Protection Act, 2023.",
+      "You confirm that any information you submit to the Site is accurate to the best of your knowledge and that you are legally capable of entering into these terms under the Indian Contract Act, 1872.",
+    ],
+  },
+  {
+    id: "services",
+    heading: "What Vyotish provides",
+    bullets: [
+      "Free self-service tools: Janam Kundli, Kundli matching, daily and monthly Panchang, Muhurat lookup, and a suite of Vedic astrology calculators.",
+      "Editorial content: daily horoscopes, a Learn section and a blog.",
+      "Booking requests for consultations and poojas, routed to us for scheduling.",
+      "Phase 1 does not accept online payments. Submitting a booking request costs nothing; when payments open, we will publish the payment terms here before they take effect.",
+    ],
+    note: [
+      "We may add, change, suspend or retire any feature. Where a feature is marked “coming soon”, it simply is not live yet — we would rather show you an honest label than a hollow page.",
+    ],
+  },
+  {
+    id: "nature-of-guidance",
+    heading: "The nature of astrology guidance",
+    paragraphs: [
+      "All astrological content on Vyotish — charts, scores, horoscopes, muhurat suggestions, blog posts and consultations — is provided for personal insight, reflection and guidance only. Astrology is a faith-based advisory tradition; its interpretations are opinions and are not an exact science. Outcomes of your decisions are never guaranteed by us.",
+      "Nothing on the Site is a substitute for advice from a licensed professional — a doctor, lawyer, financial adviser or mental-health professional. See our <a href=\"/disclaimer\">full disclaimer</a>.",
+    ],
+  },
+  {
+    id: "your-responsibilities",
+    heading: "Your responsibilities",
+    bullets: [
+      "Provide correct birth details where the tool or booking needs them; the accuracy of any chart depends on the accuracy of what you enter.",
+      "Make your own decisions; use Vyotish content as one input, not a directive.",
+      "Use the Site only for lawful, personal, non-commercial purposes.",
+    ],
+  },
+  {
+    id: "acceptable-use",
+    heading: "Acceptable use",
+    paragraphs: [
+      "When using Vyotish, you agree not to:",
+    ],
+    bullets: [
+      "Scrape, harvest or bulk-download content, or run automated tools against the Site, without our prior written permission (reasonable personal use of the free tools is always fine).",
+      "Interfere with the Site’s operation, probe or test its security without authorisation, or attempt to access systems, data or admin interfaces you are not entitled to.",
+      "Submit unlawful, defamatory, harassing, deceptive or infringing content through our forms.",
+      "Impersonate any person, or submit bookings you do not intend to honour.",
+      "Circumvent rate limits, or use the Site in a way that could impair it for other users.",
+    ],
+    note: [
+      "We use rate limiting and edge protections to enforce these rules and keep the Site fast and safe for everyone.",
+    ],
+  },
+  {
+    id: "bookings",
+    heading: "Bookings, consultations and poojas",
+    paragraphs: [
+      "Submitting a booking request is an enquiry, not a confirmed appointment. A booking is confirmed only when we reach back and fix the date and time with you, and — once payments open — the applicable fee is paid. Until then, availability is not guaranteed and no fee is charged.",
+      "If you need to cancel or reschedule, see our <a href=\"/refund\">Refund &amp; Cancellation</a> policy for the windows and conditions that will apply when payments are live. Once a consultation or pooja has been delivered, the advice given in it is the personal professional opinion of the astrologer or pujari concerned, and we are not responsible for outcomes flowing from it.",
+    ],
+  },
+  {
+    id: "ip",
+    heading: "Intellectual property",
+    paragraphs: [
+      "The Site’s design, text, brand name, code and compilations are owned by Vyotish or licensed to us, and are protected under Indian copyright and trademark law. You may use the Site and print or share your own computed charts for personal, non-commercial purposes. You may not republish, resell or systematically copy Site content without our written permission.",
+      "Vyotish is built on open-source software, including the astronomy-engine library (MIT licence) and GeoNames city data (Creative Commons licence). Their licences and our acknowledgements are listed in THIRD_PARTY_LICENSES.md in the project repository.",
+    ],
+  },
+  {
+    id: "third-party",
+    heading: "Third-party links and services",
+    paragraphs: [
+      "The Site may link to third-party websites or embed third-party services (for example, city search powered by the Google Places API, or analytics if you accept it). We do not control and are not responsible for third-party content, policies or practices. Your use of those services is governed by their own terms.",
+    ],
+  },
+  {
+    id: "availability",
+    heading: "Availability and no warranty",
+    paragraphs: [
+      "The Site and its content are provided on an “as is” and “as available” basis. We do not warrant that the Site will be uninterrupted, timely, secure or error-free, or that computational results will always be free of faults — although we test hard and fix reported faults quickly. To the maximum extent permitted by law, we disclaim all warranties, express or implied, including fitness for a particular purpose.",
+    ],
+  },
+  {
+    id: "liability",
+    heading: "Limitation of liability",
+    paragraphs: [
+      "To the maximum extent permitted by law, Vyotish is not liable for any indirect, incidental, special or consequential losses — including lost profit, lost data or emotional distress — arising from your use of the Site or reliance on its content.",
+      "Where liability cannot be excluded, our total liability for any claim is limited to the amount you actually paid us for the service giving rise to the claim (in this phase, typically nothing) or ₹1,000, whichever is greater. Nothing in these terms limits liability that cannot lawfully be limited — including liability for fraud or for death or personal injury caused by negligence.",
+    ],
+  },
+  {
+    id: "indemnity",
+    heading: "Indemnity",
+    paragraphs: [
+      "You agree to indemnify and hold harmless Vyotish and its operator, contributors and service providers from claims, damages and reasonable costs arising from your breach of these terms, your misuse of the Site, or content you submit through our forms.",
+    ],
+  },
+  {
+    id: "termination",
+    heading: "Suspension and termination",
+    paragraphs: [
+      "We may suspend or restrict access to the Site (or to specific features) where you breach these terms, abuse the tools, or create risk for other users or for the Site’s security. You may stop using the Site at any time. Sections that should survive termination — intellectual property, limitation of liability, indemnity, governing law — do survive.",
+    ],
+  },
+  {
+    id: "grievance",
+    heading: "Grievance and complaints",
+    paragraphs: [
+      "<strong>Grievance Officer, Vyotish</strong> — email: <a href=\"mailto:vyotish@gmail.com\">vyotish@gmail.com</a>.",
+      "Under the Consumer Protection (E-Commerce) Rules, 2020, we acknowledge every complaint within 48 hours and redress it within one month of receipt. Service and refund matters are described on our <a href=\"/refund\">Refund &amp; Cancellation</a> page; data-protection grievances on our <a href=\"/privacy#grievance\">Privacy Policy</a> page.",
+    ],
+  },
+  {
+    id: "law",
+    heading: "Governing law and dispute resolution",
+    paragraphs: [
+      "These terms are governed by the laws of India. If you have a dispute, please write to our Grievance Officer first — most matters resolve there. If we cannot resolve a dispute within 30 days of notice, it will be referred to binding arbitration by a sole arbitrator under the Arbitration and Conciliation Act, 1996, seated in India and conducted in English. The courts at the seat of arbitration have exclusive jurisdiction over matters not resolved by arbitration, and over applications for interim relief.",
+    ],
+  },
+  {
+    id: "changes",
+    heading: "Changes to these terms",
+    paragraphs: [
+      "We may update these terms as the Site evolves. The current version always lives on this page with its date. For material changes affecting existing bookings or consents, we will also notify you directly (for example, by email) where we hold your contact details.",
+    ],
+  },
+  {
+    id: "contact",
+    heading: "Contact",
+    paragraphs: [
+      "Questions about these terms: <a href=\"mailto:vyotish@gmail.com\">vyotish@gmail.com</a>, or through our <a href=\"/contact\">contact page</a>.",
+    ],
+  },
+];
 ---
 
 <LegalPage
   title="Terms of Use | Vyotish"
   heading="Terms of Use"
-  intro="Terms governing use of the Vyotish website."
-  body={["By using Vyotish you agree to these terms.", "Astrology content is for guidance and information only; outcomes are not guaranteed.", "Do not misuse the free tools; automated scraping is not permitted.", "Placeholder text — full terms arrive after legal review."]}
+  intro="The rules for using vyotish.com — what we provide, how to use it fairly, and how disputes are handled."
+  updated={UPDATED}
+  sections={sections}
 />
