@@ -163,7 +163,7 @@ main a:hover {
   border-radius: 8px;
   border: none;
   background: var(--gold);
-  color: #17201e;
+  color: var(--color-on-primary);
   font-weight: 600;
   font-size: 13px;
   cursor: pointer;

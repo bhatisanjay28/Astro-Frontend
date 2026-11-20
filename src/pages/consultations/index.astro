@@ -87,7 +87,7 @@ const EMPTY =
   .grid { display: grid; gap: var(--space-3); grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); margin-top: var(--space-5); }
   .card { background: var(--bg-raised); border: 1px solid var(--color-border-strong); border-radius: var(--radius-card); padding: var(--space-4); display: flex; flex-direction: column; gap: var(--space-3); }
   .head { display: flex; gap: var(--space-3); align-items: center; }
-  .badge { width: 52px; height: 52px; border-radius: 999px; background: var(--gold); color: #17201e; display: inline-flex; align-items: center; justify-content: center; font-weight: 700; font-size: 17px; flex-shrink: 0; }
+  .badge { width: 52px; height: 52px; border-radius: 999px; background: var(--gold); color: var(--color-on-primary); display: inline-flex; align-items: center; justify-content: center; font-weight: 700; font-size: 17px; flex-shrink: 0; }
   .name { display: block; color: var(--ivory); font-weight: 600; font-size: 15px; }
   .title { display: block; color: var(--text-dim); font-size: 12.5px; }
   .meta { display: block; color: var(--gold); font-size: 12px; margin-top: 2px; }
@@ -97,9 +97,9 @@ const EMPTY =
   .foot { display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--color-border); padding-top: var(--space-3); }
   .rate { color: var(--gold); font-weight: 600; font-size: 14px; }
   .avail { color: var(--text-dim); font-size: 12.5px; display: inline-flex; align-items: center; gap: 6px; }
-  .avail.on { color: #7fce9d; }
+  .avail.on { color: var(--color-auspicious-text); }
   .dot { width: 8px; height: 8px; border-radius: 999px; background: var(--text-dim); display: inline-block; }
-  .avail.on .dot { background: #7fce9d; }
+  .avail.on .dot { background: var(--color-auspicious-text); }
   .profile { color: var(--gold); font-size: 13px; text-decoration: none; margin-top: auto; }
   .profile:hover { text-decoration: underline; }
   .formpanel { margin-top: var(--space-4); background: var(--bg-raised); border: 1px solid var(--color-border-strong); border-radius: var(--radius-card); padding: var(--space-5); }
