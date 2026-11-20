@@ -10,6 +10,7 @@
  * Fonts: hotlinked for Coming-Soon parity — self-host before launch (P3).
  */
 import "../styles/tokens.css";
+import "../styles/fonts.css";
 import "../styles/tailwind.css";
 import Footer from "../components/Footer.astro";
 import Header from "../components/Header.astro";
@@ -112,16 +113,8 @@ const themeLock = lockDark ? "dark" : null;
         }
       })();
     </script>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Poppins:wght@400;500;600&family=JetBrains+Mono:wght@500&family=Noto+Sans+Devanagari:wght@400;600&display=swap"
-      rel="stylesheet"
-    />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=block"
-      rel="stylesheet"
-    />
+    <!-- Fonts are self-hosted (Story S1/P3): @font-face set in styles/fonts.css,
+         woff2 in /public/fonts/ — zero third-party font requests. -->
   </head>
   <body>
     <a class="skip-link" href="#main-content">Skip to main content</a>

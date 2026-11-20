@@ -2,6 +2,8 @@
 /** Admin chrome (Epic 6.4) — minimal sidebar shell; no public header/footer.
  * The session gate is requireSession() in each page script: the backend
  * (401/403 on every /admin route) is the real security boundary. */
+import "../styles/fonts.css";
+
 interface Props {
   title: string;
   active?: string;
@@ -28,10 +30,6 @@ const NAV = [
     <meta name="robots" content="noindex" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>{title}</title>
-    <link
-      href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap"
-      rel="stylesheet"
-    />
   </head>
   <body>
     <aside class="side">
