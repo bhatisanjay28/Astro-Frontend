@@ -111,7 +111,7 @@ function setup(): void {
         `<div class="cal-day${iso === today ? " today" : ""}" data-cal-day="${iso}">` +
         `<span class="d">${d}</span><span class="sk">…</span></div>`;
     }
-    calEl.innerHTML = html + `</div>`;
+    calEl.innerHTML = `${html}</div>`;
 
     calEl.querySelector("[data-cal-prev]")?.addEventListener("click", () => {
       const [py, pm] = cur;

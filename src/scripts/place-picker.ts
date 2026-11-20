@@ -209,7 +209,7 @@ function setupField(field: HTMLElement): void {
       renderList();
     } else if (e.key === "Enter") {
       e.preventDefault();
-      choose(activeIdx >= 0 ? activeIdx : 0);
+      choose(Math.max(activeIdx, 0));
     } else if (e.key === "Escape") {
       close();
     }

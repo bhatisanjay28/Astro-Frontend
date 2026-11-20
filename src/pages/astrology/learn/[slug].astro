@@ -1,5 +1,5 @@
 ---
-import { getCollection, render } from "astro:content";
+import { type CollectionEntry, getCollection, render } from "astro:content";
 /** /astrology/learn/{slug} — article renderer (Epic 4.5). */
 import Base from "../../../layouts/Base.astro";
 
@@ -8,7 +8,7 @@ export async function getStaticPaths() {
   return articles.map((a) => ({ params: { slug: a.id }, props: { article: a } }));
 }
 
-const { article } = Astro.props as { article: any };
+const { article } = Astro.props as { article: CollectionEntry<"learn"> };
 const { Content } = await render(article);
 
 const others = (await getCollection("learn"))
