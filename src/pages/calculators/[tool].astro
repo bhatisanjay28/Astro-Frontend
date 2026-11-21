@@ -3,15 +3,24 @@ import type { ExtraField } from "../../components/calculators/BirthForm.astro";
 import BirthForm from "../../components/calculators/BirthForm.astro";
 import PlaceField from "../../components/PlaceField.astro";
 /**
- * /calculators/{tool} — Epic 4.4 (Tier 1) + 4.6 (Tier 2) tool pages.
+ * /calculators/{tool} — Epic 4.4 (Tier 1) + 4.6 (Tier 2) + Epic 14 (S14-2).
  * One shared template (PRD §5.7) driven by a registry: slug/titles/input kind.
- * Computation always happens in the backend (D12); the generic renderer below
- * prints the contract envelope honestly (scalars, lists, nested objects),
- * with for_fun / verified flags surfaced.
+ * Computation always happens in the backend (D12); results render through the
+ * shared block renderer (scripts/calculator-renderer.ts, spec classes styled
+ * by the is:global block below — JS-injected nodes never match scoped CSS).
  */
 import Base from "../../layouts/Base.astro";
 
-type ToolKind = "birth" | "date-name" | "date" | "names" | "name" | "mobile" | "age" | "transits";
+type ToolKind =
+  | "birth"
+  | "date-name"
+  | "date"
+  | "date-place"
+  | "names"
+  | "name"
+  | "mobile"
+  | "age"
+  | "transits";
 
 interface Tool {
   slug: string;
@@ -42,13 +51,41 @@ export function getStaticPaths() {
       endpoint: "/api/v1/calculators/rashi",
     },
     {
+      slug: "nakshatra",
+      title: "Nakshatra Calculator",
+      hi: "नक्षत्र",
+      description:
+        "Your birth Nakshatra, pada and its planetary lord — the anchor of your Vimshottari dasha timeline.",
+      kind: "birth",
+      endpoint: "/api/v1/calculators/nakshatra",
+    },
+    {
+      slug: "lagna",
+      title: "Rising Sign (Lagna) Calculator",
+      hi: "लग्न",
+      description:
+        "The sign rising on the eastern horizon at your birth moment — your ascendant, its lord and nakshatra.",
+      kind: "birth",
+      endpoint: "/api/v1/calculators/lagna",
+    },
+    {
+      slug: "vimshottari-dasha",
+      title: "Vimshottari Dasha Calculator",
+      hi: "विंशोत्तरी दशा",
+      description:
+        "Your full 120-year mahadasha timeline, the period running now, and every antardasha inside it.",
+      kind: "birth",
+      endpoint: "/api/v1/calculators/vimshottari-dasha",
+    },
+    {
       slug: "sade-sati",
       title: "Shani Sade Sati Check",
       hi: "साढ़े साती",
       description:
-        "Saturn's 7.5-year transit relative to your Moon sign — current phase, window start/end and next window.",
+        "Saturn's 7.5-year transit relative to your Moon sign — current phase, window start/end, dhaiya and next window.",
       kind: "birth",
       endpoint: "/api/v1/calculators/sade-sati",
+      extraFields: [{ name: "as_of", label: "Check as of date", type: "date" }],
     },
     {
       slug: "mangal-dosha",
@@ -57,9 +94,16 @@ export function getStaticPaths() {
       description:
         "Mars placement in houses 1, 2, 4, 7, 8, 12 from Lagna, Moon and Venus — with classical cancellations.",
       kind: "birth",
-      endpoint: "/api/v1/kundli",
+      endpoint: "/api/v1/calculators/mangal-dosha",
       submitLabel: "Evaluate Mars",
-      note: "This tool runs the full kundli endpoint and highlights the Manglik verdict.",
+      extraFields: [
+        {
+          name: "gender",
+          label: "Gender",
+          type: "text",
+          options: ["male", "female", "other"],
+        },
+      ],
     },
     {
       slug: "kaal-sarp",
@@ -68,7 +112,7 @@ export function getStaticPaths() {
       description:
         "Whether all seven grahas are hemmed within one Rahu–Ketu axis, and the classical type by Rahu's house.",
       kind: "birth",
-      endpoint: "/api/v1/kundli",
+      endpoint: "/api/v1/calculators/kaal-sarp",
       submitLabel: "Check Kaal Sarp",
     },
     {
@@ -106,7 +150,7 @@ export function getStaticPaths() {
         "The Moon's phase for any date — illumination, lunar age, and the next new & full moon.",
       kind: "date",
       endpoint: "/api/v1/calculators/moon-phase",
-      extraFields: [{ name: "time", label: "Time", type: "time" }],
+      extraFields: [{ name: "time", label: "Time (UTC)", type: "time" }],
       note: "Date and the optional time are interpreted in UTC; without a time, 12:00 UTC is used.",
     },
     {
@@ -115,12 +159,10 @@ export function getStaticPaths() {
       hi: "सूर्य राशि",
       description:
         "Your Western sun sign AND your Vedic Surya Rashi — with the Sun's nakshatra, pada and planetary lord.",
-      kind: "date",
+      kind: "date-place",
       endpoint: "/api/v1/calculators/sun-sign",
-      note: "Computed for 12:00 UTC on the chosen date; cusp-day births may differ near sign ingresses.",
+      note: "Without a time and place the sign is computed for 12:00 UTC; add both for an exact instant (cusp-day births may differ).",
     },
-    // (moon-phase/sun-sign sit in the astronomy group; the hub lists all three new
-    // tools under "More tools", like the other Tier-2 registry entries)
     // Tier 2 (§5.7 "build next")
     {
       slug: "numerology",
@@ -154,15 +196,26 @@ export function getStaticPaths() {
       slug: "vehicle-number",
       title: "Lucky Vehicle Number",
       hi: "वाहन अंक",
-      description: "Favourable registration numbers from your birth-day number's planetary lord.",
+      description:
+        "Is a registration plate lucky for you? Two numerology schools read the plate against your birth numbers.",
       kind: "date",
-      endpoint: "/api/v1/calculators/vehicle-number",
+      endpoint: "/api/v1/calculators/vehicle-plate",
+      extraFields: [
+        {
+          name: "plate",
+          label: "Registration plate",
+          type: "text",
+          placeholder: "e.g. DL 8C AF 1234",
+          required: true,
+        },
+      ],
+      note: "Enter a standard Indian plate (state + RTO + series + number). The owner date personalises the verdict.",
     },
     {
       slug: "name-numerology",
       title: "Lucky Name Numerology",
       hi: "नाम अंक",
-      description: "Chaldean value of your name with its planetary lord.",
+      description: "Chaldean value of your name with its planetary lord and per-word subtotals.",
       kind: "name",
       endpoint: "/api/v1/calculators/name-numerology",
       extraFields: [
@@ -172,6 +225,11 @@ export function getStaticPaths() {
           type: "text",
           placeholder: "Your name",
           required: true,
+        },
+        {
+          name: "date",
+          label: "Your birth date",
+          type: "date",
         },
       ],
     },
@@ -187,7 +245,7 @@ export function getStaticPaths() {
           name: "digits",
           label: "Mobile number",
           type: "text",
-          placeholder: "10–15 digits",
+          placeholder: "10 digits (or +91 …)",
           required: true,
         },
       ],
@@ -197,9 +255,12 @@ export function getStaticPaths() {
       slug: "age",
       title: "Age Calculator",
       hi: "आयु गणना",
-      description: "Exact calendar age — years, months, days, total days.",
+      description:
+        "Exact calendar age — years, months, days, total weeks and hours, and your next birthday.",
       kind: "age",
       endpoint: "/api/v1/calculators/age",
+      extraFields: [{ name: "now", label: "Age at date", type: "date" }],
+      note: "Leave “Age at date” empty for your age today.",
     },
     {
       slug: "name-compatibility",
@@ -302,30 +363,62 @@ const API_NOTE = "Free · instant · computed live — nothing is stored.";
     <div class="panel">
       {
         tool.kind === "birth" ? (
-          <BirthForm endpoint={tool.endpoint} submitLabel={tool.submitLabel ?? "Calculate"} note={tool.note} />
+          <BirthForm
+            endpoint={tool.endpoint}
+            submitLabel={tool.submitLabel ?? "Calculate"}
+            note={tool.note}
+            extraFields={tool.extraFields}
+          />
         ) : tool.kind === "transits" ? (
-          <form class="grid grid-cols-2 sm:grid-cols-3 gap-3 items-end" data-calc-endpoint={tool.endpoint} autocomplete="off">
+          <form class="grid grid-cols-2 sm:grid-cols-3 gap-3 items-end" data-calc-endpoint={tool.endpoint} data-place-required="true" autocomplete="off">
             <PlaceField variant="separate" inputId="bf-place" label="Place" />
             <button type="submit" class="btn">{tool.submitLabel ?? "Calculate"}</button>
           </form>
         ) : (
-          <form class="grid grid-cols-2 sm:grid-cols-3 gap-3 items-end" data-calc-endpoint={tool.endpoint} autocomplete="off">
-            <div>
-              <label class="lbl" for="bf-date">Date</label>
-              <input class="inp" id="bf-date" name="date" type="date" required={tool.kind !== "name" && tool.kind !== "names" && tool.kind !== "mobile"} />
-            </div>
+          <form
+            class="grid grid-cols-2 sm:grid-cols-3 gap-3 items-end"
+            data-calc-endpoint={tool.endpoint}
+            data-place-required={tool.kind === "date-place" ? "false" : undefined}
+            autocomplete="off"
+          >
+            {tool.kind === "date-place" && (
+              <div>
+                <label class="lbl" for="bf-time">Time of birth (optional)</label>
+                <input class="inp" id="bf-time" name="time" type="time" />
+              </div>
+            )}
+            {tool.kind !== "names" && tool.kind !== "name" && tool.kind !== "mobile" && (
+              <div>
+                <label class="lbl" for="bf-date">{tool.kind === "age" ? "Date of birth" : "Date"}</label>
+                <input class="inp" id="bf-date" name="date" type="date" required />
+              </div>
+            )}
             {(tool.kind === "name" || tool.kind === "names" || tool.kind === "date-name") && (
               <div>
-                <label class="lbl" for="bf-name">Name{tool.kind === "names" ? " 1" : ""}</label>
-                <input class="inp" id="bf-name" name="name" type="text" placeholder={tool.kind === "names" ? "First name" : "Your name"} required={tool.kind === "name" || tool.kind === "names"} />
+                <label class="lbl" for="bf-name">{tool.kind === "names" ? "First name" : "Name"}</label>
+                <input class="inp" id="bf-name" name={tool.kind === "names" ? "a" : "name"} type="text" placeholder={tool.kind === "names" ? "First name" : "Your name"} required />
               </div>
             )}
             {tool.extraFields?.filter((f) => f.name !== "name").map((f) => (
               <div>
                 <label class="lbl" for={`bf-${f.name}`}>{f.label}{f.required ? "" : " (optional)"}</label>
-                <input class="inp" id={`bf-${f.name}`} name={f.name} type={f.type} placeholder={f.placeholder ?? ""} required={f.required === true} />
+                {f.options ? (
+                  <select class="inp" id={`bf-${f.name}`} name={f.name} required={f.required === true}>
+                    {f.required !== true && <option value="">—</option>}
+                    {f.options.map((opt) => (
+                      <option value={opt}>{opt}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <input class="inp" id={`bf-${f.name}`} name={f.name} type={f.type} placeholder={f.placeholder ?? ""} required={f.required === true} />
+                )}
               </div>
             ))}
+            {tool.kind === "date-place" && (
+              <div class="col-span-2 sm:col-span-3">
+                <PlaceField variant="separate" inputId="bf-place" label="Place of birth (optional — for the exact instant)" />
+              </div>
+            )}
             <button type="submit" class="btn">{tool.submitLabel ?? "Calculate"}</button>
           </form>
         )
@@ -344,84 +437,76 @@ const API_NOTE = "Free · instant · computed live — nothing is stored.";
   </section>
 </Base>
 
-<script define:vars={{ endpoint: tool.endpoint, toolSlug: tool.slug, apiBase: (import.meta.env.PUBLIC_API_BASE_URL ?? "https://astro-backend.vyotish.workers.dev") }}>
-  (function () {
-    var form = document.querySelector("form[data-calc-endpoint]");
-    var box = document.querySelector("[data-calc-result]");
-    if (!form || !box) return;
+<script>
+  // Shared submit/fetch logic for every registry calculator page. Rendering is
+  // delegated to the block renderer (S14-2 AC-2); this file owns the form →
+  // querystring plumbing and the four states (empty/loading/error/results).
+  import { esc, renderCalculatorResult } from "../../scripts/calculator-renderer";
 
-    function esc(s) {
-      return String(s == null ? "" : s).replace(/[&<>"']/g, function (ch) {
-        return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch];
-      });
-    }
+  const apiBase =
+    import.meta.env.PUBLIC_API_BASE_URL ?? "https://astro-backend.vyotish.workers.dev";
+  const form = document.querySelector<HTMLFormElement>("form[data-calc-endpoint]");
+  const box = document.querySelector<HTMLElement>("[data-calc-result]");
+  if (form && box) {
+    const toolSlug = location.pathname.split("/").pop() ?? "";
+    const placeRequired = form.getAttribute("data-place-required") === "true";
 
-    function renderObject(obj) {
-      var html = "";
-      Object.keys(obj).forEach(function (k) {
-        if (k === "engine_version" || k === "consent_note") return;
-        html += "<div class='row'><span class='k'>" + esc(k) + "</span><span class='v'>" + renderValue(obj[k]) + "</span></div>";
-      });
-      return html;
-    }
-
-    function renderValue(v) {
-      if (v === null || v === undefined || v === "") return "—";
-      if (typeof v === "boolean") return v ? "Yes" : "No";
-      if (Array.isArray(v)) {
-        if (v.every(function (x) { return x === null || typeof x !== "object"; })) {
-          return v.map(function (x) { return esc(x); }).join(", ") || "—";
-        }
-        return "<div class='stack'>" + v.map(function (x) {
-          return typeof x === "object" ? "<div class='obj'>" + renderObject(x) + "</div>" : esc(x);
-        }).join("") + "</div>";
-      }
-      if (typeof v === "object") return "<div class='stack'><div class='obj'>" + renderObject(v) + "</div></div>";
-      return esc(v);
-    }
-
-    form.addEventListener("submit", function (e) {
+    form.addEventListener("submit", (e) => {
       e.preventDefault();
-      // birthplace picker guard — no coordinates until a suggestion is picked
-      var latField = form.querySelector('[data-place-role="lat"]');
-      if (latField && !latField.value) {
-        var st = form.querySelector("[data-place-status]");
-        if (st) st.textContent = "Please select your place of birth from the suggestions.";
+      const latField = form.querySelector<HTMLInputElement>('[data-place-role="lat"]');
+      const timeField = form.querySelector<HTMLInputElement>('[name="time"]');
+
+      // birthplace picker guard — required forms need a pick before submitting;
+      // optional-place forms (sun-sign) only need it when a local time is given
+      if (latField && !latField.value && (placeRequired || (timeField && timeField.value))) {
+        const st = form.querySelector<HTMLElement>("[data-place-status]");
+        if (st) {
+          st.textContent = placeRequired
+            ? "Please select your place of birth from the suggestions."
+            : "Add your place of birth to use the birth time — or clear the time field.";
+        }
         return;
       }
-      var fd = new FormData(form);
-      var qs = new URLSearchParams();
-      fd.forEach(function (value, key) {
+
+      const qs = new URLSearchParams();
+      new FormData(form).forEach((value, key) => {
         if (String(value).trim() !== "") qs.set(key, String(value).trim());
       });
-      var base = form.getAttribute("data-calc-endpoint");
-      var url = apiBase + base + (base.indexOf("?") >= 0 ? "&" : "?") + qs.toString();
-      box.innerHTML = "<p class='hint'>Calculating…</p>";
+      // optional-place pages: place coordinates only count when picked
+      if (latField && !latField.value) {
+        qs.delete("lat");
+        qs.delete("lng");
+        qs.delete("tz");
+        qs.delete("time");
+      }
+
+      const base = form.getAttribute("data-calc-endpoint") ?? "";
+      const url = apiBase + base + (base.indexOf("?") >= 0 ? "&" : "?") + qs.toString();
+      box.setAttribute("aria-busy", "true");
+      box.innerHTML = '<p class="hint">Calculating…</p>';
       fetch(url)
-        .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
-        .then(function (r) {
-          if (!r.ok || r.j.error) {
-            var msg = (r.j && r.j.error && r.j.error.message) || "The calculation failed — please check the inputs and try again.";
-            box.innerHTML = "<p class='hint err'>" + esc(msg) + "</p>";
+        .then((r) => r.json().then((j) => ({ ok: r.ok, j })))
+        .then(({ ok, j }) => {
+          box.removeAttribute("aria-busy");
+          if (!ok || j.error) {
+            const msg =
+              (j && j.error && j.error.message) ||
+              "The calculation failed — please check the inputs and try again.";
+            box.innerHTML = `<p class="hint err">${esc(msg)}${ok ? "" : " Please check the inputs."}</p>`;
             return;
           }
-          var data = r.j.data || {};
-          var html = "<div class='grid-result'>" + renderObject(data) + "</div>";
-          if (data.verified === false) {
-            html += "<p class='flagline'>Table set pending Jyotishi review (P11) — treat as indicative.</p>";
-          }
-          if (data.for_fun === true) {
-            html += "<p class='flagline'>For entertainment only.</p>";
-          }
-          box.innerHTML = html;
+          renderCalculatorResult(base, j.data ?? {}, j.meta ?? null, box);
           // Epic 7.4 — consent-gated analytics; no-op unless GA4 is loaded
-          if (window.vyTrack) window.vyTrack("calculator_used", { tool: toolSlug });
+          const w = window as unknown as { vyTrack?: (event: string, props: unknown) => void };
+          w.vyTrack?.("calculator_used", { tool: toolSlug });
         })
-        .catch(function () {
-          box.innerHTML = "<p class='hint err'>The backend could not be reached — please refresh and try again.</p>";
+        .catch(() => {
+          box.removeAttribute("aria-busy");
+          box.innerHTML =
+            '<p class="hint err">The backend could not be reached — please refresh and try again.</p>';
         });
     });
-  })();
+  }
 </script>
 
 <style>
@@ -441,21 +526,157 @@ const API_NOTE = "Free · instant · computed live — nothing is stored.";
   .btn { min-height: 44px; padding: 9px 18px; border-radius: 8px; background: var(--color-primary); color: var(--color-on-primary); font-weight: 600; font-size: 14px; border: none; cursor: pointer; }
   .result { margin-top: var(--space-4); border-top: 1px dashed var(--color-border); padding-top: var(--space-4); }
   .tool-note { color: var(--text-faint); font-size: 12.5px; margin-bottom: var(--space-2); }
-  .hint { color: var(--text-dim); font-size: 13.5px; }
-  .hint.err { color: #e0806d; }
-  .grid-result { display: flex; flex-direction: column; gap: 6px; }
-  .row { display: grid; grid-template-columns: 200px 1fr; gap: var(--space-3); padding: 4px 0; border-bottom: 1px solid var(--color-border); }
-  .k { color: var(--text-dim); font-size: 13px; }
-  .v { color: var(--ivory); font-size: 14px; }
-  .stack { display: flex; flex-direction: column; gap: 6px; }
-  .obj { border-left: 2px solid var(--border-gold-soft); padding-left: var(--space-3); display: flex; flex-direction: column; gap: 2px; }
-  .obj .row { border-bottom: none; grid-template-columns: 160px 1fr; }
-  /* narrow phones: stack label above value instead of a 200px label column
-     eating most of the card (UX audit F8) */
-  @media (max-width: 480px) {
-    .row, .obj .row { grid-template-columns: 1fr; gap: 2px; }
-  }
-  .flagline { margin-top: var(--space-3); font-size: 12px; color: var(--text-dim); }
   .more { margin-top: var(--space-5); font-size: 13.5px; color: var(--text-dim); }
   .more a { color: var(--gold); }
+</style>
+
+<style is:global>
+  /* Result-region classes are injected by scripts/calculator-renderer.ts —
+     they can never match Astro scoped CSS, so they are global here and keyed
+     off [data-calc-result] (root-cause fix for the "alignment" complaint). */
+  [data-calc-result] .hint { color: var(--text-dim); font-size: 13.5px; }
+  [data-calc-result] .hint.err { color: var(--color-error-text); }
+
+  /* B1 verdict card */
+  [data-calc-result] .verdict-card {
+    background: var(--color-primary);
+    color: var(--color-on-primary);
+    border: 1px solid var(--border-emphasis);
+    border-radius: var(--radius-card);
+    padding: var(--space-4) var(--space-5);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  [data-calc-result] .verdict-eyebrow {
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    font-weight: 600;
+    opacity: 0.85;
+  }
+  [data-calc-result] .verdict-main {
+    font-family: var(--font-display);
+    font-size: clamp(28px, 5vw, 40px);
+    line-height: 1.15;
+  }
+  [data-calc-result] .verdict-sub { font-size: 14px; opacity: 0.85; }
+  [data-calc-result] .status-chip {
+    align-self: flex-start;
+    margin-top: var(--space-1, 4px);
+    font-size: 12px;
+    font-weight: 600;
+    border-radius: 999px;
+    padding: 3px 10px;
+    background: rgba(255, 255, 255, 0.14);
+    border: 1px solid rgba(255, 255, 255, 0.35);
+  }
+
+  /* B2 chips */
+  [data-calc-result] .chip-row { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-3); }
+  [data-calc-result] .chip {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 6px;
+    background: var(--color-tint);
+    border: 1px solid var(--color-border-strong);
+    border-radius: 999px;
+    padding: 4px 12px;
+    font-size: 13px;
+    color: var(--color-text);
+  }
+  [data-calc-result] .chip-k { color: var(--text-muted); font-size: 11.5px; }
+  [data-calc-result] .chip-v { font-weight: 600; }
+  [data-calc-result] .chip-good { border-color: var(--color-auspicious-text); }
+  [data-calc-result] .chip-bad { border-color: var(--color-inauspicious-text); }
+  [data-calc-result] .chip-info { border-color: var(--border-emphasis); }
+
+  /* B3 meaning */
+  [data-calc-result] .meaning { margin-top: var(--space-4); max-width: 640px; }
+  [data-calc-result] .meaning p { color: var(--color-text); font-size: 14.5px; line-height: 1.65; margin: 0 0 var(--space-2); }
+  [data-calc-result] .guidance { margin: var(--space-2) 0; padding-left: var(--space-5); color: var(--color-text); font-size: 13.5px; line-height: 1.6; }
+  [data-calc-result] .basis { color: var(--text-faint); font-size: 12px; }
+
+  /* B4 detail cards */
+  [data-calc-result] .detail-card {
+    margin-top: var(--space-3);
+    background: var(--bg-raised);
+    border: 1px solid var(--color-border-strong);
+    border-radius: var(--radius-card);
+    padding: var(--space-4);
+  }
+  [data-calc-result] .detail-title { font-size: 13px; font-weight: 600; color: var(--text-muted); margin-bottom: var(--space-2); }
+  [data-calc-result] .row {
+    display: grid;
+    grid-template-columns: minmax(140px, 200px) 1fr;
+    gap: var(--space-3);
+    padding: 5px 0;
+    border-bottom: 1px solid var(--color-border);
+  }
+  [data-calc-result] .row:last-child { border-bottom: none; }
+  [data-calc-result] .k { color: var(--text-dim); font-size: 13px; }
+  [data-calc-result] .v { color: var(--color-text); font-size: 14px; overflow-wrap: anywhere; }
+  @media (max-width: 480px) {
+    [data-calc-result] .row { grid-template-columns: 1fr; gap: 2px; }
+  }
+
+  /* tables (dasha / kaal-sarp / karakas / transits / lo-shu lines) */
+  [data-calc-result] .table-scroll { overflow-x: auto; max-width: 100%; }
+  [data-calc-result] .table { width: 100%; border-collapse: collapse; font-size: 13.5px; color: var(--color-text); }
+  [data-calc-result] .table th {
+    text-align: left;
+    font-size: 11.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+    border-bottom: 1px solid var(--color-border-strong);
+    padding: 6px 10px 6px 0;
+    white-space: nowrap;
+  }
+  [data-calc-result] .table td { padding: 6px 10px 6px 0; border-bottom: 1px solid var(--color-border); }
+  [data-calc-result] .cell-badge {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 600;
+    border-radius: 999px;
+    padding: 1px 8px;
+    background: var(--color-inauspicious-bg);
+    color: var(--color-inauspicious-text);
+  }
+  [data-calc-result] .cell-good { color: var(--color-auspicious-text); font-weight: 600; }
+  [data-calc-result] .cell-bad { color: var(--color-inauspicious-text); font-weight: 600; }
+  [data-calc-result] .cell-info { color: var(--color-text); font-weight: 600; }
+  [data-calc-result] .cell-hl { font-weight: 700; text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--border-emphasis); }
+
+  /* Lo Shu 3×3 grid */
+  [data-calc-result] .loshu {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--space-2);
+    max-width: 340px;
+  }
+  [data-calc-result] .loshu-cell {
+    aspect-ratio: 1;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+  }
+  [data-calc-result] .loshu-cell.has { background: var(--color-tint); border: 1px solid var(--color-border-strong); }
+  [data-calc-result] .loshu-cell.miss { border: 1px dashed var(--color-border-strong); opacity: 0.55; }
+  [data-calc-result] .loshu-cell .ln { font-family: var(--font-display); font-size: 20px; color: var(--color-text); }
+  [data-calc-result] .loshu-cell .lp { font-size: 10.5px; color: var(--text-muted); }
+  [data-calc-result] .legend { margin-top: var(--space-2); font-size: 12px; color: var(--text-faint); }
+
+  /* progress bar */
+  [data-calc-result] .bar { height: 10px; border-radius: 999px; background: var(--color-tint); overflow: hidden; max-width: 420px; }
+  [data-calc-result] .bar-fill { height: 100%; background: var(--color-primary); border-radius: 999px; }
+  [data-calc-result] .bar-label { margin-top: var(--space-1, 4px); font-size: 12.5px; color: var(--text-muted); }
+
+  [data-calc-result] .blist { margin: var(--space-2) 0 0; padding-left: var(--space-5); color: var(--color-text); font-size: 13.5px; line-height: 1.7; }
+
+  /* B5 footnotes */
+  [data-calc-result] .flagline { margin-top: var(--space-3); font-size: 12px; color: var(--text-dim); }
 </style>
