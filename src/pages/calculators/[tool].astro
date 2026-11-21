@@ -98,6 +98,29 @@ export function getStaticPaths() {
       endpoint: "/api/v1/calculators/transits",
       submitLabel: "Fetch Current Positions",
     },
+    {
+      slug: "moon-phase",
+      title: "Moon Phase Calculator",
+      hi: "चंद्र कला",
+      description:
+        "The Moon's phase for any date — illumination, lunar age, and the next new & full moon.",
+      kind: "date",
+      endpoint: "/api/v1/calculators/moon-phase",
+      extraFields: [{ name: "time", label: "Time", type: "time" }],
+      note: "Date and the optional time are interpreted in UTC; without a time, 12:00 UTC is used.",
+    },
+    {
+      slug: "sun-sign",
+      title: "Sun Sign Calculator",
+      hi: "सूर्य राशि",
+      description:
+        "Your Western sun sign AND your Vedic Surya Rashi — with the Sun's nakshatra, pada and planetary lord.",
+      kind: "date",
+      endpoint: "/api/v1/calculators/sun-sign",
+      note: "Computed for 12:00 UTC on the chosen date; cusp-day births may differ near sign ingresses.",
+    },
+    // (moon-phase/sun-sign sit in the astronomy group; the hub lists all three new
+    // tools under "More tools", like the other Tier-2 registry entries)
     // Tier 2 (§5.7 "build next")
     {
       slug: "numerology",
@@ -108,6 +131,15 @@ export function getStaticPaths() {
       kind: "date-name",
       endpoint: "/api/v1/calculators/numerology",
       extraFields: [{ name: "name", label: "Full name", type: "text", placeholder: "Your name" }],
+    },
+    {
+      slug: "destiny-number",
+      title: "Destiny Number (Bhagyank)",
+      hi: "भाग्यांक",
+      description:
+        "Bhagyank from your full date of birth, with Mulank (psychic number) and both planetary lords.",
+      kind: "date",
+      endpoint: "/api/v1/calculators/destiny-number",
     },
     {
       slug: "lo-shu",
@@ -299,6 +331,7 @@ const API_NOTE = "Free · instant · computed live — nothing is stored.";
         )
       }
 
+      {tool.note && tool.kind !== "birth" && <p class="tool-note">{tool.note}</p>}
       <section class="result" data-calc-result aria-live="polite">
         <p class="hint">Your result will appear here — instant, and nothing is stored.</p>
       </section>
@@ -404,8 +437,10 @@ const API_NOTE = "Free · instant · computed live — nothing is stored.";
   .panel { margin-top: var(--space-5); background: var(--bg-raised); border: 1px solid var(--color-border-strong); border-radius: var(--radius-card); padding: var(--space-5); }
   .lbl { display: block; font-size: 12px; font-weight: 600; color: var(--text-muted); margin-bottom: 4px; }
   .inp { width: 100%; min-height: 44px; padding: 8px 10px; border-radius: 8px; background: var(--bg); border: 1px solid var(--color-border-strong); color: var(--ivory); font-size: 14px; }
-  .btn { min-height: 44px; padding: 9px 18px; border-radius: 8px; background: var(--gold); color: #17201e; font-weight: 600; font-size: 14px; border: none; cursor: pointer; }
+  /* theme-aware pair (was: gold + hardcoded dark text → 1.97:1 in light mode) */
+  .btn { min-height: 44px; padding: 9px 18px; border-radius: 8px; background: var(--color-primary); color: var(--color-on-primary); font-weight: 600; font-size: 14px; border: none; cursor: pointer; }
   .result { margin-top: var(--space-4); border-top: 1px dashed var(--color-border); padding-top: var(--space-4); }
+  .tool-note { color: var(--text-faint); font-size: 12.5px; margin-bottom: var(--space-2); }
   .hint { color: var(--text-dim); font-size: 13.5px; }
   .hint.err { color: #e0806d; }
   .grid-result { display: flex; flex-direction: column; gap: 6px; }
