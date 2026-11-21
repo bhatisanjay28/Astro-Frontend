@@ -5,15 +5,33 @@
  * table otherwise); the chosen place is resolved to lat/lng/IANA-tz and
  * written into the wrapper's hidden role inputs, so the pages' existing
  * submit logic keeps working unchanged.
+ *
+ * Search-select UX (S15-1, owner directive 2026-11-21):
+ *   × clear button — visible whenever the input holds text; wipes text +
+ *     roles + selection, refocuses the input, announces via the status line.
+ *   focus/click select-all — the first keystroke replaces a filled field.
+ *   any edit after a selection invalidates it immediately (roles wiped,
+ *     data-place-selected removed, per-field Places session reset,
+ *     suggestions dropped), so a stale place can never submit with new text.
+ *   free text without a pick → aria-invalid + "Please select a city from
+ *     the list." on blur.
+ *   Escape closes the list (first press) and clears the field (second).
+ *   disabled/readonly fields bind nothing (no × button is rendered either).
+ *
+ * Selection state is the wrapper's data-place-selected="true" attribute —
+ * SSR prefill renders it, edits/clears remove it, and consumers/tests can
+ * read it. `window.vyPlacePicker.rebind()` re-derives it for fields injected
+ * after load (dynamic hosts) or whose saved state was written client-side.
  */
 
 const API_BASE = import.meta.env.PUBLIC_API_BASE_URL ?? "https://astro-backend.vyotish.workers.dev";
 
-// one billing session per page load (Google Places session pricing)
-const SESSION =
-  typeof crypto !== "undefined" && "randomUUID" in crypto
+/** fresh Google Places billing session — per field, reset on clear/edit-after-pick */
+function makeSession(): string {
+  return typeof crypto !== "undefined" && "randomUUID" in crypto
     ? crypto.randomUUID()
-    : String(Date.now());
+    : String(Date.now() + Math.random());
+}
 
 interface Suggestion {
   place_id: string;
@@ -57,11 +75,20 @@ function injectStyles(): void {
   document.head.appendChild(style);
 }
 
+const bound = new WeakSet<HTMLElement>();
+/** per-field state re-derivation (used by setupField and rebind) */
+const derivers = new WeakMap<HTMLElement, () => void>();
+
 function setupField(field: HTMLElement): void {
+  if (bound.has(field)) return;
+  bound.add(field);
   const input = field.querySelector<HTMLInputElement>("[data-place-input]");
   const list = field.querySelector<HTMLElement>("[data-place-list]");
   const status = field.querySelector<HTMLElement>("[data-place-status]");
   if (!input || !list || !status) return;
+  // locked fields (AC-8): no bindings, no clear button, no validation
+  if (input.disabled || input.readOnly) return;
+  const clearBtn = field.querySelector<HTMLButtonElement>("[data-place-clear]");
   const roles = {
     lat: field.querySelector<HTMLInputElement>('[data-place-role="lat"]'),
     lng: field.querySelector<HTMLInputElement>('[data-place-role="lng"]'),
@@ -74,17 +101,59 @@ function setupField(field: HTMLElement): void {
   let activeIdx = -1;
   let debounceT: ReturnType<typeof setTimeout> | undefined;
   let lastQuery = "";
+  let session = makeSession();
 
-  const clearValue = (): void => {
-    for (const el of [roles.lat, roles.lng, roles.tz, roles.combined, roles.place_id]) {
-      if (el) el.value = "";
-    }
+  const isSelected = (): boolean => field.getAttribute("data-place-selected") === "true";
+
+  const setError = (msg: string): void => {
+    status.textContent = msg;
+    status.classList.add("pp-error");
+    input.setAttribute("aria-invalid", "true");
+  };
+
+  const clearError = (): void => {
+    status.classList.remove("pp-error");
+    input.removeAttribute("aria-invalid");
+  };
+
+  /** plain (non-error) status text — also drops any validation state */
+  const say = (msg: string): void => {
+    clearError();
+    status.textContent = msg;
   };
 
   const close = (): void => {
     list.hidden = true;
     input.setAttribute("aria-expanded", "false");
     activeIdx = -1;
+  };
+
+  const syncClear = (): void => {
+    if (!clearBtn) return;
+    const show = input.value.length > 0;
+    clearBtn.hidden = !show;
+    input.classList.toggle("has-clear", show);
+  };
+
+  const clearRoles = (): void => {
+    for (const el of [roles.lat, roles.lng, roles.tz, roles.combined, roles.place_id]) {
+      if (el) el.value = "";
+    }
+    field.removeAttribute("data-place-selected");
+  };
+
+  /** full clear — text + stored selection (AC-1); refocus + announce */
+  const clearField = (announce: boolean): void => {
+    input.value = "";
+    lastQuery = "";
+    clearRoles();
+    items = [];
+    session = makeSession();
+    clearError();
+    status.textContent = announce ? "City cleared." : "";
+    close();
+    syncClear();
+    input.focus();
   };
 
   const renderList = (): void => {
@@ -95,7 +164,7 @@ function setupField(field: HTMLElement): void {
       list.innerHTML = items
         .map(
           (s, i) =>
-            `<button type="button" class="pp-opt${i === activeIdx ? " active" : ""}" role="option" aria-selected="${i === activeIdx}" data-idx="${i}">` +
+            `<button type="button" class="pp-opt${i === activeIdx ? " active" : ""}" role="option" aria-selected="${i === activeIdx}" tabindex="-1" data-idx="${i}">` +
             `<span class="pp-main">${esc(s.main)}</span>` +
             (s.secondary ? `<span class="pp-sec">${esc(s.secondary)}</span>` : "") +
             `</button>`,
@@ -110,13 +179,17 @@ function setupField(field: HTMLElement): void {
     const s = items[idx];
     if (!s) return;
     input.value = s.label;
-    status.textContent = "Resolving coordinates…";
+    say("Resolving coordinates…");
     close();
     fetch(`${API_BASE}/api/v1/places/resolve?place_id=${encodeURIComponent(s.place_id)}`)
       .then((r) => r.json().then((j) => ({ ok: r.ok, j })))
       .then(({ ok, j }) => {
         if (!ok || j.error) {
-          status.textContent = "Could not resolve that place — please pick another from the list.";
+          // fail closed: the previous selection (if any) must not linger
+          clearRoles();
+          syncClear();
+          say("Could not resolve that place — please pick another from the list.");
+          input.select();
           return;
         }
         const d = j.data as {
@@ -127,14 +200,18 @@ function setupField(field: HTMLElement): void {
           label: string;
           structured?: Record<string, unknown>;
         };
-        clearValue();
+        clearRoles();
         const pid = d.place_id ?? s.place_id;
         if (roles.place_id) roles.place_id.value = pid;
         if (roles.combined) roles.combined.value = `${d.lat},${d.lng},${d.tz}`;
         if (roles.lat) roles.lat.value = String(d.lat);
         if (roles.lng) roles.lng.value = String(d.lng);
         if (roles.tz) roles.tz.value = d.tz;
-        status.textContent = `✓ ${d.label || s.label}`;
+        field.setAttribute("data-place-selected", "true");
+        session = makeSession(); // this session was consumed by the pick
+        syncClear();
+        say(`✓ ${d.label || s.label}`);
+        input.select(); // type-to-replace without refocusing (AC-2)
         // bubbles so section-level consumers can listen on a wrapper
         field.dispatchEvent(
           new CustomEvent("place:selected", {
@@ -149,18 +226,20 @@ function setupField(field: HTMLElement): void {
         );
       })
       .catch(() => {
-        status.textContent = "Could not reach the place service — please try again.";
+        clearRoles();
+        syncClear();
+        say("Could not reach the place service — please try again.");
       });
   };
 
   const fetchSuggest = (q: string): void => {
     lastQuery = q;
-    fetch(`${API_BASE}/api/v1/places/autocomplete?q=${encodeURIComponent(q)}&session=${SESSION}`)
+    fetch(`${API_BASE}/api/v1/places/autocomplete?q=${encodeURIComponent(q)}&session=${session}`)
       .then((r) => r.json().then((j) => ({ ok: r.ok, j })))
       .then(({ ok, j }) => {
         if (!ok || j.error) {
           items = [];
-          status.textContent = "Suggestions are unavailable right now — please try again shortly.";
+          say("Suggestions are unavailable right now — please try again shortly.");
           close();
           return;
         }
@@ -168,7 +247,8 @@ function setupField(field: HTMLElement): void {
         renderList();
       })
       .catch(() => {
-        status.textContent = "Suggestions are unavailable right now — please try again shortly.";
+        items = [];
+        say("Suggestions are unavailable right now — please try again shortly.");
         close();
       });
   };
@@ -182,10 +262,27 @@ function setupField(field: HTMLElement): void {
     if (!Number.isNaN(idx)) choose(idx);
   });
 
+  // AC-2: the first keystroke replaces a filled field. Deferred one tick —
+  // a real mouse click finalises caret placement after the click handler,
+  // which would collapse a synchronous select().
+  const scheduleSelect = (): void => {
+    if (input.value) setTimeout(() => input.select(), 0);
+  };
+  input.addEventListener("focus", scheduleSelect);
+  input.addEventListener("click", scheduleSelect);
+
   input.addEventListener("input", () => {
-    // typing invalidates any previous selection (stale coordinates guard)
-    clearValue();
+    // typing invalidates any previous selection (stale coordinates guard, AC-2/3)
+    const hadSelection = isSelected();
+    clearRoles();
+    if (hadSelection) {
+      items = []; // drop the consumed session's suggestions (AC-3)
+      session = makeSession();
+      lastQuery = ""; // retyping the same query must fetch again (session consumed)
+    }
+    clearError();
     status.textContent = "";
+    syncClear();
     const q = input.value.trim();
     if (debounceT) clearTimeout(debounceT);
     if (q.length < 2) {
@@ -198,6 +295,12 @@ function setupField(field: HTMLElement): void {
   });
 
   input.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      // AC-5: first Esc closes the list, second Esc clears the field
+      if (!list.hidden) close();
+      else if (input.value) clearField(true);
+      return;
+    }
     if (list.hidden || items.length === 0) return;
     if (e.key === "ArrowDown") {
       e.preventDefault();
@@ -210,15 +313,64 @@ function setupField(field: HTMLElement): void {
     } else if (e.key === "Enter") {
       e.preventDefault();
       choose(Math.max(activeIdx, 0));
-    } else if (e.key === "Escape") {
-      close();
     }
   });
 
-  input.addEventListener("blur", () => setTimeout(close, 150));
+  if (clearBtn) {
+    // keep focus in the input while using × (AC-1)
+    clearBtn.addEventListener("mousedown", (e) => e.preventDefault());
+    clearBtn.addEventListener("click", () => clearField(true));
+  }
+
+  input.addEventListener("blur", () =>
+    setTimeout(() => {
+      close();
+      // focus moved back inside the field (e.g. × keeps it via mousedown) — skip
+      if (field.contains(document.activeElement)) return;
+      // AC-4: free text without a pick must never look valid
+      if (input.value.trim() && !isSelected()) setError("Please select a city from the list.");
+    }, 150),
+  );
+
+  derivers.set(
+    field,
+    (): void => {
+      // AC-7: adopt SSR prefill / saved state — visible text AND resolved roles
+      const rolesFilled = Boolean((roles.combined ?? roles.lat)?.value);
+      if (input.value.trim() && rolesFilled) {
+        field.setAttribute("data-place-selected", "true");
+        syncClear();
+      } else {
+        // nothing (or hidden-only defaults like muhurat's New Delhi) — no ×
+        field.removeAttribute("data-place-selected");
+        syncClear();
+      }
+    },
+  );
+  derivers.get(field)?.();
 }
 
 void (async () => {
   injectStyles();
   document.querySelectorAll<HTMLElement>("[data-place-field]").forEach(setupField);
 })();
+
+export {};
+
+declare global {
+  interface Window {
+    vyPlacePicker: { rebind(): void };
+  }
+}
+// Re-scan for fields added after load and re-derive saved state — the public
+// seam for dynamic hosts (and the e2e harness) that inject PlaceField markup
+// or write a saved place client-side.
+window.vyPlacePicker = {
+  rebind(): void {
+    injectStyles();
+    document.querySelectorAll<HTMLElement>("[data-place-field]").forEach((field) => {
+      if (!bound.has(field)) setupField(field);
+      derivers.get(field)?.();
+    });
+  },
+};

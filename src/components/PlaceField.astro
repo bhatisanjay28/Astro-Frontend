@@ -14,6 +14,16 @@
  *                                      or Google id) — always emitted
  * The script dispatches a "place:selected" event on the wrapper after a
  * successful resolve (used by the muhurat today-island to reload).
+ *
+ * Search-select UX (S15-1, owner directive 2026-11-21): the script also owns
+ * the clear (×) button — visible whenever the input holds text — plus
+ * focus-select-all, free-text validation state (aria-invalid + error status)
+ * and per-field Places sessions. Wrapper carries data-place-selected="true"
+ * while a resolved place is held.
+ *
+ * Edit mode: pass `prefill` to open with a saved place (visible text + role
+ * values + selected state, × visible). `disabled`/`readonly` render locked —
+ * no clear button and the picker binds nothing.
  */
 interface Props {
   label?: string;
@@ -30,6 +40,11 @@ interface Props {
   ids?: { lat?: string; lng?: string; tz?: string };
   /** extra attributes for the combined hidden input (e.g. data-mt-city) */
   hiddenAttrs?: Record<string, string>;
+  /** edit mode: pre-fill a saved place (coords = "lat,lng,tz") */
+  prefill?: { label: string; coords: string; place_id?: string };
+  /** locked field: no × button, picker binds nothing, no validation */
+  disabled?: boolean;
+  readonly?: boolean;
 }
 const {
   label = "Place of birth",
@@ -40,36 +55,68 @@ const {
   names = {},
   ids = {},
   hiddenAttrs = {},
+  prefill,
+  disabled,
+  readonly,
 } = Astro.props;
+const locked = disabled === true || readonly === true;
+const pfCoords = prefill ? prefill.coords.split(",") : [];
+const pf = {
+  label: prefill?.label ?? "",
+  lat: pfCoords[0] ?? "",
+  lng: pfCoords[1] ?? "",
+  tz: pfCoords[2] ?? "",
+  place_id: prefill?.place_id ?? "",
+};
 ---
 
-<div class="pp" data-place-field={required ? "required" : ""}>
+<div class="pp" data-place-field={required ? "required" : ""} data-place-selected={prefill ? "true" : undefined}>
   <label class="pp-label" for={inputId}>{label}</label>
-  <input
-    class="pp-input"
-    id={inputId}
-    type="text"
-    data-place-input
-    placeholder={placeholder}
-    autocomplete="off"
-    role="combobox"
-    aria-expanded="false"
-    aria-autocomplete="list"
-    aria-controls={`${inputId}-listbox`}
-  />
-  <div class="pp-list" id={`${inputId}-listbox`} data-place-list role="listbox" hidden></div>
+  <div class="pp-box">
+    <input
+      class="pp-input"
+      id={inputId}
+      type="text"
+      data-place-input
+      value={pf.label}
+      placeholder={placeholder}
+      autocomplete="off"
+      role="combobox"
+      aria-expanded="false"
+      aria-autocomplete="list"
+      aria-controls={`${inputId}-listbox`}
+      disabled={disabled}
+      readonly={readonly}
+    />
+    {
+      !locked && (
+        <button type="button" class="pp-clear" data-place-clear aria-label="Clear city" hidden>
+          <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+            <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" fill="none" />
+          </svg>
+        </button>
+      )
+    }
+    <div class="pp-list" id={`${inputId}-listbox`} data-place-list role="listbox" hidden></div>
+  </div>
   {
     variant === "separate" ? (
       <>
-        <input type="hidden" name={names.lat ?? "lat"} id={ids.lat} data-place-role="lat" />
-        <input type="hidden" name={names.lng ?? "lng"} id={ids.lng} data-place-role="lng" />
-        <input type="hidden" name={names.tz ?? "tz"} id={ids.tz} data-place-role="tz" />
-        <input type="hidden" name={names.place_id ?? "place_id"} data-place-role="place_id" />
+        <input type="hidden" name={names.lat ?? "lat"} id={ids.lat} data-place-role="lat" value={pf.lat} />
+        <input type="hidden" name={names.lng ?? "lng"} id={ids.lng} data-place-role="lng" value={pf.lng} />
+        <input type="hidden" name={names.tz ?? "tz"} id={ids.tz} data-place-role="tz" value={pf.tz} />
+        <input type="hidden" name={names.place_id ?? "place_id"} data-place-role="place_id" value={pf.place_id} />
       </>
     ) : (
       <>
-        <input type="hidden" name={names.combined ?? "city"} data-place-role="combined" {...hiddenAttrs} />
-        <input type="hidden" name={names.place_id ?? "place_id"} data-place-role="place_id" />
+        <input
+          type="hidden"
+          name={names.combined ?? "city"}
+          data-place-role="combined"
+          {...hiddenAttrs}
+          value={prefill ? prefill.coords : hiddenAttrs.value}
+        />
+        <input type="hidden" name={names.place_id ?? "place_id"} data-place-role="place_id" value={pf.place_id} />
       </>
     )
   }
@@ -83,6 +130,7 @@ const {
     color: var(--text-muted, #555);
     font-weight: 500;
   }
+  .pp-box { position: relative; display: flex; }
   .pp-input {
     min-height: var(--target-min, 44px);
     width: 100%;
@@ -96,5 +144,19 @@ const {
     font-size: 14px;
   }
   .pp-input:focus { outline: none; border-color: var(--gold, #c9a227); }
+  /* room for the × while it is visible (S15-1 AC-6) */
+  .pp-input.has-clear { padding-right: 46px; }
+  .pp-input[aria-invalid="true"] { border-color: var(--color-error-text, #b3261e); }
+  .pp-clear {
+    position: absolute; top: 0; right: 0; height: 100%;
+    min-width: 44px; min-height: 44px;
+    display: flex; align-items: center; justify-content: center;
+    background: transparent; border: none; cursor: pointer;
+    color: var(--text-dim, #777);
+    border-radius: var(--radius-card, 10px);
+  }
+  .pp-clear:hover { color: var(--text-body, #1a1a1a); }
+  .pp-clear:focus-visible { outline: 2px solid var(--gold, #c9a227); outline-offset: -2px; }
   .pp-status { font-size: 12.5px; color: var(--text-dim, #777); min-height: 1em; margin: 0; }
+  .pp-status.pp-error { color: var(--color-error-text, #b3261e); }
 </style>
