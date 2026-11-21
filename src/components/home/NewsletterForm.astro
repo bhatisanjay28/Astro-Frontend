@@ -22,8 +22,8 @@ const { source, placeholder, buttonClass, inputClass, success } = Astro.props;
     {source === "gemstones_notify" ? "Notify Me" : "Subscribe"}
   </button>
 </form>
-<p class="hidden font-body text-body-sm text-success font-medium mt-1" data-newsletter-ok>{success}</p>
-<p class="hidden font-body text-body-sm text-error mt-1" data-newsletter-fail role="alert">Could not subscribe right now — please try again.</p>
+<p class="hidden font-body text-body-sm text-success dark:text-[var(--color-auspicious-text)] font-medium mt-1" data-newsletter-ok>{success}</p>
+<p class="hidden font-body text-body-sm text-error dark:text-[var(--color-error-text)] mt-1" data-newsletter-fail role="alert">Could not subscribe right now — please try again.</p>
 
 <script define:vars={{ apiBase: import.meta.env.PUBLIC_API_BASE_URL ?? "https://astro-backend.vyotish.workers.dev" }}>
   document.querySelectorAll("[data-newsletter-form]").forEach(function (form) {

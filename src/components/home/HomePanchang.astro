@@ -17,7 +17,7 @@ import PlaceField from "../PlaceField.astro";
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
       <div>
         <div class="flex items-center gap-2">
-          <span class="font-label text-label-sm font-semibold uppercase tracking-wider text-saffron">Today at a Glance</span>
+          <span class="font-label text-label-sm font-semibold uppercase tracking-wider text-saffron dark:text-dark-primary">Today at a Glance</span>
           <span class="font-data text-label-sm px-2 py-0.5 rounded bg-light-primary-container text-light-on-primary-container dark:bg-dark-primary-container dark:text-dark-on-primary-container">Vedic Day: Sunrise to Sunrise</span>
         </div>
         <h2 class="font-headline text-headline-md font-bold text-light-on-surface dark:text-dark-on-surface mt-1">
@@ -86,7 +86,7 @@ import PlaceField from "../PlaceField.astro";
           <span class="material-symbols-outlined text-headline-sm">warning</span>
         </div>
         <div>
-          <span class="font-body text-body-sm text-error font-medium block">Rahu Kaal (Inauspicious)</span>
+          <span class="font-body text-body-sm text-error dark:text-[var(--color-error-text)] font-medium block">Rahu Kaal (Inauspicious)</span>
           <span class="font-data text-data-mono font-semibold text-light-on-surface dark:text-dark-on-surface" data-times="rahu">—</span>
         </div>
       </div>
@@ -96,7 +96,7 @@ import PlaceField from "../PlaceField.astro";
           <span class="material-symbols-outlined text-headline-sm">verified</span>
         </div>
         <div>
-          <span class="font-body text-body-sm text-success font-medium block">Abhijit Muhurat (Auspicious)</span>
+          <span class="font-body text-body-sm text-success dark:text-[var(--color-auspicious-text)] font-medium block">Abhijit Muhurat (Auspicious)</span>
           <span class="font-data text-data-mono font-semibold text-light-on-surface dark:text-dark-on-surface" data-times="abhijit">—</span>
         </div>
       </div>

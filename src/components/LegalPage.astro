@@ -218,13 +218,15 @@ const here = Astro.url.pathname.replace(/\/+$/, "");
     font-weight: 600;
     letter-spacing: 0.22em;
     text-transform: uppercase;
-    color: var(--color-accent);
+    /* accent gold is ≈3.1:1 on the light surface — the theme-aware
+       --color-accent-text passes AA in both modes (eyebrow contrast fix) */
+    color: var(--color-accent-text);
   }
   .edot {
     width: 6px;
     height: 6px;
     border-radius: 50%;
-    background: var(--color-accent);
+    background: var(--color-accent-text);
     flex-shrink: 0;
   }
   .legal-head h1 {
@@ -282,7 +284,9 @@ const here = Astro.url.pathname.replace(/\/+$/, "");
     font-weight: 600;
     letter-spacing: 0.18em;
     text-transform: uppercase;
-    color: var(--color-accent);
+    /* accent gold is ≈2.8:1 on the tinted card — theme-aware
+       --color-accent-text passes AA in both modes (eyebrow contrast fix) */
+    color: var(--color-accent-text);
   }
   .toc-count {
     font-size: 11px;
