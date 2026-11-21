@@ -10,6 +10,8 @@ export interface ExtraField {
   type: "text" | "date" | "tel" | "email" | "number" | "time";
   placeholder?: string;
   required?: boolean;
+  /** When present, renders a <select> with these options (e.g. gender). */
+  options?: string[];
 }
 interface Props {
   endpoint: string;
@@ -30,6 +32,7 @@ const labelClass =
 <form
   class="grid grid-cols-2 sm:grid-cols-3 gap-3 items-end"
   data-calc-endpoint={endpoint}
+  data-place-required="true"
   autocomplete="off"
 >
   <div>
@@ -52,14 +55,23 @@ const labelClass =
           {f.label}
           {f.required ? "" : " (optional)"}
         </label>
-        <input
-          class={inputClass}
-          id={`bf-${f.name}`}
-          name={f.name}
-          type={f.type}
-          placeholder={f.placeholder ?? ""}
-          required={f.required === true}
-        />
+        {f.options ? (
+          <select class={inputClass} id={`bf-${f.name}`} name={f.name} required={f.required === true}>
+            {f.required !== true && <option value="">—</option>}
+            {f.options.map((opt) => (
+              <option value={opt}>{opt}</option>
+            ))}
+          </select>
+        ) : (
+          <input
+            class={inputClass}
+            id={`bf-${f.name}`}
+            name={f.name}
+            type={f.type}
+            placeholder={f.placeholder ?? ""}
+            required={f.required === true}
+          />
+        )}
       </div>
     ))
   }
