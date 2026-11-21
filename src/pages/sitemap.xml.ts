@@ -33,6 +33,9 @@ const SIGNS = [
 const PERIODS = ["yesterday", "daily", "tomorrow", "weekly", "monthly", "yearly"];
 const TOOLS = [
   "rashi",
+  "nakshatra",
+  "lagna",
+  "vimshottari-dasha",
   "sade-sati",
   "mangal-dosha",
   "kaal-sarp",
