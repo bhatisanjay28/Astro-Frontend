@@ -159,7 +159,7 @@ export interface TimeParts {
 
 export interface TimeCheck {
   ok: boolean;
-  code: "incomplete" | "hour" | "minute" | "valid";
+  code: "incomplete" | "hour" | "minute" | "ampm" | "valid";
   message: string;
   /** 24-hour HH:MM — the only value the backend sees */
   value: string;
@@ -185,6 +185,11 @@ export function checkTime(parts: TimeParts, hour12: boolean): TimeCheck {
   }
   if (m < 0 || m > 59) {
     return { ok: false, code: "minute", message: "Minutes must be 00–59.", value: "" };
+  }
+  // a complete hh:mm WITHOUT a meridiem is still incomplete — assuming AM
+  // silently composed 10:30 PM as 10:30 AM, a wrong result (S18 owner find)
+  if (hour12 && parts.ampm !== "am" && parts.ampm !== "pm") {
+    return { ok: false, code: "ampm", message: "Select AM or PM.", value: "" };
   }
   let h24 = h;
   if (hour12) {
