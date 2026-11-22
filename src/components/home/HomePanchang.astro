@@ -126,7 +126,7 @@ import PlaceField from "../PlaceField.astro";
 </section>
 
 <script define:vars={{ apiBase: import.meta.env.PUBLIC_API_BASE_URL ?? "https://astro-backend.vyotish.workers.dev" }}>
-  // Live wiring (Epic 3.1 + D12): panchang from /api/v1/panchang in lat/lng/tz
+  // Live wiring: panchang from /api/v1/panchang in lat/lng/tz
   // mode (PlaceField resolves the city); current/next limbs rendered from the
   // server-picked `active` field — the client never computes picks itself.
   (function () {

@@ -46,4 +46,4 @@ the configuration and its axis without dramatising it
    in Jyotish mandates anxiety or expensive "fixes".
 
 That is Vyotish's editorial line across every calculator: show the mathematics, cite
-the classical rule, flag what awaits Jyotishi review, and never monetise fear.
+the classical rule, stay clear of fear-selling, and never monetise anxiety.

@@ -153,7 +153,7 @@ export function renderCalculatorResult(
   html += leftoverHtml(data, hide);
 
   if (data.verified === false) {
-    html += `<p class="flagline">Table set pending Jyotishi review (P11) — treat as indicative.</p>`;
+    html += `<p class="flagline">Tables follow widely published variants — treat results as indicative.</p>`;
   }
   if (data.for_fun === true) {
     html += `<p class="flagline">For entertainment only.</p>`;

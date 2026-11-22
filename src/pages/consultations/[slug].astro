@@ -85,10 +85,6 @@ const description =
       )
     }
 
-    {a.is_sample && (
-      <p class="note">Sample profile for Phase 1 review — profiles are admin-managed in the Vyotish admin area.</p>
-    )}
-
     <h2>Request a consultation with {a.name}</h2>
     <div class="formpanel">
       <BookingForm kind="consultation" slug={a.slug} subjectLabel="Topic" submitLabel="Request Consultation" />

@@ -84,8 +84,8 @@ const GIRL = personFields("girl", "Girl");
     </section>
 
     <p class="fine">
-      Verification note: koota tables follow widely published variants and are pending
-      Jyotishi review (P11). Matching supports life decisions — consult a qualified
+      Verification note: koota tables follow widely published variants and are
+      indicative. Matching supports life decisions — consult a qualified
       astrologer for a full reading.
     </p>
   </section>
@@ -153,8 +153,8 @@ const GIRL = personFields("girl", "Girl");
             "<div class='verdict'>" + verdict + "</div>" +
             "<table><thead><tr><th>Koota</th><th>Points</th><th>Detail</th></tr></thead><tbody>" + rows + "</tbody></table>" +
             "<h3>Manglik dosha</h3>" + manglikRows +
-            "<p class='flagline'>Koota tables pending Jyotishi review (P11) — treat as indicative. " + esc(r.j.meta && r.j.meta.consent_note ? "" : "") + "</p>";
-          // Epic 7.4 — consent-gated analytics; no-op unless GA4 is loaded
+            "<p class='flagline'>Koota tables follow widely published variants — treat results as indicative. " + esc(r.j.meta && r.j.meta.consent_note ? "" : "") + "</p>";
+          // consent-gated analytics; no-op unless GA4 is loaded
           if (window.vyTrack) window.vyTrack("calculator_used", { tool: "match" });
         })
         .catch(function () {

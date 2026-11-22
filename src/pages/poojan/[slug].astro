@@ -72,10 +72,6 @@ const description =
       </div>
     )}
 
-    {p.is_sample && (
-      <p class="note">Sample listing for Phase 1 review — the catalogue is admin-managed in the Vyotish admin area.</p>
-    )}
-
     <h2>Request {p.name}</h2>
     <div class="formpanel">
       <BookingForm kind="puja" slug={p.slug} subjectLabel="Puja" submitLabel="Request Puja" />

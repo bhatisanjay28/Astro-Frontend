@@ -237,9 +237,8 @@ const notes = (await fetchContentBlocks("kundli.")) ?? {};
         return '<div class="d"><div class="dn">' + esc(n.name) + ': <strong>' + esc(n.verdict) + "</strong></div><div class=" + '"dd"' + ">" + esc(n.detail) + "</div></div>";
       }).join("");
 
-      /* Epic 4.2b — admin-authored interpretation notes (build-time fetch of
-       * GET /content/blocks?prefix=kundli.). Fail-soft per block; nothing
-       * renders when the team has published none (honest empty state). */
+      /* Interpretation notes (fetched at build time). Fail-soft per block;
+       * nothing renders when none are published (honest empty state). */
       var noteKeys = Object.keys(notes || {}).sort();
       var noteHtml = "";
       for (var i = 0; i < noteKeys.length; i++) {

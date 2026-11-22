@@ -17,7 +17,7 @@ import RequiredNote from "../forms/RequiredNote.astro";
     <div class="flex items-center justify-between mb-4 pb-3 border-b border-light-outline-variant/40 dark:border-dark-outline-variant/40">
       <div>
         <h3 class="font-headline text-headline-sm font-bold text-light-on-surface dark:text-dark-on-surface">Book Consultation Request</h3>
-        <p class="font-body text-body-sm text-light-outline dark:text-dark-outline">Saved securely to Supabase • Admin confirmed</p>
+        <p class="font-body text-body-sm text-light-outline dark:text-dark-outline">Saved securely — used only to contact you about this request.</p>
       </div>
       <button type="button" data-modal-close class="w-8 h-8 rounded-full flex items-center justify-center text-light-outline dark:text-dark-outline hover:text-light-on-surface dark:hover:text-dark-on-surface focus-visible:ring-2 focus-visible:ring-light-primary" aria-label="Close modal">
         <span class="material-symbols-outlined text-headline-sm">close</span>
@@ -73,8 +73,8 @@ import RequiredNote from "../forms/RequiredNote.astro";
         </div>
       </div>
 
-      <!-- Birth details intentionally not collected: consultation_requests
-           stores birth_details only after the Epic 6.4 consent flow lands. -->
+      <!-- Birth details intentionally not collected — stored only after the
+           explicit consent step in the consultation flow. -->
 
       <!-- Consent Checkbox (Section 15 DPDP Act) -->
       <div class="flex items-start gap-2 pt-1">
@@ -136,8 +136,8 @@ import RequiredNote from "../forms/RequiredNote.astro";
         if (ok) ok.classList.add("hidden");
         if (fail) { fail.classList.add("hidden"); fail.textContent = failDefault; }
         if (submitBtn) submitBtn.disabled = true;
-        // POST /api/v1/requests/consultation (Epic 5.2) — 201 stores the
-        // request in consultation_requests and routes it to the admin inbox.
+        // POST /api/v1/requests/consultation — 201 stores the request for
+        // the team to follow up.
         fetch(apiBase + "/api/v1/requests/consultation", {
           method: "POST",
           headers: { "Content-Type": "application/json" },

@@ -117,7 +117,7 @@ const PERIOD_TITLES: Record<string, string> = {
   </section>
 </Base>
 
-<script define:vars={{ apiBase, signSlug: sign.slug, periodSlug: period.slug, unavailable: "Rashiphal unavailable right now — please refresh shortly.", sampleNote: "Sample content — admin-authored horoscopes replace these rolling notes (Epic 6.4)." }}>
+<script define:vars={{ apiBase, signSlug: sign.slug, periodSlug: period.slug, unavailable: "Rashiphal unavailable right now — please refresh shortly." }}>
   (function () {
     var box = document.querySelector("[data-horoscope-reading]");
     if (!box) return;
@@ -145,7 +145,6 @@ const PERIOD_TITLES: Record<string, string> = {
           }
         }
         if (!any) { html = '<p class="line">' + unavailable + '</p>'; }
-        else if (row.is_sample) { html += '<p class="sample">' + sampleNote + '</p>'; }
         box.innerHTML = html;
       })
       .catch(function () {
@@ -172,7 +171,6 @@ const PERIOD_TITLES: Record<string, string> = {
   .reading h3:first-child { margin-top: 0; }
   .reading p { color: var(--text-muted); font-size: 14px; line-height: 1.65; }
   .line { color: var(--text-dim); font-size: 14px; }
-  .sample { margin-top: var(--space-4); font-size: 12.5px; color: var(--text-dim); border-top: 1px dashed var(--color-border); padding-top: var(--space-3); }
   .picker { margin-top: var(--space-7); }
   .picker h2 { font-family: var(--font-display); color: var(--ivory); font-size: 18px; margin-bottom: var(--space-3); }
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: var(--space-2); }

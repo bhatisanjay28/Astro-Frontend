@@ -34,7 +34,7 @@ every [muhurat](/muhurat).
 Within the daylight portion of each vaar, classical proportional tables give the
 windows of **Rahu Kaal**, **Yamaganda** and **Gulika** — segments where new
 beginnings are traditionally avoided. Vyotish computes these to the minute for your
-city, flagged for Jyotishi review pending final sign-off.
+city.
 
 ## Auspicious windows
 

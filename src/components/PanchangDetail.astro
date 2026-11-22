@@ -105,7 +105,7 @@ const { apiBase, citySlug, cityName, lat, lng, tz } = Astro.props;
             festEl.innerHTML = '<p class="fest-empty">No festivals or vrats recorded for this day yet.</p>';
           } else {
             festEl.innerHTML = list.map(function (f) {
-              return '<div class="fest"><span class="fn">' + f.name + (f.name_hi ? ' <span class="fh">' + f.name_hi + "</span>" : "") + '</span><span class="fd">' + (f.description || "") + (f.is_sample ? " (sample)" : "") + "</span></div>";
+              return '<div class="fest"><span class="fn">' + f.name + (f.name_hi ? ' <span class="fh">' + f.name_hi + "</span>" : "") + '</span><span class="fd">' + (f.description || "") + "</span></div>";
             }).join("");
           }
         })
@@ -142,7 +142,7 @@ const { apiBase, citySlug, cityName, lat, lng, tz } = Astro.props;
             '<div class="limb-block"><h4>Karana</h4>' + limbRows(p.karana) + "</div>";
           var segs = [p.rahu_kaal, p.yamaganda, p.gulika, p.abhijit, p.brahma_muhurta];
           segsEl.innerHTML = segs.map(function (s) {
-            return '<div class="seg ' + (s.verified ? "verified" : "unverified") + '"><div class="sn">' + s.name + '</div><div class="st">' + fmt(s.start, tz) + " – " + fmt(s.end, tz) + '</div><div class="ss">' + (s.verified ? "" : "⚠ pending Jyotishi review — ") + "</div></div>";
+            return '<div class="seg ' + (s.verified ? "verified" : "unverified") + '"><div class="sn">' + s.name + '</div><div class="st">' + fmt(s.start, tz) + " – " + fmt(s.end, tz) + '</div><div class="ss">' + (s.verified ? "" : "⚠ provisional timings") + "</div></div>";
           }).join("");
         })
         .catch(function () {
@@ -169,7 +169,7 @@ const { apiBase, citySlug, cityName, lat, lng, tz } = Astro.props;
 
     var initial = new URLSearchParams(location.search).get("date") || today();
     setPdDate(initial);
-    // Monthly calendar view (Epic 3.2b) owns the page when ?view=calendar —
+    // Monthly calendar view owns the page when ?view=calendar —
     // its bundled script fills [data-pd-calendar]; skip the day fetch.
     var isCalendarView = new URLSearchParams(location.search).get("view") === "calendar";
     if (!isCalendarView && !window.vyDateTime) load(initial);
@@ -188,7 +188,7 @@ const { apiBase, citySlug, cityName, lat, lng, tz } = Astro.props;
       history.replaceState(null, "", url.toString());
       load(dateInput.value);
     });
-    // the monthly-calendar island asks us to re-show the day view (Epic 3.2b)
+    // the monthly-calendar island asks us to re-show the day view
     var pdSection = document.querySelector(".pd");
     if (pdSection) {
       pdSection.addEventListener("pd:show-day", function () {
@@ -199,7 +199,7 @@ const { apiBase, citySlug, cityName, lat, lng, tz } = Astro.props;
 </script>
 
 <script>
-  // Epic 3.2b — monthly calendar island (bundled; reads the section's data
+  // monthly calendar island (bundled; reads the section's data
   // attributes because bundled scripts cannot use define:vars).
   import "../scripts/panchang-calendar";
 </script>
@@ -243,7 +243,7 @@ const { apiBase, citySlug, cityName, lat, lng, tz } = Astro.props;
   .seg .sn { color: var(--ivory); font-weight: 500; font-size: 14px; }
   .seg .st { color: var(--text-muted); font-size: 13px; margin-top: 2px; font-variant-numeric: tabular-nums; }
   .seg .ss { color: var(--text-faint); font-size: 11px; }
-  /* Monthly calendar (Epic 3.2b) */
+  /* Monthly calendar */
   .pd.cal-mode .pd-grid,
   .pd.cal-mode .pd-error,
   .pd.cal-mode h3,

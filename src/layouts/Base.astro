@@ -127,9 +127,8 @@ const themeLock = lockDark ? "dark" : null;
     </main>
     {chrome && <Footer />}
 
-    <!-- 2.3b consent-banner stub: no analytics load yet — the banner honestly
-         states that and remembers acceptance in localStorage. Epic 7 swaps the
-         stub for the real CMP without changing this markup contract. -->
+    <!-- Cookie notice: analytics stay off until the visitor accepts — the
+         notice states that honestly and remembers acceptance in localStorage. -->
     {
       chrome && (
         <div class="consent-stub" data-consent-stub hidden role="region" aria-label="Cookie notice">
