@@ -81,7 +81,7 @@ const segProps = (segId: string, ariaLabel: string, len: number, ph: string) => 
   id: segId,
   "data-dt-seg": "",
   type: "text" as const,
-  inputmode: "numeric",
+  inputmode: "numeric" as const,
   pattern: "[0-9]*",
   maxlength: len,
   placeholder: ph,

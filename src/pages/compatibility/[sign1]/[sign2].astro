@@ -184,6 +184,7 @@ const sameSign = sign1.slug === sign2.slug;
     const s2 = f.querySelector<HTMLSelectElement>("select[name='sign2']")?.value ?? "";
     if (!s1 || !s2) return;
     const key = canonicalPairSlug(s1, s2);
+    if (!key) return; // fail closed — never navigate on a non-canonical pair
     const [a, b] = key.split("-");
     window.location.assign(`/compatibility/${a}/${b}/`);
   }
