@@ -1,5 +1,6 @@
 ---
 import PlaceField from "../components/PlaceField.astro";
+import DateField from "../components/DateField.astro";
 /**
  * /kundli — Free Kundli page (Epic 4.2): form → LIVE /api/v1/kundli →
  * North/South Indian SVG charts (printable), planetary table (incl. Navamsha
@@ -27,8 +28,8 @@ const notes = (await fetchContentBlocks("kundli.")) ?? {};
 
     <form data-k-form>
       <div class="row">
-        <label>Birth date <input type="date" name="date" required /></label>
-        <label>Birth time <input type="time" name="time" required value="10:00" /></label>
+        <DateField id="k-date" name="date" label="Birth date" required />
+        <DateField mode="time" id="k-time" name="time" label="Birth time" value="10:00" required />
         <label>Chart style
           <select name="style">
             <option value="north">North Indian</option>
@@ -287,7 +288,8 @@ const notes = (await fetchContentBlocks("kundli.")) ?? {};
   .kl form { display: grid; gap: var(--space-3); margin-top: var(--space-5); }
   .row { display: flex; gap: var(--space-3); flex-wrap: wrap; }
   .kl label { flex: 1; min-width: 170px; display: grid; gap: var(--space-1); color: var(--text-dim); font-size: 13px; }
-  .kl input, .kl select {
+  .kl .dt { flex: 1; min-width: 200px; }
+  .kl input:not(.dt-seg), .kl select:not(.dt-sel) {
     min-height: var(--target-min);
     background: var(--bg-raised);
     border: 1px solid var(--color-border-strong);

@@ -12,6 +12,10 @@ export interface ExtraField {
   required?: boolean;
   /** When present, renders a <select> with these options (e.g. gender). */
   options?: string[];
+  /** date extra fields — "free" (default, past+future valid) or "birth" (no future, 100y window) */
+  preset?: "birth" | "free";
+  /** time extra fields — 12-hour AM/PM (default) or 24-hour (e.g. the UTC field) */
+  hour12?: boolean;
 }
 interface Props {
   endpoint: string;
@@ -21,6 +25,7 @@ interface Props {
 }
 
 import PlaceField from "../PlaceField.astro";
+import DateField from "../DateField.astro";
 
 const { endpoint, submitLabel = "Calculate", extraFields = [], note } = Astro.props;
 const inputClass =
@@ -36,12 +41,10 @@ const labelClass =
   autocomplete="off"
 >
   <div>
-    <label class={labelClass} for="bf-date">Birth date</label>
-    <input class={inputClass} id="bf-date" name="date" type="date" required />
+    <DateField id="bf-date" name="date" label="Birth date" labelClass={labelClass} required />
   </div>
   <div>
-    <label class={labelClass} for="bf-time">Birth time</label>
-    <input class={inputClass} id="bf-time" name="time" type="time" />
+    <DateField mode="time" id="bf-time" name="time" label="Birth time" labelClass={labelClass} />
   </div>
   {/* full row: the PlaceField's live-status line sits below its input, so
       confining it to one grid cell broke the items-end bottom alignment */}
@@ -51,26 +54,53 @@ const labelClass =
   {
     extraFields.map((f) => (
       <div>
-        <label class={labelClass} for={`bf-${f.name}`}>
-          {f.label}
-          {f.required ? "" : " (optional)"}
-        </label>
         {f.options ? (
-          <select class={inputClass} id={`bf-${f.name}`} name={f.name} required={f.required === true}>
-            {f.required !== true && <option value="">—</option>}
-            {f.options.map((opt) => (
-              <option value={opt}>{opt}</option>
-            ))}
-          </select>
-        ) : (
-          <input
-            class={inputClass}
+          <div>
+            <label class={labelClass} for={`bf-${f.name}`}>
+              {f.label}
+              {f.required ? "" : " (optional)"}
+            </label>
+            <select class={inputClass} id={`bf-${f.name}`} name={f.name} required={f.required === true}>
+              {f.required !== true && <option value="">—</option>}
+              {f.options.map((opt) => (
+                <option value={opt}>{opt}</option>
+              ))}
+            </select>
+          </div>
+        ) : f.type === "date" ? (
+          <DateField
             id={`bf-${f.name}`}
             name={f.name}
-            type={f.type}
-            placeholder={f.placeholder ?? ""}
+            label={`${f.label}${f.required ? "" : " (optional)"}`}
+            labelClass={labelClass}
             required={f.required === true}
+            preset={f.preset ?? "free"}
           />
+        ) : f.type === "time" ? (
+          <DateField
+            mode="time"
+            id={`bf-${f.name}`}
+            name={f.name}
+            label={`${f.label}${f.required ? "" : " (optional)"}`}
+            labelClass={labelClass}
+            required={f.required === true}
+            hour12={f.hour12 !== false}
+          />
+        ) : (
+          <div>
+            <label class={labelClass} for={`bf-${f.name}`}>
+              {f.label}
+              {f.required ? "" : " (optional)"}
+            </label>
+            <input
+              class={inputClass}
+              id={`bf-${f.name}`}
+              name={f.name}
+              type={f.type}
+              placeholder={f.placeholder ?? ""}
+              required={f.required === true}
+            />
+          </div>
         )}
       </div>
     ))

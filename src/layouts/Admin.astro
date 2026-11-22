@@ -54,6 +54,24 @@ const NAV = [
     </main>
     <style is:global>
       :root { --a-bg: #14100c; --a-panel: #1d1710; --a-border: #3a2f1f; --a-gold: #d4a843; --a-text: #ece5d8; --a-dim: #9b8f7a; }
+      /* DateField token mapping — admin pages don't load tokens.css, so the
+         shared picker's token vars resolve to the admin palette here. */
+      .main .dt {
+        --bg-raised: var(--a-panel);
+        --color-border-strong: var(--a-border);
+        --text-body: var(--a-text);
+        --text-muted: var(--a-dim);
+        --text-dim: var(--a-dim);
+        --text-faint: var(--a-dim);
+        --color-primary: var(--a-gold);
+        --color-on-primary: #1a1206;
+        --color-accent: var(--a-gold);
+        --color-error-text: #e08a8a;
+        --radius-card: 8px;
+        --space-2: 8px;
+        --space-3: 12px;
+        --target-min: 44px;
+      }
       * { box-sizing: border-box; }
       body { margin: 0; display: flex; min-height: 100vh; background: var(--a-bg); color: var(--a-text); font: 14px/1.55 Poppins, sans-serif; }
       .side { width: 210px; flex: 0 0 210px; background: var(--a-panel); border-right: 1px solid var(--a-border); padding: 20px 14px; display: flex; flex-direction: column; gap: 4px; }

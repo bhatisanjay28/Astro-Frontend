@@ -3,6 +3,8 @@
  * Panchang detail component (Epic 3.2) — client island rendering the full
  * day from the LIVE /api/v1/panchang for a fixed city + date (?date= or today).
  */
+import DateField from "./DateField.astro";
+
 interface Props {
   apiBase: string;
   citySlug: string;
@@ -16,10 +18,9 @@ const { apiBase, citySlug, cityName, lat, lng, tz } = Astro.props;
 
 <section class="pd" aria-label={`Panchang for ${cityName}`} data-api-base={apiBase} data-city-slug={citySlug} data-city-tz={tz}>
   <div class="pd-toolbar">
-    <label class="dp">
-      Date
-      <input type="date" data-pd-date />
-    </label>
+    <div class="dp-date">
+      <DateField id="pd-date" label="Date" preset="free" attrs={{ "data-pd-date": "" }} />
+    </div>
     <div class="quick" role="group" aria-label="Quick date picks">
       <button type="button" class="quick-btn" data-pd-quick="today">Today</button>
       <button type="button" class="quick-btn" data-pd-quick="tomorrow">Tomorrow</button>
@@ -150,23 +151,35 @@ const { apiBase, citySlug, cityName, lat, lng, tz } = Astro.props;
         });
     }
 
+    // programmatic writes: once the DateField picker is bound, vyDateTime.set
+    // fires `change` and the listener below does the replaceState + load —
+    // one fetch per pick. Before it binds (init path), do both here: setupField
+    // re-renders the segments from whatever the hidden input already holds.
+    function setPdDate(iso) {
+      dateInput.value = iso;
+      if (window.vyDateTime) {
+        window.vyDateTime.set(dateInput, iso);
+      } else {
+        var url = new URL(location.href);
+        url.searchParams.set("date", iso);
+        history.replaceState(null, "", url.toString());
+        load(iso);
+      }
+    }
+
     var initial = new URLSearchParams(location.search).get("date") || today();
-    dateInput.value = initial;
+    setPdDate(initial);
     // Monthly calendar view (Epic 3.2b) owns the page when ?view=calendar —
     // its bundled script fills [data-pd-calendar]; skip the day fetch.
     var isCalendarView = new URLSearchParams(location.search).get("view") === "calendar";
-    if (!isCalendarView) load(initial);
+    if (!isCalendarView && !window.vyDateTime) load(initial);
     document.querySelectorAll("[data-pd-quick]").forEach(function (btn) {
       btn.addEventListener("click", function () {
         var kind = btn.getAttribute("data-pd-quick");
         var d = new Date();
         if (kind === "tomorrow") d.setDate(d.getDate() + 1);
         var iso = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
-        dateInput.value = iso;
-        var url = new URL(location.href);
-        url.searchParams.set("date", iso);
-        history.replaceState(null, "", url.toString());
-        load(iso);
+        setPdDate(iso);
       });
     });
     dateInput.addEventListener("change", function () {
@@ -193,16 +206,8 @@ const { apiBase, citySlug, cityName, lat, lng, tz } = Astro.props;
 
 <style is:global>
   .pd { max-width: 1000px; margin: 0 auto; padding: var(--space-5) var(--space-4) var(--space-8); }
-  .pd-toolbar { display: flex; gap: var(--space-4); align-items: center; margin-bottom: var(--space-4); flex-wrap: wrap; }
-  .dp { display: inline-flex; align-items: center; gap: var(--space-2); color: var(--text-dim); font-size: 14px; }
-  .dp input {
-    min-height: var(--target-min);
-    background: var(--bg-raised);
-    border: 1px solid var(--color-border-strong);
-    border-radius: var(--radius-card);
-    color: var(--text-body);
-    padding: 0 var(--space-3);
-  }
+  .pd-toolbar { display: flex; gap: var(--space-4); align-items: flex-end; margin-bottom: var(--space-4); flex-wrap: wrap; }
+  .pd-toolbar .dt { min-width: 220px; }
   .monthly { background: none; border: 0; padding: 0; cursor: pointer; font: inherit; color: var(--gold); font-size: 14px; text-decoration: none; min-height: var(--target-min); line-height: var(--target-min); }
   .quick { display: inline-flex; gap: var(--space-2); }
   .quick-btn {

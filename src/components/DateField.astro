@@ -1,0 +1,314 @@
+---
+/**
+ * Shared date & time field (S16-1, owner directive 2026-11-22) — replaces
+ * EVERY `type="date"`, `type="time"` and `datetime-local` input on the site
+ * (19 instances, inventory _bmad-output/birth-datetime/inventory.md).
+ *
+ * One component, three modes:
+ *   mode="date"     DD / MM / YYYY segments (numeric keypad on mobile) +
+ *                   calendar popup (month/year dropdowns, newest year first,
+ *                   100 years back on the birth preset), impossible/future
+ *                   dates rejected with clear messages.
+ *   mode="time"     HH : MM segments (+ AM/PM when hour12; 24-hour when not).
+ *   mode="datetime" both groups composed into one "YYYY-MM-DDTHH:MM" hidden
+ *                   value (the admin publish scheduler).
+ *
+ * The BACKEND CONTRACT lives on a hidden input that carries the consumer's
+ * name/id/attrs and always holds the machine value — ISO "YYYY-MM-DD",
+ * 24-hour "HH:MM", or datetime-local — byte-identical to what the native
+ * inputs sent. Visible segments carry no names, so FormData payloads are
+ * unchanged. The behaviour (auto-advance, popup, validation, submit guard,
+ * window.vyDateTime.set/rebind seams) lives in scripts/date-time-picker.ts;
+ * the pure logic under test lives in scripts/date-time-core.ts.
+ */
+export interface DateFieldProps {
+  mode?: "date" | "time" | "datetime";
+  /** birth: no future dates, 100-year window; free: past + future valid */
+  preset?: "birth" | "free";
+  /** hidden-input name (what FormData / the backend sees) */
+  name?: string;
+  /** hidden-input id (page JS readers like matching.astro, BookingModal) */
+  id: string;
+  /** machine value: ISO date / "HH:MM" / "YYYY-MM-DDTHH:MM" */
+  value?: string;
+  required?: boolean;
+  /** visible label rendered by the component (points at the first segment) */
+  label?: string;
+  /** replace the default label styling with the page's own classes */
+  labelClass?: string;
+  /** time mode: 12-hour AM/PM (default) or 24-hour (e.g. the UTC field) */
+  hour12?: boolean;
+  /** small helper line under the field (e.g. "as recorded — used as given") */
+  hint?: string;
+  /** extra attributes for the hidden input (data-dob, data-tob, data-pd-date…) */
+  attrs?: Record<string, string>;
+  /** wrapper class passthrough (page layout hooks, e.g. muhurat's flex row) */
+  class?: string;
+}
+
+const {
+  mode = "date",
+  preset = "birth",
+  name,
+  id,
+  value = "",
+  required = false,
+  label,
+  labelClass,
+  hour12 = true,
+  hint,
+  attrs = {},
+  class: className,
+} = Astro.props;
+
+const withDate = mode === "date" || mode === "datetime";
+const withTime = mode === "time" || mode === "datetime";
+const pre = mode === "datetime" ? `${id}-d` : id; // date-segment id prefix
+const preT = mode === "datetime" ? `${id}-t` : id; // time-segment id prefix
+
+const MONTHS = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
+const ERR_ID = `${id}-err`;
+const HINT_ID = hint ? `${id}-hint` : undefined;
+const describedBy = [HINT_ID, ERR_ID].filter(Boolean).join(" ") || undefined;
+const segProps = (segId: string, ariaLabel: string, len: number, ph: string) => ({
+  class: "dt-seg",
+  id: segId,
+  "data-dt-seg": "",
+  type: "text" as const,
+  inputmode: "numeric",
+  pattern: "[0-9]*",
+  maxlength: len,
+  placeholder: ph,
+  "aria-label": ariaLabel,
+  autocomplete: "off",
+  "aria-describedby": describedBy,
+  enterkeyhint: "next" as const,
+});
+
+const ampm = /(\d{2}:\d{2})/.test(value)
+  ? (() => {
+      const h = Number(value.split("T").pop()!.slice(0, 2));
+      return h >= 12 ? "pm" : "am";
+    })()
+  : "";
+---
+
+<div
+  class={`dt${className ? " " + className : ""}`}
+  data-dt={mode}
+  data-dt-preset={preset}
+  data-hour12={withTime ? String(hour12) : undefined}
+  data-dt-required={required ? "true" : undefined}
+>
+  {
+    label && (
+      <label class={labelClass ?? "dt-label"} for={withDate ? `${pre}-dd` : `${preT}-hh`}>
+        {label}
+        {required ? <span class="dt-req" aria-hidden="true"> *</span> : ""}
+      </label>
+    )
+  }
+
+  {
+    withDate && (
+      <div class="dt-box" data-dt-box="date">
+        <input {...segProps(`${pre}-dd`, "Day", 2, "DD")} value={value ? value.slice(8, 10) : ""} />
+        <span class="dt-sep" aria-hidden="true">
+          /
+        </span>
+        <input {...segProps(`${pre}-mm`, "Month", 2, "MM")} value={value ? value.slice(5, 7) : ""} />
+        <span class="dt-sep" aria-hidden="true">
+          /
+        </span>
+        <input {...segProps(`${pre}-yy`, "Year", 4, "YYYY")} data-dt-year-seg class="dt-seg dt-seg-year" value={value ? value.slice(0, 4) : ""} />
+        <button type="button" class="dt-clear" data-dt-clear aria-label={`Clear ${label ?? "date"}`} hidden>
+          <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+            <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" fill="none" />
+          </svg>
+        </button>
+        <button
+          type="button"
+          class="dt-trigger"
+          data-dt-trigger
+          aria-haspopup="dialog"
+          aria-expanded="false"
+          aria-controls={`${pre}-pop`}
+          aria-label={`Open calendar${label ? " — " + label : ""}`}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+            <rect x="3" y="5" width="18" height="16" rx="2.5" />
+            <path d="M3 10h18M8 3v4M16 3v4" />
+          </svg>
+        </button>
+        <div class="dt-pop" id={`${pre}-pop`} data-dt-pop role="dialog" aria-label="Choose a date" hidden>
+          <div class="dt-pop-head">
+            <button type="button" class="dt-nav" data-dt-prev aria-label="Previous month">
+              <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                <path d="M14 6l-6 6 6 6" />
+              </svg>
+            </button>
+            <select class="dt-sel" data-dt-month aria-label="Month">
+              {MONTHS.map((m, i) => (
+                <option value={String(i)}>{m}</option>
+              ))}
+            </select>
+            <select class="dt-sel dt-sel-year" data-dt-year aria-label="Year"></select>
+            <button type="button" class="dt-nav" data-dt-next aria-label="Next month">
+              <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                <path d="M10 6l6 6-6 6" />
+              </svg>
+            </button>
+          </div>
+          <div class="dt-grid" data-dt-grid role="group" aria-label="Days"></div>
+          <div class="dt-pop-foot">
+            <button type="button" class="dt-today" data-dt-today>Today</button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  {
+    withTime && (
+      <div class="dt-box" data-dt-box="time">
+        <input {...segProps(`${preT}-hh`, hour12 ? "Hour (1–12)" : "Hour (0–23)", 2, "HH")} value={value ? value.split("T").pop()!.slice(0, 2) : ""} />
+        <span class="dt-sep" aria-hidden="true">
+          :
+        </span>
+        <input {...segProps(`${preT}-mi`, "Minutes", 2, "MM")} value={value ? value.split("T").pop()!.slice(3, 5) : ""} />
+        {
+          hour12 && (
+            <span class="dt-ampm" role="group" aria-label="AM or PM">
+              <button type="button" class="dt-amp" data-dt-amp aria-pressed={ampm === "am" ? "true" : "false"}>AM</button>
+              <button type="button" class="dt-amp" data-dt-pm aria-pressed={ampm === "pm" ? "true" : "false"}>PM</button>
+            </span>
+          )
+        }
+        <button type="button" class="dt-clear" data-dt-clear aria-label={`Clear ${label ?? "time"}`} hidden>
+          <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+            <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" fill="none" />
+          </svg>
+        </button>
+      </div>
+    )
+  }
+
+  <p class="dt-error" id={ERR_ID} data-dt-error role="status"></p>
+  {hint && <p class="dt-hint" id={HINT_ID}>{hint}</p>}
+
+  <input type="hidden" name={name} id={id} data-dt-value value={value} required={required} {...attrs} />
+</div>
+
+<style is:global>
+  /* Field chrome — token-based with literal fallbacks (place-picker pattern),
+     so it renders correctly in tailwind pages, legacy CSS-var pages, the
+     Admin layout, and both themes. Popup styles are injected by the script. */
+  .dt { position: relative; display: block; width: 100%; }
+  .dt-label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-muted, var(--color-text-muted, #57423b));
+    margin-bottom: 4px;
+  }
+  .dt-req { color: var(--color-error-text, #b3261e); }
+  .dt-box {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    width: 100%;
+    box-sizing: border-box;
+    min-height: var(--target-min, 44px);
+    padding: 0 var(--space-2, 8px) 0 var(--space-3, 12px);
+    background: var(--bg-raised, var(--color-light-surface, #fff));
+    border: 1px solid var(--color-border-strong, var(--color-light-outline, #b3a89e));
+    border-radius: var(--radius-card, 12px);
+  }
+  .dt:focus-within .dt-box {
+    border-color: var(--gold, var(--color-light-primary, #c9a227));
+    box-shadow: var(--focus-ring, 0 0 0 3px rgba(180, 64, 16, 0.55));
+    outline: none;
+  }
+  .dt[data-invalid="true"] .dt-box { border-color: var(--color-error-text, #b3261e); }
+  .dt-seg {
+    border: none;
+    background: transparent;
+    color: var(--text-body, var(--color-light-on-surface, #1c1b1a));
+    font: inherit;
+    font-size: 16px;
+    font-variant-numeric: tabular-nums;
+    text-align: center;
+    width: 2.4ch;
+    min-width: 2.4ch;
+    padding: 0;
+    height: calc(var(--target-min, 44px) - 4px);
+  }
+  .dt-seg:focus { outline: none; }
+  .dt-seg-year { width: 4.6ch; min-width: 4.6ch; }
+  .dt-seg::placeholder { color: var(--text-faint, var(--color-light-outline, #8a726a)); opacity: 1; }
+  .dt-sep { color: var(--text-faint, var(--color-light-outline, #8a726a)); font-size: 15px; user-select: none; }
+  .dt-spacer { flex: 1; }
+  .dt-clear, .dt-trigger {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 40px;
+    height: 40px;
+    margin-left: auto;
+    background: transparent;
+    border: none;
+    border-radius: var(--radius-card, 12px);
+    cursor: pointer;
+    color: var(--text-dim, var(--color-light-on-surface-variant, #57423b));
+  }
+  .dt-clear + .dt-trigger { margin-left: 0; }
+  .dt-box:has(.dt-clear:not([hidden])) .dt-seg:last-of-type { margin-right: 0; }
+  .dt-clear:hover, .dt-trigger:hover { color: var(--text-body, var(--color-light-on-surface, #1c1b1a)); }
+  .dt-clear:focus-visible, .dt-trigger:focus-visible {
+    outline: 2px solid var(--gold, var(--color-light-primary, #c9a227));
+    outline-offset: -2px;
+  }
+  .dt-ampm { display: flex; gap: 3px; margin-left: 6px; }
+  .dt-amp {
+    min-width: 42px;
+    height: 32px;
+    padding: 0 8px;
+    border: 1px solid var(--color-border-strong, #b3a89e);
+    border-radius: 8px;
+    background: transparent;
+    color: var(--text-muted, var(--color-light-on-surface-variant, #57423b));
+    font: inherit;
+    font-size: 12.5px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .dt-amp[aria-pressed="true"] {
+    background: var(--color-primary, var(--color-light-primary, #8b2e05));
+    border-color: var(--color-primary, var(--color-light-primary, #8b2e05));
+    color: var(--color-on-primary, #fff);
+  }
+  .dt-amp:focus-visible { outline: 2px solid var(--gold, #c9a227); outline-offset: 1px; }
+  .dt-error {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    margin: 6px 0 0;
+    font-size: 12.5px;
+    line-height: 1.45;
+    color: var(--color-error-text, #b3261e);
+    min-height: 0;
+  }
+  .dt-error:empty { display: none; }
+  .dt-error .dt-err-ico { flex: none; margin-top: 1px; }
+  .dt-hint { margin: 4px 0 0; font-size: 12px; color: var(--text-faint, #8a726a); }
+</style>
+
+<script>
+  // behaviour for every [data-dt] on the page (Astro dedupes this bundle)
+  import { initDateFields } from "../scripts/date-time-picker";
+  initDateFields();
+</script>

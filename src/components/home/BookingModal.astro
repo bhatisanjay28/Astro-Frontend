@@ -7,6 +7,7 @@
  * 6.4 consent flow, so asking for them would silently drop user input.
  * Turnstile badge renders as designed; enforcement is Epic 7.2.
  */
+import DateField from "../DateField.astro";
 ---
 
 <div id="booking-modal" class="chrome-reset fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 hidden">
@@ -51,8 +52,12 @@
 
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
-          <label class="block font-label text-label-sm font-medium mb-1 text-light-on-surface dark:text-dark-on-surface" for="bk-date">Preferred Date</label>
-          <input id="bk-date" type="date" class="w-full px-3 py-2 rounded bg-light-surface-variant dark:bg-dark-surface-variant border border-light-outline-variant dark:border-dark-outline-variant text-light-on-surface dark:text-dark-on-surface font-body text-body-sm" />
+          <DateField
+            id="bk-date"
+            label="Preferred Date"
+            labelClass="block font-label text-label-sm font-medium mb-1 text-light-on-surface dark:text-dark-on-surface"
+            preset="free"
+          />
         </div>
         <div>
           <label class="block font-label text-label-sm font-medium mb-1 text-light-on-surface dark:text-dark-on-surface" for="bk-window">Preferred Time Window</label>

@@ -8,6 +8,7 @@
  * "what's included" list and the 36-point callout.
  */
 import PlaceField from "../PlaceField.astro";
+import DateField from "../DateField.astro";
 
 const INCLUDES = [
   {
@@ -78,15 +79,26 @@ const INCLUDES = [
 
         <!-- Date and Time of Birth -->
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <label class="flex flex-col gap-1.5">
-            <span class="font-label text-label-md font-medium text-light-on-surface dark:text-dark-on-surface">Date of Birth (जन्म तिथि)</span>
-            <input type="date" required data-dob class="w-full px-3.5 py-2.5 rounded bg-light-surface dark:bg-dark-surface border border-light-outline-variant dark:border-dark-outline-variant text-light-on-surface dark:text-dark-on-surface focus-visible:ring-2 focus-visible:ring-light-primary font-body text-body-md" />
-          </label>
+          <div class="flex flex-col gap-1.5">
+            <DateField
+              id="hk-dob"
+              label="Date of Birth (जन्म तिथि)"
+              labelClass="font-label text-label-md font-medium text-light-on-surface dark:text-dark-on-surface"
+              required
+              attrs={{ "data-dob": "" }}
+            />
+          </div>
 
-          <label class="flex flex-col gap-1.5">
-            <span class="font-label text-label-md font-medium text-light-on-surface dark:text-dark-on-surface">Time of Birth (जन्म समय)</span>
-            <input type="time" required data-tob class="w-full px-3.5 py-2.5 rounded bg-light-surface dark:bg-dark-surface border border-light-outline-variant dark:border-dark-outline-variant text-light-on-surface dark:text-dark-on-surface focus-visible:ring-2 focus-visible:ring-light-primary font-body text-body-md" />
-          </label>
+          <div class="flex flex-col gap-1.5">
+            <DateField
+              mode="time"
+              id="hk-tob"
+              label="Time of Birth (जन्म समय)"
+              labelClass="font-label text-label-md font-medium text-light-on-surface dark:text-dark-on-surface"
+              required
+              attrs={{ "data-tob": "" }}
+            />
+          </div>
         </div>
 
         <!-- Place of Birth (autocomplete via the backend /places proxy) -->

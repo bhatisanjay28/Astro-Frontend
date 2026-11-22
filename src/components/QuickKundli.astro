@@ -7,6 +7,7 @@
 interface Props {
   apiBase: string;
 }
+import DateField from "./DateField.astro";
 const { apiBase } = Astro.props;
 ---
 
@@ -16,8 +17,8 @@ const { apiBase } = Astro.props;
 
   <form class="qk-form" data-qk-form>
     <div class="row">
-      <label>Birth date <input type="date" name="date" required /></label>
-      <label>Birth time <input type="time" name="time" required value="10:00" /></label>
+      <DateField id="qk-date" name="date" label="Birth date" required />
+      <DateField mode="time" id="qk-time" name="time" label="Birth time" value="10:00" required />
     </div>
     <div class="row">
       <label>
@@ -116,7 +117,10 @@ const { apiBase } = Astro.props;
     color: var(--text-dim);
     font-size: 13px;
   }
-  input, select {
+  /* DateField owns its segments/selects (is:global chrome) — keep this
+     global block from painting over them */
+  .qk .dt { flex: 1; min-width: 200px; }
+  input:not(.dt-seg), select:not(.dt-sel) {
     min-height: var(--target-min);
     background: var(--bg-page);
     border: 1px solid var(--color-border-strong);

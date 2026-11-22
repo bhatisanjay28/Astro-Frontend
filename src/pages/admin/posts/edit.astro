@@ -2,6 +2,7 @@
 /** /admin/posts/edit — create/edit a blog post (Epic 6.4). Markdown body,
  * taxonomy, schedule, SEO + featured image (paste a /admin/media URL). */
 import Admin from "../../../layouts/Admin.astro";
+import DateField from "../../../components/DateField.astro";
 ---
 
 <Admin title="Edit post | Vyotish Admin" active="posts">
@@ -25,8 +26,12 @@ import Admin from "../../../layouts/Admin.astro";
           <option value="published">Published</option>
           <option value="archived">Archived</option>
         </select>
-        <label for="publish_at">Publish at (schedule — draft + future time)</label>
-        <input id="publish_at" type="datetime-local" />
+        <DateField
+          mode="datetime"
+          id="publish_at"
+          label="Publish at (schedule — draft + future time)"
+          preset="free"
+        />
       </div>
       <div>
         <label for="content_md">Body (Markdown) *</label>
@@ -98,7 +103,12 @@ import Admin from "../../../layouts/Admin.astro";
     const scheduled = status === "draft" && typeof p.publish_at === "string";
     set("#status", scheduled ? "draft" : status);
     if (typeof p.publish_at === "string") {
-      set("#publish_at", p.publish_at.slice(0, 16));
+      const pub = p.publish_at.slice(0, 16);
+      set("#publish_at", pub);
+      // DateField seam — re-renders the segments from the machine value.
+      // If the picker module hasn't bound yet, setupField renders the
+      // segments from the hidden value when it does.
+      window.vyDateTime?.set(document.getElementById("publish_at")!, pub);
     }
     await loadTaxonomy();
     const tags = (p as { tags?: string[] }).tags ?? [];

@@ -1,5 +1,6 @@
 ---
 import PlaceField from "../components/PlaceField.astro";
+import DateField from "../components/DateField.astro";
 /**
  * /matching — Guna Milan (Ashtakoota 36) + Manglik UI (Epic 4.3).
  * The page is a thin renderer: POST /api/v1/kundli/match does everything
@@ -7,8 +8,6 @@ import PlaceField from "../components/PlaceField.astro";
  */
 import Base from "../layouts/Base.astro";
 
-const inputClass =
-  "w-full px-3 py-2 rounded bg-light-surface dark:bg-dark-surface border border-light-outline-variant dark:border-dark-outline-variant text-light-on-surface dark:text-dark-on-surface font-body text-body-sm";
 const labelClass =
   "block font-label text-label-sm font-semibold text-light-on-surface-variant dark:text-dark-on-surface-variant mb-1";
 
@@ -48,14 +47,12 @@ const GIRL = personFields("girl", "Girl");
               <legend>{p.label}</legend>
               {p.fields.map((f) => (
                 <div>
-                  <label class={labelClass} for={f.name}>
-                    {f.label}
-                  </label>
-                  <input
-                    class={inputClass}
+                  <DateField
+                    mode={f.type === "time" ? "time" : "date"}
                     id={f.name}
                     name={f.name}
-                    type={f.type}
+                    label={f.label}
+                    labelClass={labelClass}
                     required={f.name.endsWith("-date")}
                   />
                 </div>

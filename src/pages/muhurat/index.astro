@@ -1,5 +1,6 @@
 ---
 import PlaceField from "../../components/PlaceField.astro";
+import DateField from "../../components/DateField.astro";
 /** /muhurat/ — today's windows + finder form (Epic 3.4). Client islands on
  * the LIVE /api/v1/muhurat routes. City pickers use the /places proxy
  * (owner directive, 2026-11-20); the today-island keeps a New Delhi default
@@ -63,8 +64,8 @@ const EVENTS = [
             {EVENTS.map((e) => <option value={e}>{e.replace(/_/g, " ")}</option>)}
           </select>
         </label>
-        <label>From <input type="date" name="from" required /></label>
-        <label>To <input type="date" name="to" required /></label>
+        <DateField id="mf-from" name="from" label="From" required preset="free" />
+        <DateField id="mf-to" name="to" label="To" required preset="free" />
         <PlaceField
           variant="combined"
           inputId="mf-place"
@@ -178,7 +179,8 @@ const EVENTS = [
     .tb-city { min-width: 260px; }
     .def-note { color: var(--text-dim); font-size: 12.5px; margin-top: var(--space-2); }
     .mt label { color: var(--text-dim); font-size: 13px; display: grid; gap: var(--space-1); flex: 1; min-width: 160px; }
-    .mt select, .mt input {
+    .finder .dt { flex: 1; min-width: 200px; }
+    .mt select:not(.dt-sel), .mt input:not(.dt-seg) {
       min-height: var(--target-min);
       background: var(--bg-raised);
       border: 1px solid var(--color-border-strong);

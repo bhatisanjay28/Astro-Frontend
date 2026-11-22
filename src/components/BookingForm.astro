@@ -4,6 +4,8 @@
  * selects the endpoint + extra fields. Posts to the backend API (D12) and
  * renders the honest result — never a fake success.
  */
+import DateField from "./DateField.astro";
+
 interface Props {
   kind: "consultation" | "puja";
   /** Preselect the astrologer/puja slug (profile page embeds). */
@@ -85,8 +87,13 @@ const subjects =
           <input class={inputClass} id="bk-gotra" name="gotra" type="text" />
         </div>
         <div>
-          <label class={labelClass} for="bk-date">Preferred date (optional)</label>
-          <input class={inputClass} id="bk-date" name="date" type="date" />
+          <DateField
+            id="bk-date"
+            name="date"
+            label="Preferred date (optional)"
+            labelClass={labelClass}
+            preset="free"
+          />
         </div>
         <div>
           <label class={labelClass} for="bk-location">Mode / place (optional)</label>
@@ -96,8 +103,13 @@ const subjects =
     ) : (
       <>
         <div>
-          <label class={labelClass} for="bk-date">Preferred date (optional)</label>
-          <input class={inputClass} id="bk-date" name="preferred_date" type="date" />
+          <DateField
+            id="bk-date"
+            name="preferred_date"
+            label="Preferred date (optional)"
+            labelClass={labelClass}
+            preset="free"
+          />
         </div>
         <div>
           <label class={labelClass} for="bk-time">Preferred time (optional)</label>

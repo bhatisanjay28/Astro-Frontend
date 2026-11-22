@@ -2,6 +2,7 @@
 import type { ExtraField } from "../../components/calculators/BirthForm.astro";
 import BirthForm from "../../components/calculators/BirthForm.astro";
 import PlaceField from "../../components/PlaceField.astro";
+import DateField from "../../components/DateField.astro";
 /**
  * /calculators/{tool} — Epic 4.4 (Tier 1) + 4.6 (Tier 2) + Epic 14 (S14-2).
  * One shared template (PRD §5.7) driven by a registry: slug/titles/input kind.
@@ -31,6 +32,8 @@ interface Tool {
   endpoint: string;
   submitLabel?: string;
   extraFields?: ExtraField[];
+  /** inline-form date preset — "birth" (default: no future, 100y window) or "free" for any-date tools */
+  dateMode?: "birth" | "free";
   forFun?: boolean;
   note?: string;
 }
@@ -150,7 +153,8 @@ export function getStaticPaths() {
         "The Moon's phase for any date — illumination, lunar age, and the next new & full moon.",
       kind: "date",
       endpoint: "/api/v1/calculators/moon-phase",
-      extraFields: [{ name: "time", label: "Time (UTC)", type: "time" }],
+      dateMode: "free", // any historical date, not a birth date
+      extraFields: [{ name: "time", label: "Time (UTC)", type: "time", hour12: false }],
       note: "Date and the optional time are interpreted in UTC; without a time, 12:00 UTC is used.",
     },
     {
@@ -200,6 +204,7 @@ export function getStaticPaths() {
         "Is a registration plate lucky for you? Two numerology schools read the plate against your birth numbers.",
       kind: "date",
       endpoint: "/api/v1/calculators/vehicle-plate",
+      dateMode: "free", // registration/purchase date, not a birth date
       extraFields: [
         {
           name: "plate",
@@ -382,16 +387,21 @@ const API_NOTE = "Free · instant · computed live — nothing is stored.";
             autocomplete="off"
           >
             {tool.kind === "date-place" && (
-              <div>
-                <label class="lbl" for="bf-time">Time of birth (optional)</label>
-                <input class="inp" id="bf-time" name="time" type="time" />
-              </div>
+              <DateField
+                mode="time"
+                id="bf-time"
+                name="time"
+                label="Time of birth (optional)"
+              />
             )}
             {tool.kind !== "names" && tool.kind !== "name" && tool.kind !== "mobile" && (
-              <div>
-                <label class="lbl" for="bf-date">{tool.kind === "age" ? "Date of birth" : "Date"}</label>
-                <input class="inp" id="bf-date" name="date" type="date" required />
-              </div>
+              <DateField
+                id="bf-date"
+                name="date"
+                label={tool.kind === "age" ? "Date of birth" : "Date"}
+                required
+                preset={tool.dateMode ?? "birth"}
+              />
             )}
             {(tool.kind === "name" || tool.kind === "names" || tool.kind === "date-name") && (
               <div>
@@ -401,16 +411,38 @@ const API_NOTE = "Free · instant · computed live — nothing is stored.";
             )}
             {tool.extraFields?.filter((f) => f.name !== "name").map((f) => (
               <div>
-                <label class="lbl" for={`bf-${f.name}`}>{f.label}{f.required ? "" : " (optional)"}</label>
                 {f.options ? (
-                  <select class="inp" id={`bf-${f.name}`} name={f.name} required={f.required === true}>
-                    {f.required !== true && <option value="">—</option>}
-                    {f.options.map((opt) => (
-                      <option value={opt}>{opt}</option>
-                    ))}
-                  </select>
+                  <div>
+                    <label class="lbl" for={`bf-${f.name}`}>{f.label}{f.required ? "" : " (optional)"}</label>
+                    <select class="inp" id={`bf-${f.name}`} name={f.name} required={f.required === true}>
+                      {f.required !== true && <option value="">—</option>}
+                      {f.options.map((opt) => (
+                        <option value={opt}>{opt}</option>
+                      ))}
+                    </select>
+                  </div>
+                ) : f.type === "date" ? (
+                  <DateField
+                    id={`bf-${f.name}`}
+                    name={f.name}
+                    label={`${f.label}${f.required ? "" : " (optional)"}`}
+                    required={f.required === true}
+                    preset={f.preset ?? "free"}
+                  />
+                ) : f.type === "time" ? (
+                  <DateField
+                    mode="time"
+                    id={`bf-${f.name}`}
+                    name={f.name}
+                    label={`${f.label}${f.required ? "" : " (optional)"}`}
+                    required={f.required === true}
+                    hour12={f.hour12 !== false}
+                  />
                 ) : (
-                  <input class="inp" id={`bf-${f.name}`} name={f.name} type={f.type} placeholder={f.placeholder ?? ""} required={f.required === true} />
+                  <div>
+                    <label class="lbl" for={`bf-${f.name}`}>{f.label}{f.required ? "" : " (optional)"}</label>
+                    <input class="inp" id={`bf-${f.name}`} name={f.name} type={f.type} placeholder={f.placeholder ?? ""} required={f.required === true} />
+                  </div>
                 )}
               </div>
             ))}
@@ -455,6 +487,16 @@ const API_NOTE = "Free · instant · computed live — nothing is stored.";
       e.preventDefault();
       const latField = form.querySelector<HTMLInputElement>('[data-place-role="lat"]');
       const timeField = form.querySelector<HTMLInputElement>('[name="time"]');
+
+      // free text without a pick must never submit as a place (S15-1 AC-4):
+      // typing wiped the role inputs, so the visible text is unselected garbage
+      const placeInput = form.querySelector<HTMLInputElement>("[data-place-input]");
+      if (placeInput && placeInput.value.trim() && latField && !latField.value) {
+        const st = form.querySelector<HTMLElement>("[data-place-status]");
+        if (st) st.textContent = "Please select a city from the list.";
+        placeInput.setAttribute("aria-invalid", "true");
+        return;
+      }
 
       // birthplace picker guard — required forms need a pick before submitting;
       // optional-place forms (sun-sign) only need it when a local time is given
@@ -536,6 +578,8 @@ const API_NOTE = "Free · instant · computed live — nothing is stored.";
      off [data-calc-result] (root-cause fix for the "alignment" complaint). */
   [data-calc-result] .hint { color: var(--text-dim); font-size: 13.5px; }
   [data-calc-result] .hint.err { color: var(--color-error-text); }
+  /* DateField labels size-match the page's .lbl (component owns its label) */
+  [data-calc-endpoint] .dt-label { font-size: 12px; }
 
   /* B1 verdict card */
   [data-calc-result] .verdict-card {
