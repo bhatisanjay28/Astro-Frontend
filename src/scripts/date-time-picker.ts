@@ -693,14 +693,62 @@ function clearBox(ctx: RootCtx, box: string | null | undefined): void {
 }
 
 /** ---------- submit guard ---------- */
+// S18 (owner spec): specific, part-aware messages in EN + HI — "Please enter
+// your date of birth" / "Please enter your time of birth (hour, minute,
+// AM/PM)"; a partially-typed field says WHICH part is missing. The / ↔ /hi/
+// language toggle is build-time routing, so the document lang decides.
+const isHi = (): boolean =>
+  (document.documentElement.lang || "en").toLowerCase().startsWith("hi");
+
 function requiredMessage(ctx: RootCtx): string {
-  if (ctx.mode === "time") return "Please enter a complete time, or clear it.";
-  if (ctx.mode === "datetime") return "Please enter a complete date and time.";
-  return "Please enter a complete date (DD/MM/YYYY).";
+  const hi = isHi();
+  if (ctx.mode === "time") {
+    if (hasAnyTimeDigit(ctx)) {
+      const missing: string[] = [];
+      if (ctx.hh && !ctx.hh.value) missing.push(hi ? "घंटा" : "hour");
+      if (ctx.mi && !ctx.mi.value) missing.push(hi ? "मिनट" : "minute");
+      const ap =
+        ctx.am?.getAttribute("aria-pressed") === "true" ||
+        ctx.pm?.getAttribute("aria-pressed") === "true";
+      if (ctx.hour12 && ctx.am && !ap) missing.push("AM/PM");
+      return hi
+        ? `कृपया पूर्ण समय दर्ज करें — ${missing.join(", ")} गायब है।`
+        : `Please complete the time — ${missing.join(" and ")} missing.`;
+    }
+    if (ctx.preset === "birth")
+      return hi
+        ? "कृपया अपना जन्म समय दर्ज करें (घंटा, मिनट, AM/PM)।"
+        : "Please enter your time of birth (hour, minute, AM/PM).";
+    return hi
+      ? "कृपया एक पूर्ण समय दर्ज करें, या इसे हटाएँ।"
+      : "Please enter a complete time, or clear it.";
+  }
+  if (hasAnyDateDigit(ctx)) {
+    const missing: string[] = [];
+    if (ctx.dd && !ctx.dd.value) missing.push(hi ? "दिन" : "day");
+    if (ctx.mmD && !ctx.mmD.value) missing.push(hi ? "महीना" : "month");
+    if (ctx.yy && !ctx.yy.value) missing.push(hi ? "साल" : "year");
+    return hi
+      ? `कृपया पूर्ण तिथि दर्ज करें — ${missing.join(", ")} गायब है।`
+      : `Please complete the date — ${missing.join(" and ")} missing.`;
+  }
+  if (ctx.mode === "datetime")
+    return hi
+      ? "कृपया पूर्ण तिथि और समय दर्ज करें।"
+      : "Please enter a complete date and time.";
+  if (ctx.preset === "birth")
+    return hi ? "कृपया अपनी जन्म तिथि दर्ज करें।" : "Please enter your date of birth.";
+  return hi
+    ? "कृपया एक पूर्ण तिथि दर्ज करें (DD/MM/YYYY)।"
+    : "Please enter a complete date (DD/MM/YYYY).";
 }
 
 function enforceRoot(ctx: RootCtx): boolean {
   if (ctx.hidden.value) return !ctx.root.hasAttribute("data-invalid");
+  // an impossible/future message is already showing (S18: keep the SPECIFIC
+  // "31 February … doesn't exist" / future-date message on submit — the
+  // generic required message must not clobber it)
+  if (ctx.root.hasAttribute("data-invalid")) return false;
   if (ctx.required) {
     setMessage(ctx, requiredMessage(ctx));
     return false;
@@ -737,6 +785,12 @@ function bindGlobals(): void {
       }
       if (!ok) {
         e.preventDefault();
+        // S18: validator-managed forms (data-vy-fv) let the event continue —
+        // the shared form validator (form-capture, always runs after this
+        // document-capture listener) adds its text/place errors and owns the
+        // DOM-order focus + summary. Unmanaged forms keep the legacy
+        // short-circuit (stop + focus the first dt fail).
+        if (form.hasAttribute("data-vy-fv")) return;
         e.stopPropagation();
         // focus the FIRST invalid field — per-field focus inside the loop
         // would land on the last one

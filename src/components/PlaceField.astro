@@ -28,6 +28,8 @@
 interface Props {
   label?: string;
   required?: boolean;
+  /** deliberately-optional place: label suffix "(optional)" (S18 marker rule) */
+  optional?: boolean;
   /** separate: three hidden inputs; combined: one hidden "lat,lng,tz" input */
   variant?: "separate" | "combined";
   /** id for the visible input (labels/aria) */
@@ -49,6 +51,7 @@ interface Props {
 const {
   label = "Place of birth",
   required = true,
+  optional = false,
   variant = "separate",
   inputId,
   placeholder = "Start typing your city…",
@@ -71,7 +74,18 @@ const pf = {
 ---
 
 <div class="pp" data-place-field={required ? "required" : ""} data-place-selected={prefill ? "true" : undefined}>
-  <label class="pp-label" for={inputId}>{label}</label>
+  <label class="pp-label" for={inputId}>
+    {label}
+    {
+      required ? (
+        <span class="pp-req" aria-hidden="true"> *</span>
+      ) : optional ? (
+        <span class="pp-opt" aria-hidden="true"> (optional)</span>
+      ) : (
+        ""
+      )
+    }
+  </label>
   <div class="pp-box">
     <input
       class="pp-input"
@@ -85,6 +99,7 @@ const pf = {
       aria-expanded="false"
       aria-autocomplete="list"
       aria-controls={`${inputId}-listbox`}
+      aria-required={required ? "true" : undefined}
       disabled={disabled}
       readonly={readonly}
     />
@@ -159,4 +174,6 @@ const pf = {
   .pp-clear:focus-visible { outline: 2px solid var(--gold, #c9a227); outline-offset: -2px; }
   .pp-status { font-size: 12.5px; color: var(--text-dim, #777); min-height: 1em; margin: 0; }
   .pp-status.pp-error { color: var(--color-error-text, #b3261e); }
+  .pp-req { color: var(--color-error-text, #b3261e); font-weight: 700; }
+  .pp-opt { color: var(--text-dim, #777); font-weight: 400; }
 </style>

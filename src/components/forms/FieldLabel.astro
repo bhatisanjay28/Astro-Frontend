@@ -1,0 +1,35 @@
+---
+/**
+ * S18 shared field label (owner: "Build one shared label or field component
+ * if one does not already exist"). Red `*` for truly-required fields,
+ * "(optional)" for deliberately-optional ones, NOTHING for defaults (chart
+ * style, gender, prefilled selects) — the same marker pattern on every form.
+ * Pass the page's label classes through `class`.
+ */
+interface Props {
+  forId: string;
+  label: string;
+  required?: boolean;
+  optional?: boolean;
+  class?: string;
+}
+const { forId, label, required = false, optional = false, class: className } = Astro.props;
+---
+<label class={className} for={forId}>
+  {label}
+  {
+    required ? (
+      <span class="req-star" aria-hidden="true">
+        *
+      </span>
+    ) : optional ? (
+      <span class="req-opt" aria-hidden="true"> (optional)</span>
+    ) : (
+      ""
+    )
+  }
+</label>
+<style>
+  .req-star { color: var(--color-error-text, #b3261e); font-weight: 700; }
+  .req-opt { color: var(--text-dim, #777); font-weight: 400; }
+</style>

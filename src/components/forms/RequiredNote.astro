@@ -1,0 +1,29 @@
+---
+/**
+ * S18 shared required-fields note (owner: "Add a small note at the top of
+ * each form: Fields marked * are required."). Rendered atop every form that
+ * carries required fields; `lang` follows the page (HI ready for Hindi forms).
+ */
+interface Props {
+  lang?: "en" | "hi";
+  class?: string;
+}
+const { lang = "en", class: className } = Astro.props;
+---
+<p class={`req-note${className ? " " + className : ""}`}>
+  {
+    lang === "hi" ? (
+      <>
+        चिह्नित फ़ील्ड <span class="req-star" aria-hidden="true">*</span> अनिवार्य हैं।
+      </>
+    ) : (
+      <>
+        Fields marked <span class="req-star" aria-hidden="true">*</span> are required.
+      </>
+    )
+  }
+</p>
+<style>
+  .req-note { color: var(--text-dim, #777); font-size: 12.5px; margin: 0 0 8px; }
+  .req-star { color: var(--color-error-text, #b3261e); font-weight: 700; }
+</style>

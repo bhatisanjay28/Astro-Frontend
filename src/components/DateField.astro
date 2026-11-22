@@ -32,6 +32,8 @@ export interface DateFieldProps {
   /** machine value: ISO date / "HH:MM" / "YYYY-MM-DDTHH:MM" */
   value?: string;
   required?: boolean;
+  /** deliberately-optional field: label suffix "(optional)" (S18 marker rule) */
+  optional?: boolean;
   /** visible label rendered by the component (points at the first segment) */
   label?: string;
   /** replace the default label styling with the page's own classes */
@@ -53,6 +55,7 @@ const {
   id,
   value = "",
   required = false,
+  optional = false,
   label,
   labelClass,
   hour12 = true,
@@ -114,7 +117,15 @@ const ampm = /(\d{2}:\d{2})/.test(value)
     label && (
       <label class={labelClass ?? "dt-label"} for={withDate ? `${pre}-dd` : `${preT}-hh`}>
         {label}
-        {required ? <span class="dt-req" aria-hidden="true"> *</span> : ""}
+        {
+          required ? (
+            <span class="dt-req" aria-hidden="true"> *</span>
+          ) : optional ? (
+            <span class="dt-opt" aria-hidden="true"> (optional)</span>
+          ) : (
+            ""
+          )
+        }
       </label>
     )
   }
@@ -222,6 +233,7 @@ const ampm = /(\d{2}:\d{2})/.test(value)
     margin-bottom: 4px;
   }
   .dt-req { color: var(--color-error-text, #b3261e); }
+  .dt-opt { color: var(--text-dim, #777); font-weight: 400; }
   .dt-box {
     position: relative;
     display: flex;
