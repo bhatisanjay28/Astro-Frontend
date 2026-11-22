@@ -45,6 +45,8 @@ interface BlogTeaser {
   text: string;
   author: string;
   date: string;
+  /** Optional link to the full article on /blog (added in 0011 for teaser posts). */
+  href?: string;
 }
 interface HeroTrustBadge {
   icon: string;
@@ -541,7 +543,8 @@ const jsonLd = [
               <p class="font-body text-body-sm text-light-outline dark:text-dark-outline md:col-span-3">{EMPTINESS}</p>
             ) : (
               BLOG_POSTS.map((b) => (
-                <article class="bg-light-surface dark:bg-dark-surface rounded-xl border border-light-outline-variant/60 dark:border-dark-outline-variant/40 p-5 flex flex-col justify-between hover:border-light-primary dark:hover:border-dark-primary transition-colors">
+                <article class="relative bg-light-surface dark:bg-dark-surface rounded-xl border border-light-outline-variant/60 dark:border-dark-outline-variant/40 p-5 flex flex-col justify-between hover:border-light-primary dark:hover:border-dark-primary transition-colors">
+                  {b.href && <a href={b.href} class="absolute inset-0 z-10" aria-label={`Read the full article: ${b.title}`}></a>}
                   <div>
                     <div class="flex items-center gap-2 mb-2">
                       <span class={`font-label text-label-sm font-semibold px-2 py-0.5 rounded ${b.accent === "secondary"
