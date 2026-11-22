@@ -8,6 +8,9 @@
  * Turnstile badge renders as designed; enforcement is Epic 7.2.
  */
 import DateField from "../DateField.astro";
+import FieldLabel from "../forms/FieldLabel.astro";
+import RequiredNote from "../forms/RequiredNote.astro";
+import { installFormValidation } from "../../scripts/form-validation";
 ---
 
 <div id="booking-modal" class="chrome-reset fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 hidden">
@@ -23,18 +26,19 @@ import DateField from "../DateField.astro";
     </div>
 
     <form class="space-y-3.5" data-booking-form>
+      <RequiredNote />
       <div>
-        <label class="block font-label text-label-sm font-medium mb-1 text-light-on-surface dark:text-dark-on-surface" for="bk-name">Full Name</label>
+        <FieldLabel forId="bk-name" label="Full Name" required class="block font-label text-label-sm font-medium mb-1 text-light-on-surface dark:text-dark-on-surface" />
         <input id="bk-name" type="text" required placeholder="Your full name" class="w-full px-3 py-2 rounded bg-light-surface-variant dark:bg-dark-surface-variant border border-light-outline-variant dark:border-dark-outline-variant text-light-on-surface dark:text-dark-on-surface font-body text-body-sm" />
       </div>
 
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
-          <label class="block font-label text-label-sm font-medium mb-1 text-light-on-surface dark:text-dark-on-surface" for="bk-phone">WhatsApp / Phone Number</label>
+          <FieldLabel forId="bk-phone" label="WhatsApp / Phone Number" required class="block font-label text-label-sm font-medium mb-1 text-light-on-surface dark:text-dark-on-surface" />
           <input id="bk-phone" type="tel" required placeholder="+91 98765 43210" class="w-full px-3 py-2 rounded bg-light-surface-variant dark:bg-dark-surface-variant border border-light-outline-variant dark:border-dark-outline-variant text-light-on-surface dark:text-dark-on-surface font-body text-body-sm" />
         </div>
         <div>
-          <label class="block font-label text-label-sm font-medium mb-1 text-light-on-surface dark:text-dark-on-surface" for="bk-email">Email Address</label>
+          <FieldLabel forId="bk-email" label="Email Address" required class="block font-label text-label-sm font-medium mb-1 text-light-on-surface dark:text-dark-on-surface" />
           <input id="bk-email" type="email" required placeholder="you@email.com" class="w-full px-3 py-2 rounded bg-light-surface-variant dark:bg-dark-surface-variant border border-light-outline-variant dark:border-dark-outline-variant text-light-on-surface dark:text-dark-on-surface font-body text-body-sm" />
         </div>
       </div>
@@ -57,6 +61,7 @@ import DateField from "../DateField.astro";
             label="Preferred Date"
             labelClass="block font-label text-label-sm font-medium mb-1 text-light-on-surface dark:text-dark-on-surface"
             preset="free"
+            optional
           />
         </div>
         <div>
@@ -178,4 +183,22 @@ import DateField from "../DateField.astro";
       });
     }
   })();
+</script>
+
+<script>
+  // S18 — shared validation gate: name/phone/email required + the DPDP consent
+  // checkbox; topic/window selects carry defaults, preferred date is optional.
+  import { installFormValidation } from "../../scripts/form-validation";
+  const modal = document.getElementById("booking-modal");
+  const bmForm = modal?.querySelector<HTMLFormElement>("[data-booking-form]");
+  if (bmForm) {
+    installFormValidation(bmForm, {
+      text: [
+        { el: bmForm.querySelector<HTMLInputElement>("#bk-name")!, required: true, message: "Please enter your name." },
+        { el: bmForm.querySelector<HTMLInputElement>("#bk-phone")!, required: true, message: "Please enter your phone number." },
+        { el: bmForm.querySelector<HTMLInputElement>("#bk-email")!, required: true, message: "Please enter your email address." },
+      ],
+      check: [{ el: bmForm.querySelector<HTMLInputElement>("#consent-check")! }],
+    });
+  }
 </script>

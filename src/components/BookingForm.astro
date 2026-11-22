@@ -5,6 +5,8 @@
  * renders the honest result — never a fake success.
  */
 import DateField from "./DateField.astro";
+import FieldLabel from "./forms/FieldLabel.astro";
+import RequiredNote from "./forms/RequiredNote.astro";
 
 interface Props {
   kind: "consultation" | "puja";
@@ -54,12 +56,15 @@ const subjects =
   data-booking-slug={slug}
   autocomplete="off"
 >
+  <div class="sm:col-span-2">
+    <RequiredNote />
+  </div>
   <div>
-    <label class={labelClass} for="bk-name">Your name</label>
+    <FieldLabel forId="bk-name" label="Your name" required class={labelClass} />
     <input class={inputClass} id="bk-name" name="name" type="text" required minlength="2" maxlength="120" />
   </div>
   <div>
-    <label class={labelClass} for="bk-phone">Phone (WhatsApp preferred)</label>
+    <FieldLabel forId="bk-phone" label="Phone (WhatsApp preferred)" required class={labelClass} />
     <input class={inputClass} id="bk-phone" name="phone" type="tel" required placeholder="+91 …" />
   </div>
   <div>
@@ -143,10 +148,20 @@ const subjects =
 </section>
 
 <script>
+  import { installFormValidation } from "../scripts/form-validation";
+
   function initBookingForm() {
     const form = document.querySelector<HTMLFormElement>("form[data-booking-endpoint]");
     const box = document.querySelector<HTMLElement>("[data-booking-result]");
     if (!form || !box) return;
+    // S18 — shared validation gate: name + phone required (backend enforces
+    // 2–120 chars / valid phone); email stays optional, the rest carry defaults
+    installFormValidation(form, {
+      text: [
+        { el: form.querySelector<HTMLInputElement>("#bk-name")!, required: true, message: "Please enter your name." },
+        { el: form.querySelector<HTMLInputElement>("#bk-phone")!, required: true, message: "Please enter your phone number." },
+      ],
+    });
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
       const apiBase =
