@@ -60,8 +60,18 @@ export interface DateCheck {
 }
 
 const MONTHS = [
-  "January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December",
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
 ];
 
 function isoFrom(dd: string, mm: string, yyyy: string): string {
@@ -77,11 +87,7 @@ function pad(n: number): string {
  * - `today` is injected (local midnight) so tests are deterministic.
  * - `minYear`/`maxYear` only apply to the birth preset; free has none.
  */
-export function checkDate(
-  parts: DateParts,
-  preset: DatePreset,
-  today: Date,
-): DateCheck {
+export function checkDate(parts: DateParts, preset: DatePreset, today: Date): DateCheck {
   const dd = parts.dd.replace(/\D/g, "");
   const mm = parts.mm.replace(/\D/g, "");
   const yyyy = parts.yyyy.replace(/\D/g, "");
@@ -96,12 +102,18 @@ export function checkDate(
 
   if (m < 1 || m > 12) {
     return {
-      ok: false, code: "impossible", message: `Month must be 1–12.`, iso: "",
+      ok: false,
+      code: "impossible",
+      message: `Month must be 1–12.`,
+      iso: "",
     };
   }
   if (d < 1) {
     return {
-      ok: false, code: "impossible", message: `Day must be 1–31.`, iso: "",
+      ok: false,
+      code: "impossible",
+      message: `Day must be 1–31.`,
+      iso: "",
     };
   }
   const dim = daysInMonth(y, m);
@@ -138,7 +150,10 @@ export function checkDate(
 }
 
 /** year dropdown range — birth: newest-first from the current year back 100 */
-export function yearRange(preset: DatePreset, today: Date): { years: number[]; min: number; max: number } {
+export function yearRange(
+  preset: DatePreset,
+  today: Date,
+): { years: number[]; min: number; max: number } {
   if (preset === "birth") {
     const max = today.getFullYear();
     const min = max - 100;
@@ -248,7 +263,10 @@ export function splitDateTime(value: string): { date: string; time: string } {
   const v = value.trim();
   if (!v) return { date: "", time: "" };
   const [d, t = ""] = v.split("T");
-  return { date: /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : "", time: /^\d{2}:\d{2}/.test(t) ? t.slice(0, 5) : "" };
+  return {
+    date: /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : "",
+    time: /^\d{2}:\d{2}/.test(t) ? t.slice(0, 5) : "",
+  };
 }
 
 /** local-midnight "today" — the single place the wall clock is consulted */

@@ -24,10 +24,10 @@ interface Props {
   note?: string;
 }
 
-import PlaceField from "../PlaceField.astro";
 import DateField from "../DateField.astro";
 import FieldLabel from "../forms/FieldLabel.astro";
 import RequiredNote from "../forms/RequiredNote.astro";
+import PlaceField from "../PlaceField.astro";
 
 const { endpoint, submitLabel = "Calculate", extraFields = [], note } = Astro.props;
 const inputClass =

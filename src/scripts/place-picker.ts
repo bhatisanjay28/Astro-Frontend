@@ -332,21 +332,18 @@ function setupField(field: HTMLElement): void {
     }, 150),
   );
 
-  derivers.set(
-    field,
-    (): void => {
-      // AC-7: adopt SSR prefill / saved state — visible text AND resolved roles
-      const rolesFilled = Boolean((roles.combined ?? roles.lat)?.value);
-      if (input.value.trim() && rolesFilled) {
-        field.setAttribute("data-place-selected", "true");
-        syncClear();
-      } else {
-        // nothing (or hidden-only defaults like muhurat's New Delhi) — no ×
-        field.removeAttribute("data-place-selected");
-        syncClear();
-      }
-    },
-  );
+  derivers.set(field, (): void => {
+    // AC-7: adopt SSR prefill / saved state — visible text AND resolved roles
+    const rolesFilled = Boolean((roles.combined ?? roles.lat)?.value);
+    if (input.value.trim() && rolesFilled) {
+      field.setAttribute("data-place-selected", "true");
+      syncClear();
+    } else {
+      // nothing (or hidden-only defaults like muhurat's New Delhi) — no ×
+      field.removeAttribute("data-place-selected");
+      syncClear();
+    }
+  });
   derivers.get(field)?.();
 }
 

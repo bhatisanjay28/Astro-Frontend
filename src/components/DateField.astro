@@ -77,8 +77,18 @@ const pre = mode === "datetime" ? `${id}-d` : id; // date-segment id prefix
 const preT = mode === "datetime" ? `${id}-t` : id; // time-segment id prefix
 
 const MONTHS = [
-  "January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December",
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
 ];
 const ERR_ID = `${id}-err`;
 const HINT_ID = hint ? `${id}-hint` : undefined;
@@ -107,7 +117,8 @@ const yearSegProps = (segId: string) => ({
 
 const ampm = /(\d{2}:\d{2})/.test(value)
   ? (() => {
-      const h = Number(value.split("T").pop()!.slice(0, 2));
+      const t = value.split("T").pop() ?? ""; // regex above guarantees a time part
+      const h = Number(t.slice(0, 2));
       return h >= 12 ? "pm" : "am";
     })()
   : "";

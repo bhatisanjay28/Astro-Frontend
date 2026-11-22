@@ -21,17 +21,17 @@ import {
   checkDate,
   checkTime,
   composeDateTime,
+  type DatePreset,
   dateToParts,
   daysInMonth,
   MONTHS,
   normalizeSegment,
   pasteDate,
   splitDateTime,
+  type TimeCheck,
   timeToParts,
   todayMidnight,
   yearRange,
-  type DatePreset,
-  type TimeCheck,
 } from "./date-time-core";
 
 const ERROR_ICON =
@@ -217,8 +217,10 @@ function syncDate(ctx: RootCtx): void {
     syncTimePart(ctx);
     return;
   }
+  // `?? ""` keeps the impossible missing-segment case identical: empty values
+  // yield the same "incomplete" check (hidden stays empty, message silent)
   const chk = checkDate(
-    { dd: ctx.dd!.value, mm: ctx.mmD!.value, yyyy: ctx.yy!.value },
+    { dd: ctx.dd?.value ?? "", mm: ctx.mmD?.value ?? "", yyyy: ctx.yy?.value ?? "" },
     ctx.preset,
     todayMidnight(),
   );
@@ -254,12 +256,13 @@ function hasAnyTimeDigit(ctx: RootCtx): boolean {
 
 /** time half sync for time/datetime modes; returns the full check */
 function syncTimePart(ctx: RootCtx): TimeCheck {
-  const ampm: "am" | "pm" | "" = ctx.pm?.getAttribute("aria-pressed") === "true"
-    ? "pm"
-    : ctx.am?.getAttribute("aria-pressed") === "true"
-      ? "am"
-      : "";
-  const chk = checkTime({ hh: ctx.hh!.value, mm: ctx.mi!.value, ampm }, ctx.hour12);
+  const ampm: "am" | "pm" | "" =
+    ctx.pm?.getAttribute("aria-pressed") === "true"
+      ? "pm"
+      : ctx.am?.getAttribute("aria-pressed") === "true"
+        ? "am"
+        : "";
+  const chk = checkTime({ hh: ctx.hh?.value ?? "", mm: ctx.mi?.value ?? "", ampm }, ctx.hour12);
   if (ctx.mode === "time") {
     if (chk.ok) {
       ctx.hidden.value = chk.value;
@@ -286,7 +289,10 @@ function segMax(ctx: RootCtx, seg: HTMLInputElement): number {
   return 9999;
 }
 
-function segKind(ctx: RootCtx, seg: HTMLInputElement): "day" | "month" | "hour12" | "hour24" | "minute" | "year" {
+function segKind(
+  ctx: RootCtx,
+  seg: HTMLInputElement,
+): "day" | "month" | "hour12" | "hour24" | "minute" | "year" {
   if (seg === ctx.dd) return "day";
   if (seg === ctx.mmD) return "month";
   if (seg === ctx.hh) return ctx.hour12 ? "hour12" : "hour24";
@@ -300,7 +306,8 @@ function nextSeg(ctx: RootCtx, seg: HTMLInputElement): HTMLInputElement | null {
   for (const key of SEQUENCE) {
     if (ctx[key] === seg) {
       for (const k2 of SEQUENCE.slice(SEQUENCE.indexOf(key) + 1)) {
-        if (ctx[k2]) return ctx[k2]!;
+        const el = ctx[k2];
+        if (el) return el;
       }
     }
   }
@@ -312,7 +319,8 @@ function prevSeg(ctx: RootCtx, seg: HTMLInputElement): HTMLInputElement | null {
   for (const key of order) {
     if (ctx[key] === seg) {
       for (const k2 of order.slice(order.indexOf(key) + 1)) {
-        if (ctx[k2]) return ctx[k2]!;
+        const el = ctx[k2];
+        if (el) return el;
       }
     }
   }
@@ -383,14 +391,18 @@ function onSegKeydown(ctx: RootCtx, seg: HTMLInputElement, e: KeyboardEvent): vo
     sync(ctx);
     return;
   }
-  if (ctx.hour12 && seg === ctx.hh && (e.key === "a" || e.key === "A" || e.key === "p" || e.key === "P")) {
+  if (
+    ctx.hour12 &&
+    seg === ctx.hh &&
+    (e.key === "a" || e.key === "A" || e.key === "p" || e.key === "P")
+  ) {
     e.preventDefault();
     setAmpm(ctx, e.key.toLowerCase() === "a" ? "am" : "pm");
     sync(ctx);
   }
 }
 
-function onSegPaste(ctx: RootCtx, seg: HTMLInputElement, e: ClipboardEvent): void {
+function onSegPaste(ctx: RootCtx, e: ClipboardEvent): void {
   const text = e.clipboardData?.getData("text") ?? "";
   if (!text) return;
   e.preventDefault();
@@ -398,7 +410,12 @@ function onSegPaste(ctx: RootCtx, seg: HTMLInputElement, e: ClipboardEvent): voi
     const digits = text.replace(/\D/g, "");
     const hh = digits.slice(0, 2);
     const mi = digits.slice(2, 4);
-    if (ctx.hh) ctx.hh.value = normalizeSegment(hh, segMax(ctx, ctx.hh), ctx.hour12 ? "hour12" : "hour24").value;
+    if (ctx.hh)
+      ctx.hh.value = normalizeSegment(
+        hh,
+        segMax(ctx, ctx.hh),
+        ctx.hour12 ? "hour12" : "hour24",
+      ).value;
     if (ctx.mi) ctx.mi.value = normalizeSegment(mi, 59, "minute").value;
   } else {
     const parts = pasteDate(text);
@@ -437,8 +454,14 @@ function bounds(ctx: RootCtx): { min: { y: number; m: number }; max: { y: number
 
 function clampView(ctx: RootCtx): void {
   const b = bounds(ctx);
-  if (ctx.viewY < b.min.y) { ctx.viewY = b.min.y; ctx.viewM = b.min.m; }
-  if (ctx.viewY > b.max.y) { ctx.viewY = b.max.y; ctx.viewM = b.max.m; }
+  if (ctx.viewY < b.min.y) {
+    ctx.viewY = b.min.y;
+    ctx.viewM = b.min.m;
+  }
+  if (ctx.viewY > b.max.y) {
+    ctx.viewY = b.max.y;
+    ctx.viewM = b.max.m;
+  }
   if (ctx.viewY === b.min.y && ctx.viewM < b.min.m) ctx.viewM = b.min.m;
   if (ctx.viewY === b.max.y && ctx.viewM > b.max.m) ctx.viewM = b.max.m;
 }
@@ -446,10 +469,10 @@ function clampView(ctx: RootCtx): void {
 function populateYearSelect(ctx: RootCtx): void {
   const { years } = yearRange(ctx.preset, todayMidnight());
   const cur = years.includes(ctx.viewY) ? ctx.viewY : years[0];
-  ctx.yearSel!.innerHTML = years
-    .map((y) => `<option value="${y}">${y}</option>`)
-    .join("");
-  ctx.yearSel!.value = String(cur);
+  const sel = ctx.yearSel;
+  if (!sel) return;
+  sel.innerHTML = years.map((y) => `<option value="${y}">${y}</option>`).join("");
+  sel.value = String(cur);
   ctx.viewY = cur;
 }
 
@@ -466,20 +489,25 @@ function selectedDate(ctx: RootCtx): { y: number; m: number; d: number } | null 
 }
 
 function renderGrid(ctx: RootCtx): void {
+  const monthSel = ctx.monthSel;
+  const prevBtn = ctx.prev;
+  const nextBtn = ctx.next;
+  const grid = ctx.grid;
+  if (!monthSel || !prevBtn || !nextBtn || !grid) return;
   const { y, m } = { y: ctx.viewY, m: ctx.viewM };
-  ctx.monthSel!.value = String(m);
-  for (const opt of Array.from(ctx.monthSel!.options)) opt.disabled = monthDisabled(ctx, Number(opt.value));
+  monthSel.value = String(m);
+  for (const opt of Array.from(monthSel.options))
+    opt.disabled = monthDisabled(ctx, Number(opt.value));
   const b = bounds(ctx);
   const atMin = y === b.min.y && m === b.min.m;
   const atMax = y === b.max.y && m === b.max.m;
-  ctx.prev!.disabled = atMin;
-  ctx.next!.disabled = atMax;
+  prevBtn.disabled = atMin;
+  nextBtn.disabled = atMax;
 
   const dim = daysInMonth(y, m + 1);
   const firstDow = new Date(y, m, 1).getDay();
   const sel = selectedDate(ctx);
   const today = todayMidnight();
-  const grid = ctx.grid!;
   grid.innerHTML = "";
   for (let i = 0; i < 7; i++) {
     const el = document.createElement("span");
@@ -526,7 +554,8 @@ function renderGrid(ctx: RootCtx): void {
 }
 
 function positionPopup(ctx: RootCtx): void {
-  const pop = ctx.pop!;
+  const pop = ctx.pop;
+  if (!pop) return;
   pop.classList.remove("above");
   pop.style.left = "";
   // flip above when there's no room below but there is room above
@@ -561,8 +590,8 @@ function openPopup(ctx: RootCtx): void {
   ctx.open = true;
   openCtx = ctx;
   const target =
-    ctx.grid!.querySelector<HTMLButtonElement>('.dt-day[aria-pressed="true"]') ??
-    ctx.grid!.querySelector<HTMLButtonElement>(".dt-day:not(:disabled)");
+    ctx.grid?.querySelector<HTMLButtonElement>('.dt-day[aria-pressed="true"]') ??
+    ctx.grid?.querySelector<HTMLButtonElement>(".dt-day:not(:disabled)");
   target?.focus();
 }
 
@@ -588,8 +617,14 @@ function pickDay(ctx: RootCtx, d: number): void {
 function moveMonth(ctx: RootCtx, delta: number): void {
   let m = ctx.viewM + delta;
   let y = ctx.viewY;
-  if (m < 0) { m = 11; y--; }
-  if (m > 11) { m = 0; y++; }
+  if (m < 0) {
+    m = 11;
+    y--;
+  }
+  if (m > 11) {
+    m = 0;
+    y++;
+  }
   ctx.viewM = m;
   ctx.viewY = y;
   clampView(ctx);
@@ -597,10 +632,15 @@ function moveMonth(ctx: RootCtx, delta: number): void {
   renderGrid(ctx);
 }
 
-function onDayKeydown(ctx: RootCtx, e: KeyboardEvent, idx: number, days: HTMLButtonElement[]): void {
+function onDayKeydown(
+  ctx: RootCtx,
+  e: KeyboardEvent,
+  idx: number,
+  days: HTMLButtonElement[],
+): void {
   const dim = days.length;
   const focusDay = (i: number) => days[Math.max(0, Math.min(dim - 1, i))]?.focus();
-  const dayButtons = () => ctx.grid!.querySelectorAll<HTMLButtonElement>(".dt-day");
+  const dayButtons = () => ctx.grid?.querySelectorAll<HTMLButtonElement>(".dt-day") ?? [];
   switch (e.key) {
     case "ArrowLeft": {
       e.preventDefault();
@@ -641,11 +681,28 @@ function onDayKeydown(ctx: RootCtx, e: KeyboardEvent, idx: number, days: HTMLBut
       }
       break;
     }
-    case "PageUp": e.preventDefault(); moveMonth(ctx, -1); dayButtons()[0]?.focus(); break;
-    case "PageDown": e.preventDefault(); moveMonth(ctx, 1); dayButtons()[0]?.focus(); break;
-    case "Home": e.preventDefault(); focusDay(0); break;
-    case "End": e.preventDefault(); focusDay(dim - 1); break;
-    case "Escape": e.preventDefault(); closePopup(ctx, true); break;
+    case "PageUp":
+      e.preventDefault();
+      moveMonth(ctx, -1);
+      dayButtons()[0]?.focus();
+      break;
+    case "PageDown":
+      e.preventDefault();
+      moveMonth(ctx, 1);
+      dayButtons()[0]?.focus();
+      break;
+    case "Home":
+      e.preventDefault();
+      focusDay(0);
+      break;
+    case "End":
+      e.preventDefault();
+      focusDay(dim - 1);
+      break;
+    case "Escape":
+      e.preventDefault();
+      closePopup(ctx, true);
+      break;
   }
 }
 
@@ -697,8 +754,7 @@ function clearBox(ctx: RootCtx, box: string | null | undefined): void {
 // your date of birth" / "Please enter your time of birth (hour, minute,
 // AM/PM)"; a partially-typed field says WHICH part is missing. The / ↔ /hi/
 // language toggle is build-time routing, so the document lang decides.
-const isHi = (): boolean =>
-  (document.documentElement.lang || "en").toLowerCase().startsWith("hi");
+const isHi = (): boolean => (document.documentElement.lang || "en").toLowerCase().startsWith("hi");
 
 function requiredMessage(ctx: RootCtx): string {
   const hi = isHi();
@@ -733,9 +789,7 @@ function requiredMessage(ctx: RootCtx): string {
       : `Please complete the date — ${missing.join(" and ")} missing.`;
   }
   if (ctx.mode === "datetime")
-    return hi
-      ? "कृपया पूर्ण तिथि और समय दर्ज करें।"
-      : "Please enter a complete date and time.";
+    return hi ? "कृपया पूर्ण तिथि और समय दर्ज करें।" : "Please enter a complete date and time.";
   if (ctx.preset === "birth")
     return hi ? "कृपया अपनी जन्म तिथि दर्ज करें।" : "Please enter your date of birth.";
   return hi
@@ -891,7 +945,7 @@ function setupField(root: HTMLElement): void {
     if (!seg) continue;
     seg.addEventListener("input", () => onSegInput(ctx, seg));
     seg.addEventListener("keydown", (e) => onSegKeydown(ctx, seg, e));
-    seg.addEventListener("paste", (e) => onSegPaste(ctx, seg, e as ClipboardEvent));
+    seg.addEventListener("paste", (e) => onSegPaste(ctx, e as ClipboardEvent));
     seg.addEventListener("focus", () => seg.select());
     seg.addEventListener("blur", () => {
       // a single digit left behind ("1" day, "5" minute) pads on leave —
@@ -902,26 +956,40 @@ function setupField(root: HTMLElement): void {
       }
     });
   }
-  if (ctx.am) ctx.am.addEventListener("click", () => { setAmpm(ctx, "am"); sync(ctx); });
-  if (ctx.pm) ctx.pm.addEventListener("click", () => { setAmpm(ctx, "pm"); sync(ctx); });
-  ctx.clears.forEach((btn) =>
+  if (ctx.am)
+    ctx.am.addEventListener("click", () => {
+      setAmpm(ctx, "am");
+      sync(ctx);
+    });
+  if (ctx.pm)
+    ctx.pm.addEventListener("click", () => {
+      setAmpm(ctx, "pm");
+      sync(ctx);
+    });
+  ctx.clears.forEach((btn) => {
     btn.addEventListener("click", () =>
       clearBox(ctx, btn.closest<HTMLElement>("[data-dt-box]")?.getAttribute("data-dt-box")),
-    ),
-  );
+    );
+  });
 
   // popup
   if (ctx.trigger && ctx.pop) {
-    ctx.trigger.addEventListener("click", () => (ctx.open ? closePopup(ctx, true) : openPopup(ctx)));
+    ctx.trigger.addEventListener("click", () =>
+      ctx.open ? closePopup(ctx, true) : openPopup(ctx),
+    );
     ctx.prev?.addEventListener("click", () => moveMonth(ctx, -1));
     ctx.next?.addEventListener("click", () => moveMonth(ctx, 1));
     ctx.yearSel?.addEventListener("change", () => {
-      ctx.viewY = Number(ctx.yearSel!.value);
+      const sel = ctx.yearSel;
+      if (!sel) return;
+      ctx.viewY = Number(sel.value);
       renderGrid(ctx);
       ctx.grid?.querySelector<HTMLButtonElement>(".dt-day:not(:disabled)")?.focus();
     });
     ctx.monthSel?.addEventListener("change", () => {
-      ctx.viewM = Number(ctx.monthSel!.value);
+      const sel = ctx.monthSel;
+      if (!sel) return;
+      ctx.viewM = Number(sel.value);
       renderGrid(ctx);
       ctx.grid?.querySelector<HTMLButtonElement>(".dt-day:not(:disabled)")?.focus();
     });
@@ -951,8 +1019,6 @@ export function initDateFields(): void {
   bindGlobals();
 }
 
-export {};
-
 declare global {
   interface Window {
     vyDateTime: {
@@ -969,7 +1035,8 @@ window.vyDateTime = {
     const root = input.closest<HTMLElement>("[data-dt]");
     if (!root) return;
     if (!contexts.has(root)) setupField(root);
-    const ctx = contexts.get(root)!;
+    const ctx = contexts.get(root);
+    if (!ctx) return;
     ctx.hidden.value = value;
     loadFromValue(ctx);
     sync(ctx);

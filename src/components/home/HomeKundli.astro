@@ -1,4 +1,6 @@
 ---
+import DateField from "../DateField.astro";
+import RequiredNote from "../forms/RequiredNote.astro";
 /**
  * Home "Quick Kundli" — home design §6 (D11) with the REAL generation flow
  * (Epic 4.2): form POSTs /api/v1/kundli (no-PII) and renders Lagna chart,
@@ -8,8 +10,6 @@
  * "what's included" list and the 36-point callout.
  */
 import PlaceField from "../PlaceField.astro";
-import DateField from "../DateField.astro";
-import RequiredNote from "../forms/RequiredNote.astro";
 
 const INCLUDES = [
   {
