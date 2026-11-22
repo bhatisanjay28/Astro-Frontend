@@ -1,6 +1,7 @@
 ---
 import PlaceField from "../components/PlaceField.astro";
 import DateField from "../components/DateField.astro";
+import RequiredNote from "../components/forms/RequiredNote.astro";
 /**
  * /matching — Guna Milan (Ashtakoota 36) + Manglik UI (Epic 4.3).
  * The page is a thin renderer: POST /api/v1/kundli/match does everything
@@ -40,6 +41,7 @@ const GIRL = personFields("girl", "Girl");
     </p>
 
     <form id="match-form" class="panel" autocomplete="off">
+      <RequiredNote />
       <div class="grid md:grid-cols-2 gap-6">
         {
           [BOY, GIRL].map((p) => (
@@ -47,13 +49,15 @@ const GIRL = personFields("girl", "Girl");
               <legend>{p.label}</legend>
               {p.fields.map((f) => (
                 <div>
+                  {/* S18: birth chart times drive the moon-based koota scores —
+                      required for both people, like the dates and places */}
                   <DateField
                     mode={f.type === "time" ? "time" : "date"}
                     id={f.name}
                     name={f.name}
                     label={f.label}
                     labelClass={labelClass}
-                    required={f.name.endsWith("-date")}
+                    required
                   />
                 </div>
               ))}
@@ -158,6 +162,14 @@ const GIRL = personFields("girl", "Girl");
         });
     });
   })();
+</script>
+
+<script>
+  // S18 — shared validation gate: 2 dates + 2 times (now required) + 2
+  // required places are all markup-driven; no text rules here.
+  import { installFormValidation } from "../scripts/form-validation";
+  const mForm = document.getElementById("match-form") as HTMLFormElement | null;
+  if (mForm) installFormValidation(mForm);
 </script>
 
 <style>

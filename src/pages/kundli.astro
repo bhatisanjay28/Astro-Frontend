@@ -1,6 +1,7 @@
 ---
 import PlaceField from "../components/PlaceField.astro";
 import DateField from "../components/DateField.astro";
+import RequiredNote from "../components/forms/RequiredNote.astro";
 /**
  * /kundli — Free Kundli page (Epic 4.2): form → LIVE /api/v1/kundli →
  * North/South Indian SVG charts (printable), planetary table (incl. Navamsha
@@ -27,6 +28,7 @@ const notes = (await fetchContentBlocks("kundli.")) ?? {};
     </p>
 
     <form data-k-form>
+      <RequiredNote />
       <div class="row">
         <DateField id="k-date" name="date" label="Birth date" required />
         <DateField mode="time" id="k-time" name="time" label="Birth time" value="10:00" required />
@@ -279,6 +281,15 @@ const notes = (await fetchContentBlocks("kundli.")) ?? {};
       styleSel.onchange = function () { if (lastData) render(lastData, styleSel.value); };
     });
   })();
+</script>
+
+<script>
+  // S18 — shared validation gate (module script: imports the shared bundle).
+  // dt + required-place come from markup; the inline handler above stays as
+  // the no-JS-fallback path and never sees a blocked submission.
+  import { installFormValidation } from "../scripts/form-validation";
+  const kForm = document.querySelector<HTMLFormElement>("[data-k-form]");
+  if (kForm) installFormValidation(kForm);
 </script>
 
 <style is:global>

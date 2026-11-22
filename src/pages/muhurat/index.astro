@@ -1,6 +1,7 @@
 ---
 import PlaceField from "../../components/PlaceField.astro";
 import DateField from "../../components/DateField.astro";
+import RequiredNote from "../../components/forms/RequiredNote.astro";
 /** /muhurat/ — today's windows + finder form (Epic 3.4). Client islands on
  * the LIVE /api/v1/muhurat routes. City pickers use the /places proxy
  * (owner directive, 2026-11-20); the today-island keeps a New Delhi default
@@ -58,6 +59,7 @@ const EVENTS = [
   <section class="finder" aria-labelledby="finder-h">
     <h2 id="finder-h">Muhurat finder</h2>
     <form data-mf-form>
+      <RequiredNote />
       <div class="row">
         <label>Event
           <select name="event">
@@ -78,6 +80,14 @@ const EVENTS = [
     <div class="mf-error" data-mf-error hidden>Could not run the finder — check the range (max 62 days) and try again.</div>
     <div class="mf-out" data-mf-out hidden aria-live="polite"></div>
   </section>
+
+  <script>
+    // S18 — shared validation gate for the finder: From/To dates + city are
+    // markup-driven (all required); no text rules.
+    import { installFormValidation } from "../../scripts/form-validation";
+    const mfForm = document.querySelector<HTMLFormElement>("[data-mf-form]");
+    if (mfForm) installFormValidation(mfForm);
+  </script>
 
   <script is:inline define:vars={{ apiBase }}>
     (function () {
