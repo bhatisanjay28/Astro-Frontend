@@ -6,10 +6,12 @@
  * S17-1 mega menu: tabs with a `menu` config in data/navigation.ts (the one
  * source) render a hover mega panel on desktop — gated to ≥1280px on
  * hover-capable fine pointers; everywhere else (mobile + touch) the drawer
- * shows the same links as a per-tab accordion. Panel = design-system Level-3
- * popover (hairline border, deep warm shadow, gold top hairline) re-mapped to
- * the site tokens. Desktop triggers carry no chevron: the 9-tab row is
- * already width-bound at the 1280px entry point.
+ * shows the same links as a per-tab accordion. Panels are compact per-tab
+ * dropdowns: anchored to their tab and sized to their sub-categories (owner
+ * tweak 2026-11-22), JS-clamped inside the viewport. Panel = design-system
+ * Level-3 popover (hairline border, deep warm shadow, gold top hairline)
+ * re-mapped to the site tokens. Desktop triggers carry no chevron: the 9-tab
+ * row is already width-bound at the 1280px entry point.
  */
 import { NAV_TABS } from "../data/navigation";
 
@@ -191,9 +193,11 @@ const navId = (href: string) => `mm-${href.replace(/\//g, "") || "home"}`;
     .nav-mobile-trigger { display: none !important; }
   }
 
-  /* Panels position against the header container — never wider than it, so
-   * they can never overflow the viewport at any desktop width. */
-  .site-header-inner { position: relative; }
+  /* Compact per-tab dropdowns (owner tweak 2026-11-22): each panel anchors to
+   * its own tab and sizes to its sub-categories — not a full-width bar. The
+   * JS clamp keeps the open panel inside the viewport, so it can never
+   * overflow at any desktop width. */
+  .mm-item { position: relative; }
 
   /* ---- Mega panel: design-system Level-3 popover (hairline border, deep
    * warm diffusion shadow, gold top hairline), token-mapped. ---- */
@@ -201,8 +205,10 @@ const navId = (href: string) => `mm-${href.replace(/\//g, "") || "home"}`;
     position: absolute;
     top: 100%;
     left: 0;
-    right: 0;
     z-index: 50;
+    width: max-content; /* size to the sub-categories, per tab */
+    min-width: 260px;
+    max-width: min(920px, calc(100vw - 32px));
     background: #ffffff; /* Level-3 elevated white (design system) */
     border: 1px solid var(--color-border);
     border-radius: 0 0 var(--radius-card) var(--radius-card);
@@ -234,12 +240,15 @@ const navId = (href: string) => `mm-${href.replace(/\//g, "") || "home"}`;
       0 4px 12px -2px rgba(0, 0, 0, 0.45);
   }
 
+  /* Groups sit side by side at their natural width and wrap only when the
+   * panel hits its max-width cap (widest menus: Free Calculators). */
   .mm-cols {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 14px 32px;
-    padding: 20px 28px 24px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px 30px;
+    padding: 18px 22px 20px;
   }
+  .mm-group { flex: 0 0 auto; }
   .mm-title {
     margin: 0 0 8px;
     font-family: var(--font-display);
@@ -288,6 +297,7 @@ const navId = (href: string) => `mm-${href.replace(/\//g, "") || "home"}`;
   .mm-desc {
     display: block;
     margin-top: 2px;
+    max-width: 230px; /* descriptions wrap instead of stretching the group */
     color: var(--text-muted);
     font-size: 12.5px;
     line-height: 1.45;
@@ -357,10 +367,37 @@ const navId = (href: string) => `mm-${href.replace(/\//g, "") || "home"}`;
     for (const other of items) if (other !== item) closeItem(other);
     const panel = item.querySelector<HTMLElement>("[data-mm-panel]");
     const trigger = item.querySelector<HTMLElement>("[data-mm-trigger]");
-    if (panel) panel.hidden = false;
+    if (panel) {
+      panel.hidden = false;
+      clampPanel(item, panel);
+    }
     trigger?.setAttribute("aria-expanded", "true");
     item.dataset.open = "true";
   };
+  // Content-sized panels anchor to their tab (left edge); for tabs near the
+  // right side of the nav that would poke off-screen, shift the open panel
+  // left so its right edge sits 8px inside the viewport (never past an 8px
+  // left margin either). The tab trigger always stays within the panel's
+  // x-span, so moving the pointer straight down still lands in the panel.
+  const clampPanel = (item: HTMLElement, panel: HTMLElement) => {
+    panel.style.left = "0px";
+    const itemBox = item.getBoundingClientRect();
+    const box = panel.getBoundingClientRect();
+    const overRight = box.right - (document.documentElement.clientWidth - 8);
+    if (overRight > 0) {
+      const target = Math.max(8, box.left - overRight);
+      panel.style.left = `${target - itemBox.left}px`;
+    }
+  };
+  // A resize can invalidate the clamp — close any open panel rather than
+  // leave it poking out (no-op when nothing is open).
+  window.addEventListener(
+    "resize",
+    () => {
+      for (const it of items) closeItem(it);
+    },
+    { passive: true },
+  );
 
   for (const item of items) {
     const trigger = item.querySelector<HTMLElement>("[data-mm-trigger]");
