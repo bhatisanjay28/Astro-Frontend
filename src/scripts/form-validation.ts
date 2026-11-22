@@ -137,7 +137,7 @@ export interface CheckRule {
 
 export function installFormValidation(
   form: HTMLFormElement,
-  rules: { text?: TextRule[]; check?: CheckRule[] } = {},
+  rules: { text?: TextRule[]; check?: CheckRule[]; placeMessage?: string } = {},
 ): void {
   injectStyles();
   form.setAttribute("data-vy-fv", "true");
@@ -178,14 +178,17 @@ export function installFormValidation(
     });
   }
 
-  // required place fields are markup-driven — auto-cover every one
+  // required place fields are markup-driven — auto-cover every one; the
+  // wording may need the form's context (a finder's City is not a birth place)
+  const placeOverride = rules.placeMessage;
   for (const pp of form.querySelectorAll<HTMLElement>('.pp[data-place-field="required"]')) {
     const input = pp.querySelector<HTMLInputElement>("[data-place-input]");
     if (!input) continue;
     if (!input.getAttribute("aria-required")) input.setAttribute("aria-required", "true");
     const status = pp.querySelector<HTMLElement>("[data-place-status]");
     if (!status) continue;
-    const validate = () => (pp.getAttribute("data-place-selected") === "true" ? null : msg().place);
+    const validate = () =>
+      pp.getAttribute("data-place-selected") === "true" ? null : (placeOverride ?? msg().place);
     entries.push({ el: pp, errEl: status, message: null, validate, focusEl: input });
   }
 
@@ -266,11 +269,23 @@ export function installFormValidation(
     }
   });
 
-  // a resolved pick clears the place error immediately
+  // a resolved pick clears the place error immediately — but the picker has
+  // just written its own ✓ confirmation into this same aria-live element;
+  // drop the error STATE, and clear the text only while it still holds the
+  // gate's error (never erase the picker's ✓ announcement)
   form.addEventListener("place:selected", (e) => {
     const pp = (e.target as HTMLElement).closest<HTMLElement>(".pp");
     const entry = entries.find((x) => x.el === pp);
-    if (entry && !entry.validate()) clear(entry);
+    if (!entry || entry.validate()) return;
+    const ctrl = entry.el.matches("input, select, textarea")
+      ? (entry.el as HTMLElement)
+      : entry.el.querySelector<HTMLElement>("[data-place-input]");
+    ctrl?.removeAttribute("aria-invalid");
+    ctrl?.classList.remove("vy-invalid");
+    if (entry.errEl.classList.contains("vy-err")) {
+      entry.errEl.textContent = "";
+      entry.errEl.classList.remove("vy-err");
+    }
   });
 
   // validate on blur once the user has interacted — never before

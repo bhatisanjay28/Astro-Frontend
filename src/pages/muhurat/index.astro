@@ -1,7 +1,7 @@
 ---
-import PlaceField from "../../components/PlaceField.astro";
 import DateField from "../../components/DateField.astro";
 import RequiredNote from "../../components/forms/RequiredNote.astro";
+import PlaceField from "../../components/PlaceField.astro";
 /** /muhurat/ — today's windows + finder form (Epic 3.4). Client islands on
  * the LIVE /api/v1/muhurat routes. City pickers use the /places proxy
  * (owner directive, 2026-11-20); the today-island keeps a New Delhi default
@@ -86,7 +86,9 @@ const EVENTS = [
     // markup-driven (all required); no text rules.
     import { installFormValidation } from "../../scripts/form-validation";
     const mfForm = document.querySelector<HTMLFormElement>("[data-mf-form]");
-    if (mfForm) installFormValidation(mfForm);
+    // the finder's City is a location, not a birth place — keep the gate's
+    // message in the field's own context (its inline check stays as fallback)
+    if (mfForm) installFormValidation(mfForm, { placeMessage: "Please select the city from the suggestions." });
   </script>
 
   <script is:inline define:vars={{ apiBase }}>
