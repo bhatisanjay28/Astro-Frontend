@@ -58,5 +58,5 @@ lengths (7, 20, 6, 10, 7, 18, 16, 19, 17 years).
 
 ## Find yours
 
-The [Rashi & Nakshatra calculator](/calculators/rashi) returns your janma nakshatra
+The [Nakshatra calculator](/calculators/nakshatra) returns your janma nakshatra
 and pada from your birth details.
