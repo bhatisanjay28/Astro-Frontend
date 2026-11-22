@@ -336,7 +336,9 @@ const here = Astro.url.pathname.replace(/\/+$/, "");
   /* ---- Content sections ---- */
   .legal-section {
     margin-top: var(--space-6);
-    scroll-margin-top: 88px; /* clear the sticky site header when jumping from the TOC */
+    /* 88px sat under the 82px stuck header; the global scroll-padding (6rem,
+       base.css S20) now owns the header clearance — keep only a small air gap */
+    scroll-margin-top: 10px;
   }
   .legal-section h2 {
     margin: 0;

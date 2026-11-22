@@ -50,7 +50,7 @@ const subjects =
 
 <form
   id="book"
-  class="grid grid-cols-1 sm:grid-cols-2 gap-3 items-start scroll-mt-24"
+  class="grid grid-cols-1 sm:grid-cols-2 gap-3 items-start scroll-mt-2"
   data-booking-endpoint={endpoint}
   data-booking-kind={kind}
   data-booking-slug={slug}
@@ -65,7 +65,7 @@ const subjects =
   </div>
   <div>
     <FieldLabel forId="bk-phone" label="Phone (WhatsApp preferred)" required class={labelClass} />
-    <input class={inputClass} id="bk-phone" name="phone" type="tel" required placeholder="+91 …" />
+    <input class={inputClass} id="bk-phone" name="phone" type="tel" required placeholder="+91 98765 43210" />
   </div>
   <div>
     <label class={labelClass} for="bk-email">Email (optional)</label>

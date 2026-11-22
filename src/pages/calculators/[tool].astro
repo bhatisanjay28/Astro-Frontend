@@ -401,7 +401,7 @@ const API_NOTE = "Free · instant · computed live — nothing is stored.";
                 name="time"
                 label="Time of birth"
                 optional
-                className="col-span-2 sm:col-span-1"
+                class="col-span-2 sm:col-span-1"
               />
             )}
             {tool.kind !== "names" && tool.kind !== "name" && tool.kind !== "mobile" && (
@@ -411,7 +411,7 @@ const API_NOTE = "Free · instant · computed live — nothing is stored.";
                 label={tool.kind === "age" ? "Date of birth" : "Date"}
                 required
                 preset={tool.dateMode ?? "birth"}
-                className="col-span-2 sm:col-span-1"
+                class="col-span-2 sm:col-span-1"
               />
             )}
             {(tool.kind === "name" || tool.kind === "names" || tool.kind === "date-name") && (

@@ -30,6 +30,25 @@ main {
   font: inherit;
   letter-spacing: inherit;
 }
+/* Tailwind runs utilities-only (NO preflight), so controls kept the browser
+   default content-box: every `w-full px-3 border` input rendered 26px wider
+   and 18px taller than declared, and in 2-column grids the columns bled into
+   each other — visibly overlapping field pairs (Gotra × Preferred date on
+   /poojan/, alignment sweep S20). Declare the preflight box-sizing subset
+   globally; explicit rules (material-icons content-box, .dt-box) still win. */
+*,
+::before,
+::after {
+  box-sizing: border-box;
+}
+/* The sticky header is 75–82px tall when stuck (utility strip scrolls away).
+   Without scroll-padding on the scrollport, focusing a field or jumping to an
+   anchor scrolled it flush to y=0 — hidden UNDER the header tabs (the
+   "preferred date / Topic overlap the tabs" report, S20). 6rem clears every
+   breakpoint with breathing room; per-element scroll-margins now layer on top. */
+html {
+  scroll-padding-top: 6rem;
+}
 /* Reduced motion: hover/active transitions and scale effects are decoration
    only (UX audit F20). !important is deliberate — the overrides must also
    beat unlayered rules and inline styles. */
