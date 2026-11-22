@@ -26,6 +26,8 @@ interface Props {
 
 import PlaceField from "../PlaceField.astro";
 import DateField from "../DateField.astro";
+import FieldLabel from "../forms/FieldLabel.astro";
+import RequiredNote from "../forms/RequiredNote.astro";
 
 const { endpoint, submitLabel = "Calculate", extraFields = [], note } = Astro.props;
 const inputClass =
@@ -40,11 +42,18 @@ const labelClass =
   data-place-required="true"
   autocomplete="off"
 >
-  <div>
+  <div class="col-span-2 sm:col-span-3">
+    <RequiredNote />
+  </div>
+  {/* dt fields span the full row at base — the picker needs ~230px and a
+      half-width 360px cell overflows it (S18 responsive check) */}
+  <div class="col-span-2 sm:col-span-1">
     <DateField id="bf-date" name="date" label="Birth date" labelClass={labelClass} required />
   </div>
-  <div>
-    <DateField mode="time" id="bf-time" name="time" label="Birth time" labelClass={labelClass} />
+  <div class="col-span-2 sm:col-span-1">
+    {/* birth charts need the instant — lagna/houses/moon move with the clock
+        (S18: time required, same as date and place) */}
+    <DateField mode="time" id="bf-time" name="time" label="Birth time" labelClass={labelClass} required />
   </div>
   {/* full row: the PlaceField's live-status line sits below its input, so
       confining it to one grid cell broke the items-end bottom alignment */}
@@ -53,13 +62,10 @@ const labelClass =
   </div>
   {
     extraFields.map((f) => (
-      <div>
+      <div class={f.type === "date" || f.type === "time" ? "col-span-2 sm:col-span-1" : ""}>
         {f.options ? (
           <div>
-            <label class={labelClass} for={`bf-${f.name}`}>
-              {f.label}
-              {f.required ? "" : " (optional)"}
-            </label>
+            <FieldLabel forId={`bf-${f.name}`} label={f.label} required={f.required === true} optional={f.required !== true} class={labelClass} />
             <select class={inputClass} id={`bf-${f.name}`} name={f.name} required={f.required === true}>
               {f.required !== true && <option value="">—</option>}
               {f.options.map((opt) => (
@@ -88,10 +94,7 @@ const labelClass =
           />
         ) : (
           <div>
-            <label class={labelClass} for={`bf-${f.name}`}>
-              {f.label}
-              {f.required ? "" : " (optional)"}
-            </label>
+            <FieldLabel forId={`bf-${f.name}`} label={f.label} required={f.required === true} optional={f.required !== true} class={labelClass} />
             <input
               class={inputClass}
               id={`bf-${f.name}`}

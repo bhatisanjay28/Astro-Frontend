@@ -3,6 +3,8 @@ import type { ExtraField } from "../../components/calculators/BirthForm.astro";
 import BirthForm from "../../components/calculators/BirthForm.astro";
 import PlaceField from "../../components/PlaceField.astro";
 import DateField from "../../components/DateField.astro";
+import FieldLabel from "../../components/forms/FieldLabel.astro";
+import RequiredNote from "../../components/forms/RequiredNote.astro";
 /**
  * /calculators/{tool} — Epic 4.4 (Tier 1) + 4.6 (Tier 2) + Epic 14 (S14-2).
  * One shared template (PRD §5.7) driven by a registry: slug/titles/input kind.
@@ -376,7 +378,10 @@ const API_NOTE = "Free · instant · computed live — nothing is stored.";
           />
         ) : tool.kind === "transits" ? (
           <form class="grid grid-cols-2 sm:grid-cols-3 gap-3 items-end" data-calc-endpoint={tool.endpoint} data-place-required="true" autocomplete="off">
-            <PlaceField variant="separate" inputId="bf-place" label="Place" />
+            <div class="col-span-2 sm:col-span-3"><RequiredNote /></div>
+            <div class="col-span-2 sm:col-span-3">
+              <PlaceField variant="separate" inputId="bf-place" label="Place" />
+            </div>
             <button type="submit" class="btn">{tool.submitLabel ?? "Calculate"}</button>
           </form>
         ) : (
@@ -386,12 +391,17 @@ const API_NOTE = "Free · instant · computed live — nothing is stored.";
             data-place-required={tool.kind === "date-place" ? "false" : undefined}
             autocomplete="off"
           >
+            <div class="col-span-2 sm:col-span-3"><RequiredNote /></div>
+            {/* dt fields span the full row at base — the picker needs ~230px
+                and a half-width 360px cell overflows it (S18 responsive check) */}
             {tool.kind === "date-place" && (
               <DateField
                 mode="time"
                 id="bf-time"
                 name="time"
-                label="Time of birth (optional)"
+                label="Time of birth"
+                optional
+                className="col-span-2 sm:col-span-1"
               />
             )}
             {tool.kind !== "names" && tool.kind !== "name" && tool.kind !== "mobile" && (
@@ -401,19 +411,29 @@ const API_NOTE = "Free · instant · computed live — nothing is stored.";
                 label={tool.kind === "age" ? "Date of birth" : "Date"}
                 required
                 preset={tool.dateMode ?? "birth"}
+                className="col-span-2 sm:col-span-1"
               />
             )}
             {(tool.kind === "name" || tool.kind === "names" || tool.kind === "date-name") && (
               <div>
-                <label class="lbl" for="bf-name">{tool.kind === "names" ? "First name" : "Name"}</label>
-                <input class="inp" id="bf-name" name={tool.kind === "names" ? "a" : "name"} type="text" placeholder={tool.kind === "names" ? "First name" : "Your name"} required />
+                {/* S18: name drives the value only for name-numerology/names;
+                    numerology (date-name) computes Namank from it if given —
+                    optional there, so no native required */}
+                <FieldLabel
+                  forId="bf-name"
+                  label={tool.kind === "names" ? "First name" : "Name"}
+                  required={tool.kind !== "date-name"}
+                  optional={tool.kind === "date-name"}
+                  class="lbl"
+                />
+                <input class="inp" id="bf-name" name={tool.kind === "names" ? "a" : "name"} type="text" placeholder={tool.kind === "names" ? "First name" : "Your name"} required={tool.kind !== "date-name"} />
               </div>
             )}
             {tool.extraFields?.filter((f) => f.name !== "name").map((f) => (
-              <div>
+              <div class={f.type === "date" || f.type === "time" ? "col-span-2 sm:col-span-1" : ""}>
                 {f.options ? (
                   <div>
-                    <label class="lbl" for={`bf-${f.name}`}>{f.label}{f.required ? "" : " (optional)"}</label>
+                    <FieldLabel forId={`bf-${f.name}`} label={f.label} required={f.required === true} optional={f.required !== true} class="lbl" />
                     <select class="inp" id={`bf-${f.name}`} name={f.name} required={f.required === true}>
                       {f.required !== true && <option value="">—</option>}
                       {f.options.map((opt) => (
@@ -440,7 +460,7 @@ const API_NOTE = "Free · instant · computed live — nothing is stored.";
                   />
                 ) : (
                   <div>
-                    <label class="lbl" for={`bf-${f.name}`}>{f.label}{f.required ? "" : " (optional)"}</label>
+                    <FieldLabel forId={`bf-${f.name}`} label={f.label} required={f.required === true} optional={f.required !== true} class="lbl" />
                     <input class="inp" id={`bf-${f.name}`} name={f.name} type={f.type} placeholder={f.placeholder ?? ""} required={f.required === true} />
                   </div>
                 )}
@@ -448,7 +468,10 @@ const API_NOTE = "Free · instant · computed live — nothing is stored.";
             ))}
             {tool.kind === "date-place" && (
               <div class="col-span-2 sm:col-span-3">
-                <PlaceField variant="separate" inputId="bf-place" label="Place of birth (optional — for the exact instant)" />
+                {/* required={false}: sun-sign works without a place — the page
+                    note explains the 12:00 UTC default; the picker only gates
+                    it when a birth time is given */}
+                <PlaceField variant="separate" inputId="bf-place" label="Place of birth" required={false} optional />
               </div>
             )}
             <button type="submit" class="btn">{tool.submitLabel ?? "Calculate"}</button>
@@ -474,6 +497,7 @@ const API_NOTE = "Free · instant · computed live — nothing is stored.";
   // delegated to the block renderer (S14-2 AC-2); this file owns the form →
   // querystring plumbing and the four states (empty/loading/error/results).
   import { esc, renderCalculatorResult } from "../../scripts/calculator-renderer";
+  import { installFormValidation } from "../../scripts/form-validation";
 
   const apiBase =
     import.meta.env.PUBLIC_API_BASE_URL ?? "https://astro-backend.vyotish.workers.dev";
@@ -482,6 +506,19 @@ const API_NOTE = "Free · instant · computed live — nothing is stored.";
   if (form && box) {
     const toolSlug = location.pathname.split("/").pop() ?? "";
     const placeRequired = form.getAttribute("data-place-required") === "true";
+
+    // S18 — shared validation gate: dt + required-place come from markup; text
+    // rules derive from the native required attrs (first/second name, plate,
+    // digits). The gate blocks before this handler's fetch ever runs.
+    installFormValidation(form, {
+      text: [...form.querySelectorAll<HTMLInputElement>("input[required]")]
+        .filter((el) => el.type !== "hidden")
+        .map((el) => ({
+          el,
+          required: true,
+          message: el.id === "bf-name" ? "Please enter your name." : undefined,
+        })),
+    });
 
     form.addEventListener("submit", (e) => {
       e.preventDefault();
@@ -502,11 +539,13 @@ const API_NOTE = "Free · instant · computed live — nothing is stored.";
       // optional-place forms (sun-sign) only need it when a local time is given
       if (latField && !latField.value && (placeRequired || (timeField && timeField.value))) {
         const st = form.querySelector<HTMLElement>("[data-place-status]");
+        const input = form.querySelector<HTMLInputElement>("[data-place-input]");
         if (st) {
           st.textContent = placeRequired
             ? "Please select your place of birth from the suggestions."
             : "Add your place of birth to use the birth time — or clear the time field.";
         }
+        if (input) input.setAttribute("aria-invalid", "true");
         return;
       }
 
