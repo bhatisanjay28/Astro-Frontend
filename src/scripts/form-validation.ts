@@ -85,7 +85,7 @@ function injectStyles(): void {
 }
 
 function ensureErrEl(el: HTMLElement): HTMLElement {
-  const id = `${el.id || el.name || "field"}-err`;
+  const id = `${el.id || el.getAttribute("name") || "field"}-err`;
   let err = document.getElementById(id);
   if (!err) {
     err = document.createElement("p");
@@ -115,7 +115,7 @@ function dtErrors(form: HTMLFormElement): HTMLElement[] {
     const requiredEmpty = root.getAttribute("data-dt-required") === "true" && !hidden?.value;
     if (root.getAttribute("data-invalid") === "true" || requiredEmpty) {
       // focus the first still-empty segment, else the first segment
-      const segs = [...root.querySelectorAll<HTMLElement>("[data-dt-seg]")];
+      const segs = [...root.querySelectorAll<HTMLInputElement>("[data-dt-seg]")];
       bad.push(segs.find((s) => !s.value) ?? segs[0] ?? root);
     }
   }
