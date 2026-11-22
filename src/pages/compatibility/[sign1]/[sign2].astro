@@ -1,0 +1,342 @@
+---
+/** /compatibility/{sign1}/{sign2}/ — 78 canonical sun-sign pair pages (Epic ZC
+ * S-ZC-3). Results come from the backend API (D12 thin renderer); scores are
+ * never recomputed or invented here. Mirrored sign orders 404 — canonical
+ * wheel-order pages are the only URLs. */
+import Base from "../../../layouts/Base.astro";
+import { canonicalPairs, type ZodiacSignMeta } from "../../../lib/zodiac-signs";
+
+export function getStaticPaths() {
+  return canonicalPairs().map(({ sign1, sign2 }) => ({
+    params: { sign1: sign1.slug, sign2: sign2.slug },
+    props: { sign1, sign2 },
+  }));
+}
+
+const { sign1, sign2 } = Astro.props as { sign1: ZodiacSignMeta; sign2: ZodiacSignMeta };
+const apiBase = import.meta.env.PUBLIC_API_BASE_URL ?? "https://astro-backend.vyotish.workers.dev";
+const pairLabel = `${sign1.en} & ${sign2.en}`;
+const sameSign = sign1.slug === sign2.slug;
+---
+
+<Base
+  title={`${pairLabel} Compatibility — Sun Sign Match Score & Tips | Vyotish`}
+  description={`Read the ${sign1.en}–${sign2.en} sun-sign match: love, sexual, friendship, communication, trust and emotional compatibility with an overall score and original relationship tips.`}
+>
+  <nav class="zc-crumbs" aria-label="Breadcrumb">
+    <a href="/astrology">Astrology</a> <span aria-hidden="true">/</span>
+    <a href="/compatibility">Zodiac Compatibility</a> <span aria-hidden="true">/</span>
+    <span aria-current="page">{pairLabel}</span>
+  </nav>
+
+  <section class="zc-page" data-zc-sign1={sign1.slug} data-zc-sign2={sign2.slug}>
+    <header class="zc-head">
+      <h1>
+        {pairLabel} Compatibility
+        <span class="zc-symbols" aria-hidden="true">{sign1.symbol}{sameSign ? "" : sign2.symbol}</span>
+      </h1>
+      <p class="zc-lede">
+        {sameSign
+          ? `Two ${sign1.en} partners — how the same sign pairs with itself, and where the similarities help or pinch.`
+          : `How ${sign1.en} and ${sign2.en} get along, scored honestly across six aspects of a relationship — with original tips for the friction points.`}
+      </p>
+    </header>
+
+    <div class="zc-result-shell" data-zc-result aria-live="polite" aria-busy="true">
+      <div class="zc-state zc-loading">
+        <p>Reading the charts…</p>
+      </div>
+    </div>
+
+    <section class="zc-picker" aria-label="Check another pair">
+      <h2>Check another pairing</h2>
+      <form data-zc-picker>
+        <div class="zc-fields">
+          <label>
+            <span>Your sign</span>
+            <select name="sign1" required>
+              {(
+                [
+                  ["aries", "Aries"],
+                  ["taurus", "Taurus"],
+                  ["gemini", "Gemini"],
+                  ["cancer", "Cancer"],
+                  ["leo", "Leo"],
+                  ["virgo", "Virgo"],
+                  ["libra", "Libra"],
+                  ["scorpio", "Scorpio"],
+                  ["sagittarius", "Sagittarius"],
+                  ["capricorn", "Capricorn"],
+                  ["aquarius", "Aquarius"],
+                  ["pisces", "Pisces"],
+                ] as Array<[string, string]>
+              ).map(([slug, name]) => (
+                <option value={slug} selected={slug === sign1.slug}>
+                  {name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button type="button" class="zc-swap" data-zc-swap aria-label="Swap the two signs">
+            ⇄
+          </button>
+          <label>
+            <span>Partner's sign</span>
+            <select name="sign2" required>
+              {(
+                [
+                  ["aries", "Aries"],
+                  ["taurus", "Taurus"],
+                  ["gemini", "Gemini"],
+                  ["cancer", "Cancer"],
+                  ["leo", "Leo"],
+                  ["virgo", "Virgo"],
+                  ["libra", "Libra"],
+                  ["scorpio", "Scorpio"],
+                  ["sagittarius", "Sagittarius"],
+                  ["capricorn", "Capricorn"],
+                  ["aquarius", "Aquarius"],
+                  ["pisces", "Pisces"],
+                ] as Array<[string, string]>
+              ).map(([slug, name]) => (
+                <option value={slug} selected={slug === sign2.slug}>
+                  {name}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+        <button type="submit" class="zc-check">Check Compatibility</button>
+        <p class="zc-hint">Choosing the same sign twice is allowed.</p>
+      </form>
+    </section>
+
+    <section class="zc-more" aria-label="Related readings">
+      <a href="/matching">Vedic Kundli Matching →</a>
+      <a href={`/horoscope/${sign1.slug}/daily`}>{sign1.en} horoscope →</a>
+      <a href={`/horoscope/${sign2.slug}/daily`}>{sign2.en} horoscope →</a>
+    </section>
+  </section>
+</Base>
+
+<script>
+  import { esc, renderPairResult, type ZcPairPayload } from "../../../scripts/compatibility-render";
+  import { canonicalPairSlug } from "../../../lib/zodiac-signs";
+
+  const region = document.querySelector<HTMLElement>("[data-zc-result]");
+  const form = document.querySelector<HTMLFormElement>("[data-zc-picker]");
+  const root = document.querySelector<HTMLElement>(".zc-page");
+  const sign1 = root?.dataset.zcSign1 ?? "";
+  const sign2 = root?.dataset.zcSign2 ?? "";
+  const apiBase =
+    import.meta.env.PUBLIC_API_BASE_URL ?? "https://astro-backend.vyotish.workers.dev";
+
+  function setState(html: string, busy: boolean): void {
+    if (!region) return;
+    region.setAttribute("aria-busy", String(busy));
+    region.innerHTML = html;
+  }
+
+  function failState(message: string, retry: boolean): void {
+    setState(
+      `<div class="zc-state zc-error"><p>${esc(message)}</p>${
+        retry
+          ? `<button type="button" class="zc-check zc-retry">Try again</button>`
+          : ""
+      }</div>`,
+      false,
+    );
+    region?.querySelector<HTMLButtonElement>(".zc-retry")?.addEventListener("click", load);
+  }
+
+  async function load(): Promise<void> {
+    if (!region || !sign1 || !sign2) return;
+    setState(`<div class="zc-state zc-loading"><p>Reading the charts…</p></div>`, true);
+    try {
+      const res = await fetch(
+        `${apiBase}/api/v1/compatibility/signs/pair?sign1=${encodeURIComponent(sign1)}&sign2=${encodeURIComponent(sign2)}`,
+      );
+      const json = (await res.json().then((j) => ({ ok: res.ok, j }))) as {
+        ok: boolean;
+        j: { data?: ZcPairPayload; error?: { code: string; message: string } };
+      };
+      if (json.ok && json.j.data) {
+        setState(renderPairResult(json.j.data), false);
+        const w = window as unknown as { vyTrack?: (event: string, props: unknown) => void };
+        w.vyTrack?.("compatibility_checked", { pair: json.j.data.pair });
+      } else if (res.status === 503 || json.j.error?.code === "content_unavailable") {
+        failState(
+          "This pairing's reading isn't published yet — it should appear shortly. Meanwhile, every pairing is available from the Zodiac Compatibility hub.",
+          false,
+        );
+      } else {
+        failState("Couldn't load this reading right now. Please try again in a moment.", true);
+      }
+    } catch {
+      failState("Couldn't reach the astrology engine. Check your connection and try again.", true);
+    }
+  }
+
+  function navigate(): void {
+    const f = document.querySelector<HTMLFormElement>("[data-zc-picker]");
+    if (!f) return;
+    const s1 = f.querySelector<HTMLSelectElement>("select[name='sign1']")?.value ?? "";
+    const s2 = f.querySelector<HTMLSelectElement>("select[name='sign2']")?.value ?? "";
+    if (!s1 || !s2) return;
+    const key = canonicalPairSlug(s1, s2);
+    const [a, b] = key.split("-");
+    window.location.assign(`/compatibility/${a}/${b}/`);
+  }
+
+  document.querySelector<HTMLButtonElement>("[data-zc-swap]")?.addEventListener("click", () => {
+    const f = document.querySelector<HTMLFormElement>("[data-zc-picker]");
+    if (!f) return;
+    const a = f.querySelector<HTMLSelectElement>("select[name='sign1']");
+    const b = f.querySelector<HTMLSelectElement>("select[name='sign2']");
+    if (a && b) {
+      const tmp = a.value;
+      a.value = b.value;
+      b.value = tmp;
+    }
+  });
+
+  form?.addEventListener("submit", (e) => {
+    e.preventDefault();
+    navigate();
+  });
+
+  load();
+</script>
+
+<style>
+  .zc-crumbs {
+    max-width: 900px; margin: 0 auto; padding: var(--space-4) var(--space-4) 0;
+    font-size: 12.5px; color: var(--text-dim);
+  }
+  .zc-crumbs a { color: var(--gold); text-decoration: underline; }
+  .zc-crumbs a:hover { text-decoration: none; }
+  .zc-page { max-width: 900px; margin: 0 auto; padding: var(--space-5) var(--space-4) var(--space-8); }
+  .zc-head h1 {
+    font-family: var(--font-display); color: var(--ivory);
+    font-size: clamp(26px, 5vw, 38px); display: flex; align-items: center; gap: var(--space-3);
+  }
+  .zc-symbols { color: var(--gold); font-size: 0.7em; }
+  .zc-lede { color: var(--text-muted); margin-top: var(--space-2); font-size: 14.5px; max-width: 680px; }
+
+  .zc-picker {
+    margin-top: var(--space-6); background: var(--bg-raised);
+    border: 1px solid var(--color-border-strong); border-radius: var(--radius-card);
+    padding: var(--space-5);
+  }
+  .zc-picker h2 { color: var(--ivory); font-size: 16px; font-weight: 500; margin-bottom: var(--space-3); }
+  .zc-fields { display: flex; gap: var(--space-3); align-items: flex-end; flex-wrap: wrap; }
+  .zc-fields label { flex: 1 1 200px; display: flex; flex-direction: column; gap: 6px; }
+  .zc-fields label span { color: var(--text-dim); font-size: 12.5px; }
+  .zc-fields select {
+    min-height: var(--target-min); padding: 0 var(--space-3);
+    background: var(--color-tint, var(--bg-page)); border: 1px solid var(--color-border-strong);
+    border-radius: var(--radius-card); color: var(--ivory); font-size: 14px;
+  }
+  .zc-fields select:focus-visible { outline: var(--focus-ring); outline-offset: 2px; }
+  @media (max-width: 480px) {
+    .zc-fields { flex-direction: column; align-items: stretch; }
+    .zc-swap { align-self: center; margin: -6px 0; }
+  }
+  .zc-swap {
+    min-height: var(--target-min); min-width: var(--target-min);
+    background: transparent; border: 1px solid var(--color-border-strong); border-radius: var(--radius-card);
+    color: var(--gold); font-size: 18px; cursor: pointer;
+  }
+  .zc-swap:hover { border-color: var(--border-gold-soft); }
+  .zc-check {
+    margin-top: var(--space-4); min-height: var(--target-min); padding: 0 var(--space-6);
+    background: var(--gold); color: var(--color-on-primary); border: none; border-radius: var(--radius-pill);
+    font-size: 14px; font-weight: 600; cursor: pointer;
+  }
+  .zc-check:hover { background: var(--gold-bright); }
+  .zc-check:focus-visible { outline: var(--focus-ring); outline-offset: 2px; }
+  @media (max-width: 639px) { .zc-check { width: 100%; } }
+  .zc-hint { color: var(--text-dim); font-size: 12.5px; margin-top: var(--space-2); }
+
+  .zc-more { display: flex; gap: var(--space-5); flex-wrap: wrap; margin-top: var(--space-6); font-size: 13px; }
+  .zc-more a { color: var(--gold); text-decoration: none; display: inline-flex; align-items: center; padding: 12px 0; }
+  .zc-more a:hover { text-decoration: underline; }
+</style>
+
+<style is:global>
+  /* JS-injected nodes — Astro scoped CSS never matches them; keyed off [data-zc-result]. */
+  [data-zc-result] { margin-top: var(--space-6); }
+  [data-zc-result] .zc-state { padding: var(--space-5) 0; color: var(--text-muted); }
+  [data-zc-result] .zc-error p { margin-bottom: var(--space-3); }
+
+  /* Verdict card — site pattern (calculator-renderer B1): primary fill, on-primary
+     ink, band word in a white-outline chip; band colour stays on category cards. */
+  [data-zc-result] .zc-overall {
+    display: flex; gap: var(--space-5); align-items: center; flex-wrap: wrap;
+    background: var(--color-primary); color: var(--color-on-primary);
+    border: 1px solid var(--border-emphasis);
+    border-radius: var(--radius-card); padding: var(--space-5);
+  }
+  [data-zc-result] .zc-score-block { display: flex; align-items: baseline; gap: 4px; flex: 0 0 auto; }
+  [data-zc-result] .zc-score-value { font-family: var(--font-display); font-size: clamp(28px, 5vw, 40px); font-weight: 700; line-height: 1.15; }
+  [data-zc-result] .zc-score-range { font-size: 13px; opacity: 0.85; }
+  [data-zc-result] .zc-overall-copy { flex: 1 1 260px; }
+  [data-zc-result] .zc-eyebrow {
+    font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase;
+    font-weight: 600; opacity: 0.85; margin-bottom: 6px;
+  }
+  [data-zc-result] .zc-band-line { margin-bottom: 8px; }
+  [data-zc-result] .zc-band-chip {
+    display: inline-block; padding: 3px 10px; border-radius: 999px;
+    font-size: 12px; font-weight: 600;
+    background: rgba(255, 255, 255, 0.14); border: 1px solid rgba(255, 255, 255, 0.35);
+  }
+  [data-zc-result] .zc-unverified { color: inherit; opacity: 0.85; font-size: 12px; margin-top: var(--space-2); }
+  [data-zc-result] .zc-verdict { color: inherit; font-size: 14.5px; font-weight: 500; line-height: 1.55; }
+  [data-zc-result] .zc-band-note { color: inherit; opacity: 0.85; font-size: 13px; margin-top: 6px; }
+
+  [data-zc-result] .zc-facts { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-4); }
+  [data-zc-result] .zc-chip {
+    display: inline-flex; gap: 6px; align-items: center; padding: 4px 10px;
+    background: var(--color-tint, var(--bg-raised)); border: 1px solid var(--color-border);
+    border-radius: var(--radius-pill); font-size: 12.5px; color: var(--color-text);
+    font-weight: 500; max-width: 100%;
+  }
+  [data-zc-result] .zc-chip-label { color: var(--text-dim); font-size: 11px; font-weight: 400; text-transform: uppercase; letter-spacing: 0.04em; }
+  [data-zc-result] .zc-ruler-note { color: var(--text-muted); font-size: 12.5px; margin-top: var(--space-3); }
+
+  [data-zc-result] .zc-section-title {
+    color: var(--ivory); font-family: var(--font-display); font-size: 17px; font-weight: 500;
+    margin: var(--space-6) 0 var(--space-3);
+  }
+  [data-zc-result] .zc-cats { display: grid; gap: var(--space-3); grid-template-columns: 1fr; }
+  @media (min-width: 640px) { [data-zc-result] .zc-cats { grid-template-columns: repeat(2, 1fr); } }
+  [data-zc-result] .zc-cat {
+    background: var(--bg-raised); border: 1px solid var(--color-border);
+    border-radius: var(--radius-card); padding: var(--space-4);
+  }
+  [data-zc-result] .zc-cat-head { display: flex; justify-content: space-between; align-items: baseline; gap: var(--space-3); }
+  [data-zc-result] .zc-cat-head h3 { color: var(--ivory); font-size: 14px; font-weight: 500; }
+  [data-zc-result] .zc-cat-score { font-size: 20px; font-weight: 700; color: var(--ivory); white-space: nowrap; }
+  [data-zc-result] .zc-score-max { font-size: 11px; font-weight: 400; color: var(--text-dim); }
+  [data-zc-result] .zc-bar { height: 6px; background: var(--color-tint, var(--bg-page)); border-radius: 999px; margin: var(--space-2) 0; overflow: hidden; }
+  [data-zc-result] .zc-bar-fill { height: 100%; border-radius: 999px; background: var(--gold); }
+  [data-zc-result] .zc-cat-text { color: var(--text-muted); font-size: 13px; line-height: 1.65; }
+
+  [data-zc-result] .zc-tips { margin: 0; padding-inline-start: var(--space-5); color: var(--text-muted); font-size: 13.5px; line-height: 1.7; }
+  [data-zc-result] .zc-tips li + li { margin-top: var(--space-2); }
+  [data-zc-result] .zc-tips li::marker { color: var(--color-primary); font-weight: 600; }
+
+  [data-zc-result] .zc-note-strip {
+    margin-top: var(--space-6); padding: var(--space-4);
+    border: 1px solid var(--color-border); border-radius: var(--radius-card);
+    background: var(--color-tint, var(--bg-raised));
+  }
+  [data-zc-result] .zc-method, [data-zc-result] .zc-disclaimer { color: var(--text-dim); font-size: 12.5px; line-height: 1.6; }
+  [data-zc-result] .zc-disclaimer { margin-top: var(--space-2); }
+
+  /* Band accents on category cards only — theme-aware status tokens (AA in light + dark). */
+  [data-zc-result] .zc-cat.zc-band-excellent, [data-zc-result] .zc-cat.zc-band-strong { border-color: var(--color-auspicious-text); }
+  [data-zc-result] .zc-cat.zc-band-mixed { border-color: var(--color-warning); }
+  [data-zc-result] .zc-cat.zc-band-challenging, [data-zc-result] .zc-cat.zc-band-very-challenging { border-color: var(--color-inauspicious-text); }
+</style>

@@ -13,6 +13,7 @@ import {
   fetchPanchangCities,
   fetchPujas,
 } from "../lib/content";
+import { canonicalPairs } from "../lib/zodiac-signs";
 
 const SITE = "https://vyotish.com";
 
@@ -65,6 +66,7 @@ const STATIC = [
   "/blog",
   "/calculators",
   "/coming-soon",
+  "/compatibility",
   "/consultations",
   "/contact",
   "/disclaimer",
@@ -100,6 +102,9 @@ export async function GET() {
   entries.push({ loc: "/hi" });
   for (const s of SIGNS) for (const per of PERIODS) entries.push({ loc: `/horoscope/${s}/${per}` });
   for (const t of TOOLS) entries.push({ loc: `/calculators/${t}` });
+  for (const p of canonicalPairs()) {
+    entries.push({ loc: `/compatibility/${p.sign1.slug}/${p.sign2.slug}` });
+  }
   for (const a of astrologers ?? []) entries.push({ loc: `/consultations/${a.slug}` });
   for (const p of pujas ?? []) entries.push({ loc: `/poojan/${p.slug}` });
   for (const c of cities ?? []) entries.push({ loc: `/panchang/${c.slug}` });
