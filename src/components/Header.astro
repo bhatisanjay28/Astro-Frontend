@@ -2,7 +2,14 @@
 /**
  * Site header — home design §4 (Epic 2.1 re-skin, D11): mandala logo, 9 tabs
  * (active = primary-container chip), Talk-to-Astrologer CTA, mobile drawer.
- * Tabs route to real pages; anchors remain inside the home page.
+ *
+ * S17-1 mega menu: tabs with a `menu` config in data/navigation.ts (the one
+ * source) render a hover mega panel on desktop — gated to ≥1280px on
+ * hover-capable fine pointers; everywhere else (mobile + touch) the drawer
+ * shows the same links as a per-tab accordion. Panel = design-system Level-3
+ * popover (hairline border, deep warm shadow, gold top hairline) re-mapped to
+ * the site tokens. Desktop triggers carry no chevron: the 9-tab row is
+ * already width-bound at the 1280px entry point.
  */
 import { NAV_TABS } from "../data/navigation";
 
@@ -12,10 +19,12 @@ interface Props {
 const { currentPath = "/" } = Astro.props;
 const isActive = (href: string) =>
   currentPath === href || (href !== "/" && currentPath.startsWith(href));
+/** Stable DOM id per tab from its route (e.g. "/calculators" → "mm-calculators"). */
+const navId = (href: string) => `mm-${href.replace(/\//g, "") || "home"}`;
 ---
 
 <header class="chrome-reset sticky top-0 z-40 bg-light-surface/95 dark:bg-dark-surface/95 backdrop-blur-sm border-b border-light-outline-variant/60 dark:border-dark-outline-variant/40">
-  <div class="max-w-7xl mx-auto px-4 sm:px-8 py-3.5 flex items-center justify-between">
+  <div class="site-header-inner max-w-7xl mx-auto px-4 sm:px-8 py-3.5 flex items-center justify-between">
     <!-- Brand & logo -->
     <a href="/" class="flex items-center gap-2.5 group" aria-label="Vyotish Vedic Astrology &amp; Wisdom — home">
       <div class="w-9 h-9 rounded-lg bg-light-primary dark:bg-dark-primary flex items-center justify-center text-light-on-primary dark:text-dark-on-primary shadow-xs">
@@ -31,28 +40,62 @@ const isActive = (href: string) =>
       </div>
     </a>
 
-    <!-- 9 main tabs (desktop) -->
-    <nav class="hidden xl:flex items-center gap-1 font-title text-title-sm" aria-label="Main Navigation">
-      {
-        NAV_TABS.map((t) => (
-          <a
-            href={t.href}
-            aria-current={isActive(t.href) ? "page" : undefined}
-            class={`px-2.5 py-1.5 rounded font-medium whitespace-nowrap transition-colors ${
+    <!-- 9 main tabs (desktop mega menu; hover-capable pointers ≥ 1280px) -->
+    <nav class="nav-mega font-title text-title-sm" aria-label="Main Navigation">
+      <ul class="flex items-center gap-1">
+        {
+          NAV_TABS.map((t) => {
+            const active = isActive(t.href);
+            const tone =
               t.label === "Gemstones"
                 ? "text-light-outline dark:text-dark-outline hover:text-light-on-surface dark:hover:text-dark-on-surface relative"
-                : isActive(t.href)
+                : active
                   ? "text-light-primary dark:text-dark-primary font-semibold bg-light-primary-container dark:bg-dark-primary-container"
-                  : "text-light-on-surface-variant dark:text-dark-on-surface-variant hover:text-light-primary dark:hover:text-dark-primary"
-            }`}
-          >
-            {t.label}
-            {t.label === "Gemstones" && (
-              <span class="text-label-sm px-1.5 py-0.5 bg-light-primary-container text-light-primary dark:bg-dark-primary-container dark:text-dark-primary rounded-full font-label font-semibold ml-1">Soon</span>
-            )}
-          </a>
-        ))
-      }
+                  : "text-light-on-surface-variant dark:text-dark-on-surface-variant hover:text-light-primary dark:hover:text-dark-primary";
+            return (
+              <li class="mm-item" data-mm>
+                <a
+                  href={t.href}
+                  aria-current={active ? "page" : undefined}
+                  aria-expanded={t.menu ? "false" : undefined}
+                  aria-controls={t.menu ? navId(t.href) : undefined}
+                  class={`nav-tab px-2.5 py-1.5 rounded font-medium whitespace-nowrap transition-colors ${tone}`}
+                  data-mm-trigger={t.menu ? "" : undefined}
+                >
+                  {t.label}
+                  {t.label === "Gemstones" && (
+                    <span class="text-label-sm px-1.5 py-0.5 bg-light-primary-container text-light-primary dark:bg-dark-primary-container dark:text-dark-primary rounded-full font-label font-semibold ml-1">Soon</span>
+                  )}
+                </a>
+                {t.menu && (
+                  <div class="mm-panel" id={navId(t.href)} data-mm-panel hidden>
+                    <div class="mm-cols">
+                      {t.menu.map((g) => (
+                        <div class="mm-group" style={`--mm-cols:${g.cols ?? 1}`}>
+                          {g.title && <p class="mm-title">{g.title}</p>}
+                          <ul>
+                            {g.links.map((l) => (
+                              <li>
+                                <a class="mm-link" href={l.href}>
+                                  <span class="mm-row">
+                                    <span class="mm-label">{l.label}</span>
+                                    {l.hi && <span class="mm-hi hi-text" lang="hi">{l.hi}</span>}
+                                  </span>
+                                  {l.desc && <span class="mm-desc">{l.desc}</span>}
+                                </a>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </li>
+            );
+          })
+        }
+      </ul>
     </nav>
 
     <!-- Primary action + mobile hamburger -->
@@ -61,36 +104,326 @@ const isActive = (href: string) =>
         <span class="material-symbols-outlined text-title-md">support_agent</span>
         <span>Talk to Astrologer</span>
       </a>
-      <button type="button" data-drawer-toggle aria-label="Open mobile menu" aria-expanded="false" aria-controls="mobile-drawer" class="xl:hidden p-2 rounded text-light-on-surface dark:text-dark-on-surface">
+      <button type="button" data-drawer-toggle aria-label="Open mobile menu" aria-expanded="false" aria-controls="mobile-drawer" class="nav-mobile-trigger p-2 rounded text-light-on-surface dark:text-dark-on-surface">
         <span class="material-symbols-outlined text-headline-sm">menu</span>
       </button>
     </div>
   </div>
 
-  <!-- Mobile drawer (design shows the trigger; drawer styled from the same tokens) -->
-  <div id="mobile-drawer" hidden class="xl:hidden border-t border-light-outline-variant/60 dark:border-dark-outline-variant/40 bg-light-surface dark:bg-dark-surface">
+  <!-- Mobile drawer + accordion (hidden whenever the desktop mega menu is active) -->
+  <div id="mobile-drawer" hidden class="nav-mobile-trigger border-t border-light-outline-variant/60 dark:border-dark-outline-variant/40 bg-light-surface dark:bg-dark-surface">
     <nav class="max-w-7xl mx-auto px-4 py-3 flex flex-col gap-1 font-title text-title-sm" aria-label="Mobile Navigation">
       {
-        NAV_TABS.map((t) => (
-          <a
-            href={t.href}
-            class={`flex items-center gap-2 px-3 py-3 rounded ${isActive(t.href) ? "bg-light-primary-container text-light-primary dark:bg-dark-primary-container dark:text-dark-primary font-semibold" : "text-light-on-surface-variant dark:text-dark-on-surface-variant"}`}
-          >
-            <span class="material-symbols-outlined text-title-md text-light-primary dark:text-dark-primary">{t.icon}</span>
-            <span>{t.label}</span>
-            <span class="ml-auto font-body text-body-sm text-light-outline dark:text-dark-outline hi-text" lang="hi">{t.label_hi}</span>
-          </a>
-        ))
+        NAV_TABS.map((t) => {
+          const row = `flex items-center gap-2 px-3 py-3 rounded ${
+            isActive(t.href)
+              ? "bg-light-primary-container text-light-primary dark:bg-dark-primary-container dark:text-dark-primary font-semibold"
+              : "text-light-on-surface-variant dark:text-dark-on-surface-variant"
+          }`;
+          const icon = (
+            <span class="material-symbols-outlined text-title-md text-light-primary dark:text-dark-primary" aria-hidden="true">
+              {t.icon}
+            </span>
+          );
+          const hi = (
+            <span class="ml-auto font-body text-body-sm text-light-outline dark:text-dark-outline hi-text" lang="hi">
+              {t.label_hi}
+            </span>
+          );
+          if (!t.menu) {
+            return (
+              <a href={t.href} class={row}>
+                {icon}
+                <span>{t.label}</span>
+                {hi}
+              </a>
+            );
+          }
+          const panelId = `acc-${navId(t.href)}`;
+          return (
+            <div class="acc" data-acc>
+              <div class="flex items-center gap-1">
+                <a href={t.href} class={`${row} flex-1 min-w-0`}>
+                  {icon}
+                  <span>{t.label}</span>
+                  {hi}
+                </a>
+                <button
+                  type="button"
+                  class="acc-toggle"
+                  data-acc-toggle
+                  aria-expanded="false"
+                  aria-controls={panelId}
+                  aria-label={`${t.label} submenu`}
+                >
+                  <span class="material-symbols-outlined text-title-md" aria-hidden="true">expand_more</span>
+                </button>
+              </div>
+              <div id={panelId} data-acc-panel hidden>
+                <ul class="acc-list">
+                  {t.menu.flatMap((g) =>
+                    g.links.map((l) => (
+                      <li>
+                        <a href={l.href} class="acc-link">
+                          <span>{l.label}</span>
+                          {l.hi && <span class="hi-text" lang="hi">{l.hi}</span>}
+                        </a>
+                      </li>
+                    )),
+                  )}
+                </ul>
+              </div>
+            </div>
+          );
+        })
       }
     </nav>
   </div>
 </header>
 
+<style>
+  /* ---- Mode gating: mega menu only for hover-capable fine pointers ≥ 1280px.
+   * Everything else (narrow viewports, touch, stylus) gets the hamburger
+   * drawer with the accordion — per the S17-1 story. ---- */
+  .nav-mega { display: none; }
+  @media (min-width: 1280px) and (hover: hover) and (pointer: fine) {
+    .nav-mega { display: block; }
+    .nav-mobile-trigger { display: none !important; }
+  }
+
+  /* Panels position against the header container — never wider than it, so
+   * they can never overflow the viewport at any desktop width. */
+  .site-header-inner { position: relative; }
+
+  /* ---- Mega panel: design-system Level-3 popover (hairline border, deep
+   * warm diffusion shadow, gold top hairline), token-mapped. ---- */
+  .mm-panel {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    z-index: 50;
+    background: #ffffff; /* Level-3 elevated white (design system) */
+    border: 1px solid var(--color-border);
+    border-radius: 0 0 var(--radius-card) var(--radius-card);
+    box-shadow:
+      0 16px 32px -4px rgba(30, 58, 95, 0.08),
+      0 4px 12px -2px rgba(139, 46, 5, 0.05);
+  }
+  .mm-panel::before {
+    content: "";
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--color-accent), transparent);
+  }
+  .mm-panel[hidden] { display: none; }
+  .mm-panel:not([hidden]) { animation: mm-in 140ms ease-out; }
+  @keyframes mm-in {
+    from {
+      opacity: 0;
+      transform: translateY(-4px);
+    }
+  }
+  /* :global() on the ancestor — data-theme lives on <html>, outside the
+   * component scope (Astro would scope the attribute selector otherwise). */
+  :global([data-theme="dark"]) .mm-panel {
+    background: var(--color-dark-surface-variant);
+    box-shadow:
+      0 16px 32px -8px rgba(0, 0, 0, 0.55),
+      0 4px 12px -2px rgba(0, 0, 0, 0.45);
+  }
+
+  .mm-cols {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 14px 32px;
+    padding: 20px 28px 24px;
+  }
+  .mm-title {
+    margin: 0 0 8px;
+    font-family: var(--font-display);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+  }
+  .mm-group > ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(var(--mm-cols, 1), minmax(0, 1fr));
+    gap: 2px 12px;
+  }
+  .mm-link {
+    display: block;
+    padding: 8px 10px;
+    border-radius: 8px;
+    text-decoration: none;
+    transition: background-color 120ms ease;
+  }
+  .mm-link:hover { background: var(--color-tint); }
+  :global([data-theme="dark"]) .mm-link:hover { background: var(--color-dark-surface); }
+  .mm-row {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    min-width: 0;
+  }
+  .mm-label {
+    color: var(--color-text);
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1.35;
+    white-space: nowrap;
+  }
+  .mm-link:hover .mm-label { color: var(--gold); }
+  .mm-hi {
+    color: var(--text-faint);
+    font-size: 12.5px;
+    white-space: nowrap;
+  }
+  .mm-desc {
+    display: block;
+    margin-top: 2px;
+    color: var(--text-muted);
+    font-size: 12.5px;
+    line-height: 1.45;
+  }
+
+  /* ---- Mobile accordion (inside the drawer) ---- */
+  .acc-toggle {
+    flex: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 8px;
+    color: var(--color-text-muted);
+  }
+  .acc-toggle:hover { background: var(--color-tint); color: var(--color-text); }
+  .acc-toggle .material-symbols-outlined { transition: transform 150ms ease; }
+  .acc-toggle[aria-expanded="true"] { color: var(--gold); }
+  .acc-toggle[aria-expanded="true"] .material-symbols-outlined { transform: rotate(180deg); }
+  .acc-list {
+    list-style: none;
+    margin: 0;
+    padding: 2px 0 6px 44px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .acc-link {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 44px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--color-text-muted);
+  }
+  .acc-link:hover { background: var(--color-tint); color: var(--gold); }
+  .acc-link .hi-text { font-size: 12.5px; color: var(--text-faint); }
+</style>
+
 <script>
-  // Drawer (progressive enhancement — markup is server-rendered).
-  // Keyboard support (UX audit F7): Escape closes and returns focus to the
-  // toggle; opening moves focus to the first link so keyboard users are
-  // inside the drawer they just revealed.
+  // Header chrome (progressive enhancement — markup is server-rendered).
+  // 1. Desktop mega menu: 100ms open delay / 250ms close grace (flicker-free,
+  //    panel survives the move into it); focus opens immediately, focus-out
+  //    and Escape close; ArrowDown jumps into the panel.
+  // 2. Mobile drawer: existing open/Escape/focus behaviour, now with a per-tab
+  //    accordion (chevron toggles; the tab label itself still navigates).
+  const canHover = () =>
+    window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+
+  // --- 1. Mega menu ---
+  const items = Array.from(document.querySelectorAll<HTMLElement>("[data-mm]"));
+  const closeItem = (item: HTMLElement) => {
+    const panel = item.querySelector<HTMLElement>("[data-mm-panel]");
+    const trigger = item.querySelector<HTMLElement>("[data-mm-trigger]");
+    if (panel) panel.hidden = true;
+    trigger?.setAttribute("aria-expanded", "false");
+    delete item.dataset.open;
+  };
+  const openItem = (item: HTMLElement) => {
+    // Opening one closes the others immediately (hover-switching between tabs).
+    for (const other of items) if (other !== item) closeItem(other);
+    const panel = item.querySelector<HTMLElement>("[data-mm-panel]");
+    const trigger = item.querySelector<HTMLElement>("[data-mm-trigger]");
+    if (panel) panel.hidden = false;
+    trigger?.setAttribute("aria-expanded", "true");
+    item.dataset.open = "true";
+  };
+
+  for (const item of items) {
+    const trigger = item.querySelector<HTMLElement>("[data-mm-trigger]");
+    const panel = item.querySelector<HTMLElement>("[data-mm-panel]");
+    if (!trigger || !panel) continue;
+    let openTimer: ReturnType<typeof setTimeout> | undefined;
+    let closeTimer: ReturnType<typeof setTimeout> | undefined;
+    const cancelTimers = () => {
+      clearTimeout(openTimer);
+      clearTimeout(closeTimer);
+    };
+
+    item.addEventListener("pointerenter", (e) => {
+      if (e.pointerType !== "mouse" || !canHover()) return;
+      cancelTimers();
+      if (panel.hidden) openTimer = setTimeout(() => openItem(item), 100);
+    });
+    item.addEventListener("pointerleave", (e) => {
+      if (e.pointerType !== "mouse" || !canHover()) return;
+      cancelTimers();
+      closeTimer = setTimeout(() => closeItem(item), 250);
+    });
+
+    // Keyboard: focus opens without delay; leaving the item closes; Escape
+    // closes and returns focus to the tab; ArrowDown moves into the panel.
+    let restoringFocus = false; // Escape refocuses the trigger — must not re-open
+    trigger.addEventListener("focus", () => {
+      if (restoringFocus) return;
+      cancelTimers();
+      openItem(item);
+    });
+    item.addEventListener("focusout", (e) => {
+      const next = e.relatedTarget as Node | null;
+      if (next && item.contains(next)) return;
+      cancelTimers();
+      closeItem(item);
+    });
+    trigger.addEventListener("keydown", (e) => {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        cancelTimers();
+        openItem(item);
+        const first = panel.querySelector<HTMLElement>("a");
+        first?.focus();
+      } else if (e.key === "Escape" && trigger.getAttribute("aria-expanded") === "true") {
+        // APG disclosure nav: Escape on the open trigger closes it (focus is
+        // already on the trigger, so no refocus/re-open guard needed).
+        cancelTimers();
+        closeItem(item);
+      }
+    });
+    panel.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") {
+        cancelTimers();
+        restoringFocus = true;
+        trigger.focus();
+        restoringFocus = false;
+        closeItem(item);
+      }
+    });
+  }
+
+  // --- 2. Mobile drawer + accordion ---
   const btn = document.querySelector<HTMLElement>("[data-drawer-toggle]");
   const drawer = document.getElementById("mobile-drawer");
   if (btn && drawer) {
@@ -113,6 +446,18 @@ const isActive = (href: string) =>
         setOpen(false);
         btn.focus();
       }
+    });
+  }
+
+  // Accordion toggles (independent disclose; hub link stays on the label).
+  for (const toggle of document.querySelectorAll<HTMLElement>("[data-acc-toggle]")) {
+    toggle.addEventListener("click", () => {
+      const acc = toggle.closest<HTMLElement>("[data-acc]");
+      const panel = acc?.querySelector<HTMLElement>("[data-acc-panel]");
+      if (!panel) return;
+      const open = panel.hidden;
+      panel.hidden = !open;
+      toggle.setAttribute("aria-expanded", String(open));
     });
   }
 </script>
