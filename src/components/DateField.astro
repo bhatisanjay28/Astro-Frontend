@@ -87,6 +87,13 @@ const segProps = (segId: string, ariaLabel: string, len: number, ph: string) => 
   "aria-describedby": describedBy,
   enterkeyhint: "next" as const,
 });
+/** year segment carries dt-seg-year INSIDE the spread — a second class attr
+ *  after a spread is emitted verbatim and the HTML parser keeps only the
+ *  FIRST duplicate, which silently dropped dt-seg-year (2.4ch year clipped) */
+const yearSegProps = (segId: string) => ({
+  ...segProps(segId, "Year", 4, "YYYY"),
+  class: "dt-seg dt-seg-year",
+});
 
 const ampm = /(\d{2}:\d{2})/.test(value)
   ? (() => {
@@ -123,7 +130,7 @@ const ampm = /(\d{2}:\d{2})/.test(value)
         <span class="dt-sep" aria-hidden="true">
           /
         </span>
-        <input {...segProps(`${pre}-yy`, "Year", 4, "YYYY")} data-dt-year-seg class="dt-seg dt-seg-year" value={value ? value.slice(0, 4) : ""} />
+        <input {...yearSegProps(`${pre}-yy`)} data-dt-year-seg value={value ? value.slice(0, 4) : ""} />
         <button type="button" class="dt-clear" data-dt-clear aria-label={`Clear ${label ?? "date"}`} hidden>
           <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
             <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" fill="none" />
@@ -234,7 +241,10 @@ const ampm = /(\d{2}:\d{2})/.test(value)
     outline: none;
   }
   .dt[data-invalid="true"] .dt-box { border-color: var(--color-error-text, #b3261e); }
-  .dt-seg {
+  /* Chrome ownership: every rule below is prefixed with .dt (≥ 0,2,0) so host
+     pages' broad `button`/`input` rules (.kl button, .qk button — 0,1,1) can
+     never repaint the field (they turned the icon buttons into gold pills). */
+  .dt .dt-seg {
     border: none;
     background: transparent;
     color: var(--text-body, var(--color-light-on-surface, #1c1b1a));
@@ -242,40 +252,47 @@ const ampm = /(\d{2}:\d{2})/.test(value)
     font-size: 16px;
     font-variant-numeric: tabular-nums;
     text-align: center;
-    width: 2.4ch;
-    min-width: 2.4ch;
+    /* 2 digits + caret room — Poppins 16px digits are ~1ch each; 2.4ch
+       clipped the caret and scrolled on some pages */
+    width: 3ch;
+    min-width: 3ch;
     padding: 0;
     height: calc(var(--target-min, 44px) - 4px);
+    min-height: 0;
   }
-  .dt-seg:focus { outline: none; }
-  .dt-seg-year { width: 4.6ch; min-width: 4.6ch; }
-  .dt-seg::placeholder { color: var(--text-faint, var(--color-light-outline, #8a726a)); opacity: 1; }
-  .dt-sep { color: var(--text-faint, var(--color-light-outline, #8a726a)); font-size: 15px; user-select: none; }
+  .dt .dt-seg:focus { outline: none; }
+  .dt .dt-seg-year { width: 5.2ch; min-width: 5.2ch; }
+  .dt .dt-seg::placeholder { color: var(--text-faint, var(--color-light-outline, #8a726a)); opacity: 1; }
+  .dt .dt-sep { color: var(--text-faint, var(--color-light-outline, #8a726a)); font-size: 15px; user-select: none; }
   .dt-spacer { flex: 1; }
-  .dt-clear, .dt-trigger {
+  .dt .dt-clear, .dt .dt-trigger {
     display: flex;
     align-items: center;
     justify-content: center;
     min-width: 40px;
+    width: 40px;
     height: 40px;
+    min-height: 0;
     margin-left: auto;
+    padding: 0;
     background: transparent;
     border: none;
-    border-radius: var(--radius-card, 12px);
+    border-radius: 10px;
     cursor: pointer;
     color: var(--text-dim, var(--color-light-on-surface-variant, #57423b));
   }
-  .dt-clear + .dt-trigger { margin-left: 0; }
+  .dt .dt-clear + .dt-trigger { margin-left: 0; }
   .dt-box:has(.dt-clear:not([hidden])) .dt-seg:last-of-type { margin-right: 0; }
-  .dt-clear:hover, .dt-trigger:hover { color: var(--text-body, var(--color-light-on-surface, #1c1b1a)); }
-  .dt-clear:focus-visible, .dt-trigger:focus-visible {
+  .dt .dt-clear:hover, .dt .dt-trigger:hover { color: var(--text-body, var(--color-light-on-surface, #1c1b1a)); background: transparent; }
+  .dt .dt-clear:focus-visible, .dt .dt-trigger:focus-visible {
     outline: 2px solid var(--gold, var(--color-light-primary, #c9a227));
     outline-offset: -2px;
   }
-  .dt-ampm { display: flex; gap: 3px; margin-left: 6px; }
-  .dt-amp {
+  .dt .dt-ampm { display: flex; gap: 3px; margin-left: 6px; }
+  .dt .dt-amp {
     min-width: 42px;
     height: 32px;
+    min-height: 0;
     padding: 0 8px;
     border: 1px solid var(--color-border-strong, #b3a89e);
     border-radius: 8px;
@@ -284,14 +301,16 @@ const ampm = /(\d{2}:\d{2})/.test(value)
     font: inherit;
     font-size: 12.5px;
     font-weight: 600;
+    line-height: 1;
     cursor: pointer;
   }
-  .dt-amp[aria-pressed="true"] {
+  .dt .dt-amp:hover { background: transparent; color: var(--text-body, var(--color-light-on-surface, #1c1b1a)); }
+  .dt .dt-amp[aria-pressed="true"] {
     background: var(--color-primary, var(--color-light-primary, #8b2e05));
     border-color: var(--color-primary, var(--color-light-primary, #8b2e05));
     color: var(--color-on-primary, #fff);
   }
-  .dt-amp:focus-visible { outline: 2px solid var(--gold, #c9a227); outline-offset: 1px; }
+  .dt .dt-amp:focus-visible { outline: 2px solid var(--gold, #c9a227); outline-offset: 1px; }
   .dt-error {
     display: flex;
     align-items: flex-start;

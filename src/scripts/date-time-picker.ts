@@ -58,20 +58,24 @@ function injectStyles(): void {
     }
     .dt-pop.above { top: auto; bottom: calc(100% + 6px); }
     .dt-pop-head { display: flex; align-items: center; gap: 4px; margin-bottom: 8px; }
-    .dt-nav {
+    /* selectors are .dt-prefixed (≥ 0,2,0) so host pages' broad button/select
+       rules (.kl button — 0,1,1) can't repaint the popup either */
+    .dt-pop .dt-nav {
       flex: none;
       width: 32px; height: 32px;
+      min-height: 0; padding: 0;
       display: flex; align-items: center; justify-content: center;
       background: transparent; border: none; border-radius: 8px;
       color: var(--text-body, var(--color-light-on-surface, #1c1b1a));
       cursor: pointer;
     }
-    .dt-nav:hover { background: rgba(28, 27, 26, 0.07); }
-    .dt-nav:disabled { opacity: 0.35; cursor: default; background: transparent; }
-    .dt-nav:focus-visible { outline: 2px solid var(--gold, #c9a227); outline-offset: -2px; }
-    .dt-sel {
+    .dt-pop .dt-nav:hover { background: rgba(28, 27, 26, 0.07); }
+    .dt-pop .dt-nav:disabled { opacity: 0.35; cursor: default; background: transparent; }
+    .dt-pop .dt-nav:focus-visible { outline: 2px solid var(--gold, #c9a227); outline-offset: -2px; }
+    .dt-pop .dt-sel {
       flex: 1; min-width: 0;
       height: 32px;
+      min-height: 0;
       padding: 0 4px;
       background: transparent;
       border: 1px solid var(--color-border, var(--color-light-outline-variant, #dec0b7));
@@ -80,44 +84,49 @@ function injectStyles(): void {
       font: inherit; font-size: 13px; font-weight: 600;
       cursor: pointer;
     }
-    .dt-sel-year { flex: 0 0 5.5rem; }
-    .dt-sel:focus-visible { outline: 2px solid var(--gold, #c9a227); outline-offset: -2px; }
-    .dt-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; }
-    .dt-dow {
+    .dt-pop .dt-sel-year { flex: 0 0 5.5rem; }
+    .dt-pop .dt-sel:focus-visible { outline: 2px solid var(--gold, #c9a227); outline-offset: -2px; }
+    .dt-pop .dt-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; }
+    .dt-pop .dt-dow {
       text-align: center;
       font-size: 10px; font-weight: 700; letter-spacing: 0.08em;
       color: var(--text-faint, var(--color-light-outline, #8a726a));
       padding: 4px 0;
     }
-    .dt-day {
+    .dt-pop .dt-day {
       height: 34px;
+      min-height: 0; padding: 0;
       border: none; border-radius: 8px;
       background: transparent;
       color: var(--text-body, var(--color-light-on-surface, #1c1b1a));
       font: inherit; font-size: 13px; font-variant-numeric: tabular-nums;
       cursor: pointer;
+      /* host pages set justify-self on buttons — inside this grid it would
+         shrink the day cells */
+      justify-self: stretch;
     }
-    .dt-day:hover { background: rgba(139, 46, 5, 0.1); }
-    .dt-day:focus-visible { outline: 2px solid var(--gold, #c9a227); outline-offset: -2px; }
-    .dt-day[aria-pressed="true"] {
+    .dt-pop .dt-day:hover { background: rgba(139, 46, 5, 0.1); }
+    .dt-pop .dt-day:focus-visible { outline: 2px solid var(--gold, #c9a227); outline-offset: -2px; }
+    .dt-pop .dt-day[aria-pressed="true"] {
       background: var(--color-primary, var(--color-light-primary, #8b2e05));
+      border: none;
       color: var(--color-on-primary, #fff);
       font-weight: 700;
     }
-    .dt-day[data-today] { box-shadow: inset 0 0 0 1.5px var(--color-accent, #c9a227); }
-    .dt-day:disabled { opacity: 0.4; cursor: default; background: transparent; }
-    .dt-blank { height: 34px; }
+    .dt-pop .dt-day[data-today] { box-shadow: inset 0 0 0 1.5px var(--color-accent, #c9a227); }
+    .dt-pop .dt-day:disabled { opacity: 0.4; cursor: default; background: transparent; }
+    .dt-pop .dt-blank { height: 34px; }
     .dt-pop-foot { display: flex; justify-content: flex-end; margin-top: 6px; }
-    .dt-today {
-      height: 30px; padding: 0 10px;
+    .dt-pop .dt-today {
+      height: 30px; min-height: 0; padding: 0 10px;
       background: transparent; border: none; border-radius: 999px;
       color: var(--color-accent-text, var(--color-saffron, #c0841d));
       font: inherit; font-size: 12.5px; font-weight: 700;
       cursor: pointer;
     }
-    .dt-today:hover { text-decoration: underline; }
-    .dt-today:focus-visible { outline: 2px solid var(--gold, #c9a227); outline-offset: -2px; }
-    .dt-today:disabled { opacity: 0.4; cursor: default; text-decoration: none; }
+    .dt-pop .dt-today:hover { text-decoration: underline; background: transparent; }
+    .dt-pop .dt-today:focus-visible { outline: 2px solid var(--gold, #c9a227); outline-offset: -2px; }
+    .dt-pop .dt-today:disabled { opacity: 0.4; cursor: default; text-decoration: none; }
   `;
   document.head.appendChild(style);
 }
