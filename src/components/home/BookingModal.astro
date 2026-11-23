@@ -37,8 +37,8 @@ import RequiredNote from "../forms/RequiredNote.astro";
           <input id="bk-phone" type="tel" required placeholder="+91 98765 43210" class="w-full px-3 py-2 rounded bg-light-surface-variant dark:bg-dark-surface-variant border border-light-outline-variant dark:border-dark-outline-variant text-light-on-surface dark:text-dark-on-surface font-body text-body-sm" />
         </div>
         <div>
-          <FieldLabel forId="bk-email" label="Email Address" required class="block font-label text-label-sm font-medium mb-1 text-light-on-surface dark:text-dark-on-surface" />
-          <input id="bk-email" type="email" required placeholder="you@email.com" class="w-full px-3 py-2 rounded bg-light-surface-variant dark:bg-dark-surface-variant border border-light-outline-variant dark:border-dark-outline-variant text-light-on-surface dark:text-dark-on-surface font-body text-body-sm" />
+          <FieldLabel forId="bk-email" label="Email Address" optional class="block font-label text-label-sm font-medium mb-1 text-light-on-surface dark:text-dark-on-surface" />
+          <input id="bk-email" type="email" placeholder="you@email.com" class="w-full px-3 py-2 rounded bg-light-surface-variant dark:bg-dark-surface-variant border border-light-outline-variant dark:border-dark-outline-variant text-light-on-surface dark:text-dark-on-surface font-body text-body-sm" />
         </div>
       </div>
 
@@ -185,8 +185,10 @@ import RequiredNote from "../forms/RequiredNote.astro";
 </script>
 
 <script>
-  // S18 — shared validation gate: name/phone/email required + the DPDP consent
-  // checkbox; topic/window selects carry defaults, preferred date is optional.
+  // S18 — shared validation gate: name/phone required + the DPDP consent
+  // checkbox; email stays optional (privacy policy + backend contract — a
+  // filled email still gets a native type=email format check); topic/window
+  // selects carry defaults, preferred date is optional.
   import { installFormValidation } from "../../scripts/form-validation";
   const modal = document.getElementById("booking-modal");
   const bmForm = modal?.querySelector<HTMLFormElement>("[data-booking-form]");
@@ -195,7 +197,6 @@ import RequiredNote from "../forms/RequiredNote.astro";
       text: [
         { el: bmForm.querySelector<HTMLInputElement>("#bk-name")!, required: true, message: "Please enter your name." },
         { el: bmForm.querySelector<HTMLInputElement>("#bk-phone")!, required: true, message: "Please enter your phone number." },
-        { el: bmForm.querySelector<HTMLInputElement>("#bk-email")!, required: true, message: "Please enter your email address." },
       ],
       check: [{ el: bmForm.querySelector<HTMLInputElement>("#consent-check")! }],
     });
