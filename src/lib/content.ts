@@ -260,3 +260,122 @@ export async function fetchBlogTags(): Promise<BlogTag[] | null> {
   const body = await getJson<{ data: { tags: BlogTag[] } }>(`${API_BASE}/api/v1/blog/tags`);
   return body?.data.tags ?? null;
 }
+
+/* ---- Horoscope (Step 4) — resolve-current payloads for /horoscope/{sign}/{period} ---- */
+
+/** Structured page payload the generator composes (mirrors backend HoroscopePayload). */
+export interface HoroscopePayload {
+  period: string;
+  date_key: string;
+  rating: string;
+  overview: { text: string; source: string };
+  range?: { start: string; end: string };
+  thought?: { text: string; theme: number; source: string };
+  areas?: Record<
+    string,
+    { text: string; rating: string; pb: string; retro: boolean; source: string }
+  >;
+  dos?: { text: string; house: number; source: string };
+  donts?: { text: string; house: number; source: string };
+  lucky?: {
+    planet: string;
+    planet_hi: string;
+    basis: string;
+    house: number | null;
+    why: {
+      key: string;
+      params: {
+        planet: string;
+        planet_hi: string;
+        sign: string;
+        sign_hi: string;
+        house: number | null;
+      };
+    };
+    colours: Array<{ en: string; hi: string; swatch: string }>;
+    number: number;
+    direction: { en: string; hi: string } | null;
+    deity: { en: string; hi: string };
+    mantra: { hi: string; en: string };
+  };
+  chandrashtama?: boolean;
+  best_days?: Array<{ date: string; planets_en: string[]; planets_hi: string[] }>;
+  testing_day?: { date: string; planets_en: string[]; planets_hi: string[] };
+  sky?: Array<{
+    date: string;
+    kind: string;
+    en: string;
+    hi: string;
+    planet: string | null;
+    sign: string | null;
+  }>;
+  sadesati?: {
+    active: boolean;
+    phases: Array<{ label: string; label_hi: string; months_en: string; months_hi: string }>;
+  };
+  year_areas?: Record<string, { text: string; rating: string; driver: string; source: string }>;
+  month_table?: Array<{ month: string; month_hi: string; clause: string; rating: string }>;
+}
+
+/** Fixed page strings from content_blocks horoscope.* (migration 0013). */
+export interface HoroscopeBlocks {
+  disclaimer?: { text: string };
+  disclosure?: { text: string };
+  rating_labels?: { labels: Record<string, { label: string; glyph: string }> };
+  lucky_why?: Record<string, string>;
+  sadesati_note?: { text: string };
+  chandrashtama_tag?: { text: string };
+  month_clause_intro?: { text: string };
+  headers?: Record<string, string>;
+  area_names?: Record<string, string>;
+}
+
+export interface HoroscopeSignRow {
+  sign: string;
+  overview: string;
+  love: string;
+  career: string;
+  finance: string;
+  health: string;
+  is_sample: boolean;
+  has_payload: boolean;
+  payload: HoroscopePayload | null;
+}
+
+export interface HoroscopePage {
+  period: string;
+  resolved_period: string;
+  date_key: string;
+  range: { start: string; end: string } | null;
+  blocks: HoroscopeBlocks;
+  row: HoroscopeSignRow | null;
+}
+
+/** Build-time resolve-current fetch for one (period, sign); fail-soft → null. */
+export async function fetchHoroscopePage(
+  period: string,
+  sign: string,
+  lang = "en",
+): Promise<HoroscopePage | null> {
+  const body = await getJson<{
+    data: {
+      period: string;
+      resolved_period: string;
+      date_key: string;
+      range: { start: string; end: string } | null;
+      blocks: HoroscopeBlocks;
+      signs: HoroscopeSignRow[];
+    };
+  }>(
+    `${API_BASE}/api/v1/horoscope?period=${encodeURIComponent(period)}&sign=${encodeURIComponent(sign)}&lang=${lang}`,
+  );
+  if (!body?.data) return null;
+  return {
+    period: body.data.period,
+    resolved_period: body.data.resolved_period,
+    date_key: body.data.date_key,
+    range: body.data.range,
+    blocks: body.data.blocks ?? {},
+    row: body.data.signs?.[0] ?? null,
+  };
+}

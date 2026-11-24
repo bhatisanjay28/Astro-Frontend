@@ -1,0 +1,51 @@
+---
+/**
+ * Filled rating chip (Horoscope Upgrade Step 4; design spec §2).
+ * Word + glyph + colour ALWAYS together — the glyph is aria-hidden, the band
+ * word is real text. Used where D4 allows filled chips: monthly best/testing
+ * day pills and yearly month-table rows.
+ */
+export interface Props {
+  band: string;
+  label: string;
+  glyph: string;
+}
+const { band, label, glyph } = Astro.props;
+---
+
+<span class={`hz-chip ${band}`}>
+  <span class="g" aria-hidden="true">{glyph}</span>
+  <span class="w">{label}</span>
+</span>
+
+<style>
+  .hz-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border-radius: var(--radius-pill);
+    padding: 3px 12px;
+    font-size: 12.5px;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  .g {
+    font-size: 11px;
+  }
+  .hz-chip.excellent {
+    color: var(--rating-excellent-text);
+    background: var(--rating-excellent-bg);
+  }
+  .hz-chip.good {
+    color: var(--rating-good-text);
+    background: var(--rating-good-bg);
+  }
+  .hz-chip.moderate {
+    color: var(--rating-moderate-text);
+    background: var(--rating-moderate-bg);
+  }
+  .hz-chip.challenging {
+    color: var(--rating-challenging-text);
+    background: var(--rating-challenging-bg);
+  }
+</style>

@@ -1,0 +1,286 @@
+---
+/**
+ * Horoscope sidebar — Lucky triad, trust note, explore links
+ * (Horoscope Upgrade Step 4; design spec §2 Lucky card, §5 sidebar).
+ *
+ * Chrome only: card headings and field labels are frontend config (D12
+ * boundary); every lucky VALUE (planet, colours, number, direction, deity,
+ * mantra, why-line) comes from the API payload and content_blocks. The
+ * lucky-heading period wording ("Lucky today / this week / …") is chrome.
+ * Direction is hidden when the payload omits it (Ketu → null).
+ */
+import type { HoroscopeBlocks, HoroscopePayload } from "../lib/content";
+
+export interface Props {
+  period: string;
+  signSlug: string;
+  lucky: HoroscopePayload["lucky"] | null;
+  blocks: HoroscopeBlocks;
+}
+
+const { period, signSlug, lucky, blocks } = Astro.props;
+const H = blocks.headers ?? {};
+
+// Period-aware chrome wording; daily uses the block header verbatim.
+const luckyHeading =
+  period === "yesterday"
+    ? "Lucky yesterday"
+    : period === "tomorrow"
+      ? "Lucky tomorrow"
+      : period === "daily"
+        ? (H.lucky_heading ?? "Lucky today")
+        : period === "weekly"
+          ? "Lucky this week"
+          : period === "monthly"
+            ? "Lucky this month"
+            : "Lucky this year";
+
+/** Fill a lucky_why template with the payload's attribution params. */
+const fillWhy = (tpl: string, why: NonNullable<HoroscopePayload["lucky"]>["why"]): string => {
+  const p = why.params;
+  return tpl
+    .replace(/\{\{planet_hi\}\}/g, p.planet_hi)
+    .replace(/\{\{planet\}\}/g, p.planet)
+    .replace(/\{\{sign_hi\}\}/g, p.sign_hi)
+    .replace(/\{\{sign\}\}/g, p.sign);
+};
+const whyLine =
+  lucky && blocks.lucky_why?.[lucky.why.key]
+    ? fillWhy(blocks.lucky_why[lucky.why.key], lucky.why)
+    : null;
+
+// Swatches come from DB jsonb — only a strict hex value goes into a style attr
+// (defense-in-depth on top of the validator's palette check).
+const safeSwatch = (v: string): string | null => (/^#[0-9a-fA-F]{3,8}$/.test(v) ? v : null);
+
+const OTHER_PERIODS = [
+  { slug: "yesterday", label: "Yesterday's rashiphal" },
+  { slug: "daily", label: "Today's rashiphal" },
+  { slug: "tomorrow", label: "Tomorrow's rashiphal" },
+  { slug: "weekly", label: "Weekly rashiphal" },
+  { slug: "monthly", label: "Monthly rashiphal" },
+  { slug: "yearly", label: "Yearly rashiphal" },
+].filter((p) => p.slug !== period);
+---
+
+<aside class="hzs">
+  {
+    lucky && (
+      <section class="card lucky" aria-label={luckyHeading}>
+        <h2>{luckyHeading}</h2>
+        {whyLine && <p class="why">{whyLine}</p>}
+        <dl class="triad">
+          <div class="row">
+            <dt>Number</dt>
+            <dd>
+              <span class="num">{lucky.number}</span>
+            </dd>
+          </div>
+          <div class="row">
+            <dt>Colours</dt>
+            <dd>
+              <ul class="colours">
+                {lucky.colours.map((c) => {
+                  const sw = safeSwatch(c.swatch);
+                  return (
+                    <li>
+                      {sw && <span class="sw" style={`background:${sw}`} aria-hidden="true" />}
+                      {c.en}
+                    </li>
+                  );
+                })}
+              </ul>
+            </dd>
+          </div>
+          {lucky.direction && (
+            <div class="row">
+              <dt>Direction</dt>
+              <dd>{lucky.direction.en}</dd>
+            </div>
+          )}
+          <div class="row">
+            <dt>Deity</dt>
+            <dd>{lucky.deity.en}</dd>
+          </div>
+        </dl>
+        <div class="mantra">
+          <span class="lbl">Mantra</span>
+          <p lang="hi">{lucky.mantra.hi}</p>
+          <p class="tr">{lucky.mantra.en}</p>
+        </div>
+      </section>
+    )
+  }
+
+  <section class="card trust" aria-label="About this content">
+    <h2>Team Vyotish</h2>
+    <p>
+      Composed from classical Jyotish rules (planetary strength, weekday lords and Sade
+      Sati phases) and reviewed by our Jyotishi panel.
+    </p>
+    <p class="muted">Panel reviewer names are published with the launch.</p>
+  </section>
+
+  <section class="card explore" aria-label="Explore more">
+    <h2>Explore</h2>
+    <ul class="links">
+      {
+        OTHER_PERIODS.map((p) => (
+          <li>
+            <a href={`/horoscope/${signSlug}/${p.slug}`}>{p.label}</a>
+          </li>
+        ))
+      }
+    </ul>
+    <a class="book" href="/consultations/">Book a Consultation</a>
+  </section>
+</aside>
+
+<style>
+  .hzs {
+    display: grid;
+    gap: var(--space-4);
+    align-content: start;
+  }
+  .card {
+    background: var(--bg-raised);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-card);
+    padding: var(--space-4) var(--space-5);
+  }
+  .card h2 {
+    font-family: var(--font-display);
+    color: var(--gold);
+    font-size: 15px;
+    margin-bottom: var(--space-2);
+  }
+  .card p {
+    color: var(--text-body);
+    font-size: 13.5px;
+    line-height: 1.6;
+  }
+  .lucky .why {
+    color: var(--text-muted);
+    font-style: italic;
+    font-size: 13px;
+    padding-bottom: var(--space-2);
+    border-bottom: 1px dashed var(--color-border);
+    margin-bottom: var(--space-3);
+  }
+  .triad {
+    margin: 0;
+    display: grid;
+    gap: var(--space-2);
+  }
+  .triad .row {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-3);
+  }
+  .triad dt {
+    flex: 0 0 76px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+  .triad dd {
+    margin: 0;
+    color: var(--text-body);
+    font-size: 14px;
+  }
+  .triad .num {
+    font-family: var(--font-display);
+    font-size: 30px;
+    line-height: 1;
+    color: var(--gold);
+    font-weight: 700;
+  }
+  .colours {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2) var(--space-3);
+  }
+  .colours li {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13.5px;
+    color: var(--text-body);
+  }
+  .sw {
+    width: 14px;
+    height: 14px;
+    border-radius: 999px;
+    border: 1px solid var(--color-border-strong);
+    flex-shrink: 0;
+  }
+  .mantra {
+    margin-top: var(--space-3);
+    padding-top: var(--space-3);
+    border-top: 1px dashed var(--color-border);
+  }
+  .mantra .lbl {
+    display: block;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-accent-text);
+    margin-bottom: var(--space-1);
+  }
+  .mantra p {
+    font-family: var(--font-display);
+    font-size: 15px;
+    color: var(--gold);
+    line-height: 1.6;
+    margin: 0;
+  }
+  .mantra .tr {
+    font-family: var(--font-body);
+    font-size: 12.5px;
+    color: var(--text-muted);
+    font-style: italic;
+    margin-top: var(--space-1);
+  }
+  .trust .muted {
+    color: var(--text-dim);
+    font-size: 12.5px;
+    margin-top: var(--space-1);
+  }
+  .links {
+    list-style: none;
+    margin: 0 0 var(--space-3);
+    padding: 0;
+    display: grid;
+    gap: var(--space-1);
+  }
+  .links a {
+    color: var(--gold);
+    font-size: 13.5px;
+    text-decoration: none;
+  }
+  .links a:hover {
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+  .book {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--gold);
+    color: var(--color-on-primary);
+    border-radius: var(--radius-pill);
+    padding: 10px 20px;
+    font-weight: 600;
+    font-size: 14px;
+    text-decoration: none;
+  }
+  .book:hover {
+    box-shadow: var(--gold-shadow);
+  }
+</style>

@@ -38,6 +38,18 @@
   --color-error-text: var(--color-error);
   --color-error-bg: #fbebeb;
 
+  /* Rating bands (horoscope chips/bandmarks) — word+glyph+colour together.
+     excellent/challenging reuse the auspicious/inauspicious pairs; good is the
+     secondary-container pair; moderate is the amber warning pair (new). */
+  --rating-excellent-text: var(--color-success);
+  --rating-excellent-bg: #e7f2e9;
+  --rating-good-text: var(--color-light-secondary); /* #1e3a5f cosmic blue */
+  --rating-good-bg: var(--color-light-secondary-container); /* #e0ecfc */
+  --rating-moderate-text: var(--color-warning); /* #b45309 amber-700 */
+  --rating-moderate-bg: #fef3d8;
+  --rating-challenging-text: var(--color-error);
+  --rating-challenging-bg: #fbebeb;
+
   /* Focus (high-contrast) */
   --focus-ring: 0 0 0 3px rgba(180, 64, 16, 0.55);
 
@@ -104,6 +116,16 @@
   --color-inauspicious-bg: #3a2422;
   --color-error-text: #f2a5a0;
   --color-error-bg: #3a2422;
+
+  /* Rating bands — dark twins (AA on tint, verified both themes) */
+  --rating-excellent-text: #6fcf8f;
+  --rating-excellent-bg: #1b3a2a;
+  --rating-good-text: #d4e3ff;
+  --rating-good-bg: #10477e;
+  --rating-moderate-text: #f5c168;
+  --rating-moderate-bg: #3a2a10;
+  --rating-challenging-text: #f2a5a0;
+  --rating-challenging-bg: #3a2422;
 
   --focus-ring: 0 0 0 3px rgba(255, 181, 148, 0.6);
   --border-emphasis: rgba(255, 181, 148, 0.5);

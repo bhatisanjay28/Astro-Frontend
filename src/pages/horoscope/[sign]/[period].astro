@@ -1,11 +1,22 @@
 ---
+import HoroscopeDetail from "../../../components/HoroscopeDetail.astro";
+import HoroscopeSidebar from "../../../components/HoroscopeSidebar.astro";
 /**
- * /horoscope/{sign}/{period} — Epic 5.1 per-sign rashiphal pages (PRD §5.2).
- * Static shells for 12 signs × 6 periods; the TEXT is fetched at RUNTIME from
- * the backend horoscope API (D12: all content from Supabase via APIs — never
- * baked). Fail-soft: an honest unavailable line renders when the API is down.
+ * /horoscope/{sign}/{period} — Horoscope Upgrade Step 4 (spec §1, §5, §6).
+ *
+ * Build-time SSR: the resolve-current API is fetched once per page at build
+ * (Astro static output) and the payload is rendered server-side by
+ * HoroscopeDetail + HoroscopeSidebar — zero client fetch, no loading flash.
+ * Freshness: the backend cron pings the configured CF Pages deploy hook after
+ * generation, so dated rows are re-baked daily by a rebuild.
+ *
+ * Fail-soft ladder (all baked, never faked):
+ *   generated payload → legacy five-text-column row → honest unavailable line.
+ * Fixed page strings (disclaimer, disclosure, rating labels, lucky why) come
+ * from content_blocks horoscope.* via the API (D12: content lives behind it).
  */
 import Base from "../../../layouts/Base.astro";
+import { fetchHoroscopePage } from "../../../lib/content";
 
 // NOTE: SIGNS/PERIODS live INSIDE getStaticPaths below — Astro's worker build
 // hoists getStaticPaths to its own scope where module-level consts are not
@@ -48,7 +59,11 @@ const { sign, period, signs, periods } = Astro.props as {
   periods: Array<{ slug: string; label: string }>;
 };
 
-const apiBase = import.meta.env.PUBLIC_API_BASE_URL ?? "https://astro-backend.vyotish.workers.dev";
+// Build-time resolve-current fetch — fail-soft null when the API is unreachable.
+const page = await fetchHoroscopePage(period.slug, sign.slug);
+const row = page?.row ?? null;
+const blocks = page?.blocks ?? {};
+
 const PERIOD_TITLES: Record<string, string> = {
   yesterday: "Yesterday's",
   daily: "Today's",
@@ -57,11 +72,70 @@ const PERIOD_TITLES: Record<string, string> = {
   monthly: "This Month's",
   yearly: "This Year's",
 };
+
+const MONTHS_FULL = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
+const MONTHS_SHORT = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];
+const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+/** "2026-11-28" → "Saturday, 28 November 2026" (calendar date, tz-free). */
+const fmtLong = (key: string): string => {
+  const [y, m, d] = key.split("-").map(Number);
+  const wd = WEEKDAYS[new Date(Date.UTC(y, (m ?? 1) - 1, d ?? 1)).getUTCDay()];
+  return `${wd}, ${d} ${MONTHS_FULL[(m ?? 1) - 1]} ${y}`;
+};
+const fmtShort = (key: string): string => {
+  const [, m, d] = key.split("-").map(Number);
+  return `${d} ${MONTHS_SHORT[(m ?? 1) - 1]}`;
+};
+
+/** Hero meta line baked from the resolved date_key / range. The pre-migration
+ * API lacks date_key — guard so a legacy response simply skips the line. */
+const metaLine = (() => {
+  if (!page?.date_key) return null;
+  // Sample (seeded) rows must not wear a dated frame — honesty of the ladder.
+  if (row?.is_sample) return "Sample reading — live readings are being prepared";
+  if (period.slug === "yearly") return `Reading for ${page.date_key}`;
+  if (period.slug === "monthly") {
+    const [y, m] = page.date_key.split("-").map(Number);
+    return `Reading for ${MONTHS_FULL[(m ?? 1) - 1]} ${y}`;
+  }
+  if (period.slug === "weekly") {
+    const r = page.range;
+    return r ? `${fmtShort(r.start)} – ${fmtShort(r.end)}` : null;
+  }
+  return fmtLong(page.date_key);
+})();
 ---
 
 <Base
   title={`${PERIOD_TITLES[period.slug] ?? ""} Rashiphal — ${sign.en} | Vyotish`}
-  description={`${PERIOD_TITLES[period.slug] ?? ""} Vedic horoscope for ${sign.en} (Moon sign) — love, career, finance and health, served live from the Vyotish backend.`}
+  description={`${PERIOD_TITLES[period.slug] ?? ""} Vedic horoscope for ${sign.en} (Moon sign) — overview, love, career, money, health, dos & don'ts, plus lucky colours, number, deity and mantra.`}
 >
   <section class="hz">
     <nav class="crumbs" aria-label="Breadcrumb">
@@ -73,11 +147,11 @@ const PERIOD_TITLES: Record<string, string> = {
     <h1>
       <span class="glyph" aria-hidden="true">{sign.symbol}</span>
       {PERIOD_TITLES[period.slug] ?? ""} Rashiphal — {sign.en}
-      {sign.hi && <span class="hi-text">({sign.hi})</span>}
+      {sign.hi && <span class="hi-text" lang="hi">({sign.hi})</span>}
     </h1>
     <p class="lede">
-      Moon-sign based Vedic horoscope · Lord {sign.lord} · Served live from the Vyotish
-      calculation backend. See <a href="/horoscope/">other signs</a>.
+      Moon-sign based Vedic horoscope · Lord {sign.lord} ·{" "}
+      {metaLine ?? "Reading being prepared"}
     </p>
 
     <nav class="periods" aria-label="Period">
@@ -86,6 +160,7 @@ const PERIOD_TITLES: Record<string, string> = {
           <a
             class={`chip ${p.slug === period.slug ? "active" : ""}`}
             href={`/horoscope/${sign.slug}/${p.slug}`}
+            aria-current={p.slug === period.slug ? "page" : undefined}
           >
             {p.label}
           </a>
@@ -93,9 +168,33 @@ const PERIOD_TITLES: Record<string, string> = {
       }
     </nav>
 
-    <section class="reading" data-horoscope-reading aria-live="polite">
-      <p class="line loading">Fetching {period.label.toLowerCase()} rashiphal…</p>
-    </section>
+    <div class="layout">
+      <div class="main">
+        <HoroscopeDetail
+          period={period.slug}
+          signEn={sign.en}
+          row={row}
+          blocks={blocks}
+          range={page?.range ?? null}
+        />
+      </div>
+      <HoroscopeSidebar
+        period={period.slug}
+        signSlug={sign.slug}
+        lucky={row?.payload?.lucky ?? null}
+        blocks={blocks}
+      />
+    </div>
+
+    {
+      blocks.disclosure?.text && (
+        <details class="how" open>
+          <summary>{blocks.headers?.disclosure_title ?? "How we compute this"}</summary>
+          <p>{blocks.disclosure.text}</p>
+        </details>
+      )
+    }
+    {blocks.disclaimer?.text && <p class="disclaimer">{blocks.disclaimer.text}</p>}
 
     <section class="picker" aria-label="Other signs">
       <h2>All 12 Signs</h2>
@@ -106,9 +205,10 @@ const PERIOD_TITLES: Record<string, string> = {
               class={`sign ${s.slug === sign.slug ? "current" : ""}`}
               href={`/horoscope/${s.slug}/${period.slug}`}
               hreflang="en"
+              aria-current={s.slug === sign.slug ? "page" : undefined}
             >
               <span class="sym" aria-hidden="true">{s.symbol}</span>
-              <span class="sname">{s.hi}</span>
+              <span class="sname" lang="hi">{s.hi}</span>
             </a>
           ))
         }
@@ -117,60 +217,48 @@ const PERIOD_TITLES: Record<string, string> = {
   </section>
 </Base>
 
-<script define:vars={{ apiBase, signSlug: sign.slug, periodSlug: period.slug, unavailable: "Rashiphal unavailable right now — please refresh shortly." }}>
-  (function () {
-    var box = document.querySelector("[data-horoscope-reading]");
-    if (!box) return;
-    var rows = [
-      ["overview", "Overview"],
-      ["love", "Love & Relationships"],
-      ["career", "Career & Business"],
-      ["finance", "Finance"],
-      ["health", "Health"],
-    ];
-    fetch(apiBase + "/api/v1/horoscope?period=" + encodeURIComponent(periodSlug) + "&sign=" + encodeURIComponent(signSlug) + "&lang=en")
-      .then(function (r) { return r.ok ? r.json() : Promise.reject(new Error("http_" + r.status)); })
-      .then(function (json) {
-        var row = json && json.data && Array.isArray(json.data.signs) ? json.data.signs[0] : null;
-        if (!row) throw new Error("empty");
-        var html = "";
-        var any = false;
-        for (var i = 0; i < rows.length; i++) {
-          var key = rows[i][0];
-          var label = rows[i][1];
-          var text = row[key];
-          if (text && String(text).trim()) {
-            any = true;
-            html += '<h3>' + label + '</h3><p>' + String(text) + '</p>';
-          }
-        }
-        if (!any) { html = '<p class="line">' + unavailable + '</p>'; }
-        box.innerHTML = html;
-      })
-      .catch(function () {
-        box.innerHTML = '<p class="line">' + unavailable + '</p>';
-      });
-  })();
-</script>
-
 <style>
-  .hz { max-width: 900px; margin: 0 auto; padding: var(--space-6) var(--space-4) var(--space-8); }
+  .hz { max-width: 1120px; margin: 0 auto; padding: var(--space-6) var(--space-4) var(--space-8); }
   .crumbs { display: flex; gap: var(--space-2); font-size: 13px; color: var(--text-dim); margin-bottom: var(--space-3); }
   .crumbs a { color: var(--gold); text-decoration: underline; text-underline-offset: 2px; }
   h1 { font-family: var(--font-display); color: var(--ivory); font-size: clamp(24px, 5vw, 36px); display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
   .glyph { display: inline-flex; width: 44px; height: 44px; border-radius: 999px; background: var(--bg-raised); border: 1px solid var(--border-gold-soft); align-items: center; justify-content: center; font-size: 22px; color: var(--gold); }
   .hi-text { color: var(--text-dim); font-size: 0.7em; }
   .lede { color: var(--text-muted); font-size: 14px; margin-top: var(--space-2); }
-  .lede a { color: var(--gold); }
   .periods { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-4); }
   .chip { padding: 6px 14px; border-radius: 999px; border: 1px solid var(--color-border-strong); color: var(--text-muted); text-decoration: none; font-size: 13px; }
   .chip:hover { border-color: var(--border-gold-soft); color: var(--ivory); }
   .chip.active { background: var(--gold); color: var(--color-on-primary); border-color: var(--gold); font-weight: 600; }
-  .reading { margin-top: var(--space-5); background: var(--bg-raised); border: 1px solid var(--color-border-strong); border-radius: var(--radius-card); padding: var(--space-5); min-height: 120px; }
-  .reading h3 { color: var(--gold); font-family: var(--font-display); font-size: 15px; margin: var(--space-4) 0 var(--space-1); }
-  .reading h3:first-child { margin-top: 0; }
-  .reading p { color: var(--text-muted); font-size: 14px; line-height: 1.65; }
-  .line { color: var(--text-dim); font-size: 14px; }
+  .layout {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+    gap: var(--space-5);
+    align-items: start;
+    margin-top: var(--space-5);
+  }
+  .main { min-width: 0; }
+  .how {
+    margin-top: var(--space-5);
+    background: var(--bg-raised);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-card);
+    padding: var(--space-3) var(--space-5);
+    font-size: 13.5px;
+  }
+  .how summary {
+    cursor: pointer;
+    font-weight: 600;
+    color: var(--gold);
+    font-family: var(--font-display);
+    font-size: 14px;
+  }
+  .how p { color: var(--text-muted); line-height: 1.65; margin-top: var(--space-3); }
+  .disclaimer {
+    margin-top: var(--space-3);
+    color: var(--text-dim);
+    font-size: 12.5px;
+    line-height: 1.6;
+  }
   .picker { margin-top: var(--space-7); }
   .picker h2 { font-family: var(--font-display); color: var(--ivory); font-size: 18px; margin-bottom: var(--space-3); }
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: var(--space-2); }
@@ -179,4 +267,7 @@ const PERIOD_TITLES: Record<string, string> = {
   .sign.current { border-color: var(--gold); }
   .sym { color: var(--gold); font-size: 18px; }
   .sname { color: var(--ivory); font-size: 13px; }
+  @media (max-width: 1023px) {
+    .layout { grid-template-columns: 1fr; }
+  }
 </style>
