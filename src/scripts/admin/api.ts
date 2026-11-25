@@ -38,6 +38,7 @@ interface ApiEnvelope {
 export async function api<T = ApiEnvelope>(
   path: string,
   init: RequestInit = {},
+  depth = 0,
 ): Promise<
   { ok: true; status: number; body: T } | { ok: false; status: number; body: ApiEnvelope }
 > {
@@ -52,9 +53,17 @@ export async function api<T = ApiEnvelope>(
         : {}),
     },
   });
-  if (res.status === 401 && sessionStorage.getItem(REFRESH_KEY) && !path.startsWith("/auth")) {
+  // Depth guard: only ONE refresh-retry per logical call. If refresh keeps
+  // succeeding while the endpoint keeps 401ing (project misconfiguration),
+  // bounce to login instead of recursing forever (QA phase-1 finding 10).
+  if (
+    res.status === 401 &&
+    depth < 1 &&
+    sessionStorage.getItem(REFRESH_KEY) &&
+    !path.startsWith("/auth")
+  ) {
     const refreshed = await tryRefresh();
-    if (refreshed) return api(path, init);
+    if (refreshed) return api(path, init, depth + 1);
   }
   let body: ApiEnvelope = {};
   try {
@@ -98,7 +107,8 @@ export function esc(s: unknown): string {
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;"); // single-quoted attrs in generated HTML
 }
 
 export function el<T extends HTMLElement>(sel: string, root: ParentNode = document): T | null {
@@ -130,25 +140,88 @@ export function renderRows<T>(
   tbody.innerHTML = rows.map(rowHtml).join("");
 }
 
-/** Gate: verify the stored token against /admin/me; redirect if invalid. */
+/** Gate: verify the stored token against /admin/me; redirect if invalid.
+ * Also arms the 30-minute idle timer and fills the sidebar identity chip. */
 export async function requireSession(): Promise<boolean> {
   const token = sessionStorage.getItem(TOKEN_KEY);
   if (!token) {
     location.href = "/admin/login";
     return false;
   }
-  const res = await api<{ data?: { email?: string; role?: string; aal?: string } }>(
-    "/api/v1/admin/me",
-  );
+  const res = await api<{
+    data?: {
+      user_id?: string;
+      email?: string;
+      role?: string;
+      display_name?: string | null;
+      capabilities?: string[];
+    };
+  }>("/api/v1/admin/me");
   if (!res.ok) return false;
+  const me = res.body.data ?? {};
   const email = el<HTMLSpanElement>("#admin-email");
-  if (email) email.textContent = res.body.data?.email ?? "";
+  if (email) email.textContent = me.display_name || me.email || "";
+  const role = el<HTMLSpanElement>("#admin-role");
+  if (role) {
+    role.textContent = (me.role ?? "").replace(/_/g, " ") || "staff";
+    role.removeAttribute("hidden");
+  }
+  // capabilities power UI affordances only — the API remains the real gate
+  const w = window as unknown as {
+    __vyotishAdmin?: { userId: string; role: string; capabilities: string[] };
+  };
+  w.__vyotishAdmin = {
+    userId: me.user_id ?? "",
+    role: me.role ?? "",
+    capabilities: me.capabilities ?? [],
+  };
+  armIdleLogout();
   return true;
 }
 
-export function logout(): void {
-  clearSession();
-  location.href = "/admin/login";
+/**
+ * Admin Phase 1 — sign out properly: revoke the Supabase session
+ * server-side, then drop the local token. Best-effort: even if the revoke
+ * call fails, the local session is cleared and the user is bounced.
+ */
+export function logout(reason?: string): void {
+  const token = sessionStorage.getItem(TOKEN_KEY);
+  const finish = (): void => {
+    clearSession();
+    location.href = `/admin/login${reason ? `?reason=${encodeURIComponent(reason)}` : ""}`;
+  };
+  if (!token) {
+    finish();
+    return;
+  }
+  void fetch(`${API_BASE}/api/v1/auth/logout`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ access_token: token }),
+  })
+    .catch(() => undefined)
+    .finally(finish);
+}
+
+/** 30 minutes without interaction ends the session (idle timeout). */
+const IDLE_MS = 30 * 60 * 1000;
+let idleTimer: ReturnType<typeof setTimeout> | undefined;
+
+function armIdleLogout(): void {
+  if (idleTimer !== undefined) return; // arm once per page
+  const reset = (): void => {
+    if (idleTimer !== undefined) clearTimeout(idleTimer);
+    idleTimer = setTimeout(() => {
+      // Revoke the server session, not just the local copy — clearSession()
+      // alone left the Supabase session live until token expiry (QA
+      // phase-1 finding 10).
+      logout("idle");
+    }, IDLE_MS);
+  };
+  for (const ev of ["pointerdown", "keydown", "scroll"] as const) {
+    document.addEventListener(ev, reset, { passive: true });
+  }
+  reset();
 }
 
 export function fmtDate(v: unknown): string {

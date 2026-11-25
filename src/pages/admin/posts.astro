@@ -83,6 +83,12 @@ import Admin from "../../layouts/Admin.astro";
     ev.preventDefault();
     void load();
   });
-  document.getElementById("admin-logout")?.addEventListener("click", logout);
+  document.getElementById("admin-logout")?.addEventListener("click", () => logout());
+  // dashboard cards deep-link a pre-filtered list (?status=published etc.)
+  const urlStatus = new URLSearchParams(location.search).get("status");
+  if (urlStatus) {
+    const sel = el<HTMLSelectElement>("#f-status");
+    if (sel) sel.value = urlStatus;
+  }
   if (await requireSession()) await load();
 </script>

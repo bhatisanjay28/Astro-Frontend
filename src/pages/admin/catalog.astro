@@ -109,6 +109,10 @@ import Admin from "../../layouts/Admin.astro";
 
   function setKind(k: "astrologers" | "pujas"): void {
     kind = k;
+    // keep ?tab= in the URL so refresh and dashboard deep links land here
+    const u = new URL(location.href);
+    u.searchParams.set("tab", k);
+    history.replaceState(null, "", u);
     (el<HTMLTableElement>("#astro-table")!).hidden = k !== "astrologers";
     (el<HTMLTableElement>("#puja-table")!).hidden = k !== "pujas";
     void load();
@@ -207,6 +211,11 @@ import Admin from "../../layouts/Admin.astro";
       await load();
     }
   });
-  document.getElementById("admin-logout")?.addEventListener("click", logout);
-  if (await requireSession()) await load();
+  document.getElementById("admin-logout")?.addEventListener("click", () => logout());
+  if (await requireSession()) {
+    // dashboard stat cards deep-link the right tab (?tab=astrologers | poojas)
+    const t = new URLSearchParams(location.search).get("tab");
+    if (t === "astrologers" || t === "pujas") setKind(t);
+    else await load();
+  }
 </script>

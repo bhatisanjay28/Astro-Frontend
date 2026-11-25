@@ -157,6 +157,6 @@ import Admin from "../../../layouts/Admin.astro";
       toast(msg, true);
     }
   });
-  document.getElementById("admin-logout")?.addEventListener("click", logout);
+  document.getElementById("admin-logout")?.addEventListener("click", () => logout());
   if (await requireSession()) await load();
 </script>

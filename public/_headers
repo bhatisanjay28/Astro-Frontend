@@ -1,0 +1,9 @@
+# Admin panel must never be indexed or framed (Phase 1 hardening).
+# The <meta name="robots"> in Admin.astro is the second layer; this header
+# also covers non-HTML assets served under /admin/*.
+/admin
+  X-Robots-Tag: noindex, nofollow
+  Content-Security-Policy: frame-ancestors 'none'
+/admin/*
+  X-Robots-Tag: noindex, nofollow
+  Content-Security-Policy: frame-ancestors 'none'

@@ -1,87 +1,696 @@
 ---
-/** /admin/inbox — consultation/puja requests + contact messages (Epic 6.4). */
+/** /admin/inbox — Phase 2 rebuild. Tabs Consultations / Pooja requests /
+ * Messages, role-aware search, status/SLA/test/archive filters, CSV export
+ * and a detail drawer with the full workflow (verify gate, transition-map
+ * status buttons, assignee, reschedule, notes, archive + test toggles).
+ * The backend (requireCapability + workflow maps + PII masking) is the real
+ * gate — this UI only mirrors what the API already enforces. */
 import Admin from "../../layouts/Admin.astro";
 ---
 
 <Admin title="Inbox | Vyotish Admin" active="inbox">
   <h1>Inbox</h1>
-  <p style="display:flex; gap:8px">
-    <button class="btn ghost" id="tab-req" type="button">Requests</button>
-    <button class="btn ghost" id="tab-msg" type="button">Messages</button>
-  </p>
-  <table id="req-table">
-    <thead><tr><th>Who</th><th>Contact</th><th>Topic</th><th>Preferred</th><th>Status</th><th>When</th><th>Set status</th></tr></thead>
-    <tbody id="req-rows"><tr><td colspan="7" class="empty">Loading…</td></tr></tbody>
+
+  <div class="tabs" role="tablist">
+    <button type="button" class="tab on" data-type="consultation" role="tab" aria-selected="true">Consultations</button>
+    <button type="button" class="tab" data-type="puja" role="tab" aria-selected="false">Pooja requests</button>
+    <button type="button" class="tab" data-type="message" role="tab" aria-selected="false">Messages</button>
+  </div>
+
+  <form id="filters" class="toolbar">
+    <input id="f-q" type="search" placeholder="Search…" style="max-width:260px" />
+    <label class="chk"><input type="checkbox" id="f-older" /> &gt;24h</label>
+    <label class="chk"><input type="checkbox" id="f-test" /> test rows</label>
+    <label class="chk"><input type="checkbox" id="f-archived" /> archived</label>
+    <button type="submit" class="btn ghost">Apply</button>
+    <button type="button" class="btn ghost" id="export-csv" hidden>Export CSV</button>
+  </form>
+
+  <div id="chips" class="chips"></div>
+
+  <table>
+    <thead id="list-head"></thead>
+    <tbody id="rows"><tr><td colspan="8" class="empty">Loading…</td></tr></tbody>
   </table>
-  <table id="msg-table" hidden>
-    <thead><tr><th>Name</th><th>Email</th><th>Subject</th><th>Message</th><th>Status</th><th>When</th><th>Set status</th></tr></thead>
-    <tbody id="msg-rows"><tr><td colspan="7" class="empty">Loading…</td></tr></tbody>
-  </table>
+  <p class="hint" id="list-meta" style="margin-top:8px"></p>
+
+  <aside id="drawer" hidden role="dialog" aria-modal="true" aria-label="Item details">
+    <div class="drawer-head">
+      <strong id="d-name"></strong>
+      <span id="d-status" class="pill"></span>
+      <button type="button" class="btn ghost" id="d-close" aria-label="Close details">✕</button>
+    </div>
+    <div id="d-badges" class="chips"></div>
+    <dl id="d-fields" class="fields"></dl>
+    <div id="d-contact" class="chips"></div>
+    <div id="d-actions">
+      <div class="chips" id="d-verify"></div>
+      <div class="chips" id="d-transitions"></div>
+      <div id="d-assign"></div>
+      <div id="d-resched"></div>
+      <div class="chips" id="d-toggles"></div>
+    </div>
+    <section id="d-notes-sec">
+      <h2>Notes</h2>
+      <ul id="d-notes" class="notes"></ul>
+      <div id="d-note-add">
+        <textarea id="d-note-body" placeholder="Add an internal note (never shown to visitors)…"></textarea>
+        <button type="button" class="btn ghost" id="d-note-save" data-act="note">Add note</button>
+      </div>
+    </section>
+  </aside>
 </Admin>
 
+<style is:global>
+  .tabs { display: flex; gap: 8px; margin-bottom: 12px; }
+  .tab { background: none; border: 1px solid var(--a-border); color: var(--a-dim); border-radius: 8px; padding: 8px 14px; cursor: pointer; font: inherit; }
+  .tab.on { color: var(--a-gold); border-color: var(--a-gold); background: rgba(212, 168, 67, 0.08); }
+  .toolbar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin: 12px 0; }
+  .toolbar .chk { display: flex; align-items: center; gap: 6px; margin: 0; font-size: 12px; color: var(--a-dim); cursor: pointer; }
+  .toolbar .chk input { width: auto; }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; margin: 6px 0; }
+  .chip { font-size: 12px; border: 1px solid var(--a-border); background: none; color: var(--a-dim); border-radius: 999px; padding: 3px 12px; cursor: pointer; font: inherit; font-size: 12px; }
+  .chip.on { color: var(--a-gold); border-color: var(--a-gold); }
+  .tag { font-size: 10px; border: 1px solid var(--a-border); border-radius: 999px; padding: 1px 7px; color: var(--a-dim); white-space: nowrap; }
+  .tag.sla { color: #e0b08a; border-color: #7a4a2f; }
+  .tag.test { color: #b0a8e0; border-color: #4a3f7a; }
+  tr.rowlink { cursor: pointer; }
+  tr.rowlink:hover td { background: rgba(212, 168, 67, 0.05); }
+  /* detail drawer (Sally mockup: right-side panel) */
+  #drawer { position: fixed; top: 0; right: 0; bottom: 0; width: min(460px, 92vw); background: var(--a-panel); border-left: 1px solid var(--a-border); padding: 20px; overflow-y: auto; z-index: 40; }
+  #drawer[hidden] { display: none; }
+  .drawer-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .drawer-head strong { flex: 1; font-size: 15px; }
+  .fields { margin: 12px 0; }
+  .fields div { display: flex; gap: 10px; padding: 6px 0; border-bottom: 1px solid rgba(58, 47, 31, 0.45); font-size: 13px; }
+  .fields dt { flex: 0 0 128px; color: var(--a-dim); margin: 0; }
+  .fields dd { margin: 0; flex: 1; word-break: break-word; white-space: pre-wrap; }
+  .notes { list-style: none; padding: 0; margin: 8px 0; }
+  .notes li { background: #241c13; border: 1px solid var(--a-border); border-radius: 8px; padding: 8px 10px; margin-bottom: 6px; font-size: 13px; }
+  .notes .meta { color: var(--a-dim); font-size: 11px; margin-top: 4px; }
+  #d-note-body { min-height: 64px; }
+  #d-note-add { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+  #d-assign, #d-resched { margin: 10px 0; }
+  #d-assign select, #d-resched input { max-width: 260px; }
+</style>
+
 <script>
-  import { api, el, esc, fmtDate, renderRows, requireSession, toast, logout } from "../../scripts/admin/api";
+  import {
+    API_BASE,
+    api,
+    el,
+    esc,
+    fmtDate,
+    renderRows,
+    requireSession,
+    toast,
+    logout,
+  } from "../../scripts/admin/api";
 
-  let kind: "requests" | "messages" = "requests";
+  type Kind = "consultation" | "puja" | "message";
 
-  const STATUS_BTNS = {
-    requests: ["contacted", "scheduled", "closed"],
-    messages: ["read", "closed"],
+  /** Frontend mirror of the backend transition maps (src/lib/inbox-flow.ts).
+   * The API remains the gate — these only decide which buttons to render. */
+  const REQUEST_NEXT: Record<string, string[]> = {
+    new: ["contacted", "scheduled", "cancelled", "closed"],
+    contacted: ["scheduled", "completed", "cancelled", "closed"],
+    scheduled: ["completed", "cancelled", "closed"],
+    completed: ["closed", "scheduled"],
+    closed: [],
+    cancelled: [],
+  };
+  const MESSAGE_NEXT: Record<string, string[]> = {
+    new: ["read", "closed", "cancelled"],
+    read: ["closed", "cancelled"],
+    closed: [],
+    cancelled: [],
+  };
+  const REQUEST_STATUSES = ["new", "contacted", "scheduled", "completed", "closed", "cancelled"];
+  const MESSAGE_STATUSES = ["new", "read", "closed", "cancelled"];
+
+  const caps = (): string[] =>
+    (window as unknown as { __vyotishAdmin?: { capabilities?: string[] } }).__vyotishAdmin
+      ?.capabilities ?? [];
+  const canPii = (): boolean => caps().includes("inbox.read_pii");
+  const canWrite = (): boolean => caps().includes("inbox.write");
+
+  const state = {
+    type: "consultation" as Kind,
+    q: "",
+    status: "",
+    older: false,
+    test: false,
+    archived: false,
+    shown: 0,
+    total: 0,
   };
 
-  async function load(): Promise<void> {
-    if (kind === "requests") {
-      const [c, p] = await Promise.all([
-        api<{ data?: { requests?: Array<Record<string, unknown>>; type?: string } }>("/api/v1/admin/requests?type=consultation&per_page=50"),
-        api<{ data?: { requests?: Array<Record<string, unknown>>; type?: string } }>("/api/v1/admin/requests?type=puja&per_page=50"),
-      ]);
-      const all: Array<Record<string, unknown>> = [];
-      if (c.ok) for (const r of c.body.data?.requests ?? []) all.push({ ...r, _type: "consultation" });
-      if (p.ok) for (const r of p.body.data?.requests ?? []) all.push({ ...r, _type: "puja" });
-      all.sort((a, b) => String(b.created_at ?? "").localeCompare(String(a.created_at ?? "")));
-      renderRows("#req-rows", all, (r) => `<tr>
-        <td>${esc(r.name)}</td>
-        <td>${esc(r.phone)}${r.email ? `<br>${esc(r.email)}` : ""}</td>
-        <td>${esc(r.topic ?? (r._type === "puja" ? "puja booking" : "consultation"))}${r.message ? `<br><span style="color:#9b8f7a">${esc(String(r.message).slice(0, 120))}</span>` : ""}</td>
-        <td>${fmtDate(r.preferred_date)} ${esc(r.preferred_time ?? "")}</td>
-        <td><span class="pill ${r.status === "new" ? "dr" : "pub"}">${esc(r.status)}</span></td>
-        <td>${fmtDate(r.created_at)}</td>
-        <td class="row-actions">${STATUS_BTNS.requests.filter((s) => s !== r.status).map((s) => `<button class="btn ghost" data-st="${s}" data-type="${r._type}" data-id="${r.id}">${s}</button>`).join("")}</td>
-      </tr>`, "No requests yet.");
-    } else {
-      const res = await api<{ data?: { messages?: Array<Record<string, unknown>> } }>("/api/v1/admin/messages?per_page=50");
-      renderRows("#msg-rows", res.ok ? res.body.data?.messages : undefined, (m) => `<tr>
-        <td>${esc(m.name)}</td>
-        <td>${esc(m.email)}</td>
-        <td>${esc(m.subject ?? "—")}</td>
-        <td style="max-width:260px">${esc(m.message)}</td>
-        <td><span class="pill ${m.status === "new" ? "dr" : "pub"}">${esc(m.status)}</span></td>
-        <td>${fmtDate(m.created_at)}</td>
-        <td class="row-actions">${STATUS_BTNS.messages.filter((s) => s !== m.status).map((s) => `<button class="btn ghost" data-st="${s}" data-type="message" data-id="${m.id}">${s}</button>`).join("")}</td>
-      </tr>`, "No messages yet.");
-    }
+  const isMessage = (): boolean => state.type === "message";
+  const nextStatuses = (status: string): string[] =>
+    (isMessage() ? MESSAGE_NEXT : REQUEST_NEXT)[status] ?? [];
+
+  /* ------------------------------ list ------------------------------ */
+
+  function tableHead(): void {
+    const cols = isMessage()
+      ? ["Name", "Email", "Subject", "Message", "Status", "Received"]
+      : state.type === "puja"
+        ? ["Name", "Contact", "Puja", "Date", "Details", "Status", "Created"]
+        : ["Name", "Contact", "Topic", "Preferred", "Status", "Created"];
+    el<HTMLTableSectionElement>("#list-head")!.innerHTML = `<tr>${cols
+      .map((c) => `<th>${c}</th>`)
+      .join("")}</tr>`;
   }
 
-  function setKind(k: "requests" | "messages"): void {
-    kind = k;
-    (el<HTMLTableElement>("#req-table")!).hidden = k !== "requests";
-    (el<HTMLTableElement>("#msg-table")!).hidden = k !== "messages";
-    void load();
+  function chips(): void {
+    const wrap = el<HTMLDivElement>("#chips")!;
+    const statuses = isMessage() ? MESSAGE_STATUSES : REQUEST_STATUSES;
+    const all = ["", ...statuses];
+    wrap.innerHTML = all
+      .map(
+        (s) =>
+          `<button type="button" class="chip${state.status === s ? " on" : ""}" data-st="${s}">${s === "" ? "all" : s}</button>`,
+      )
+      .join("");
   }
-  el<HTMLButtonElement>("#tab-req")!.addEventListener("click", () => setKind("requests"));
-  el<HTMLButtonElement>("#tab-msg")!.addEventListener("click", () => setKind("messages"));
+
+  function badges(r: Record<string, unknown>): string {
+    const out: string[] = [];
+    const created = typeof r.created_at === "string" ? new Date(r.created_at).getTime() : 0;
+    const older24 =
+      created > 0 && Date.now() - created > 24 * 60 * 60 * 1000 && ["new", "contacted", "read"].includes(String(r.status));
+    if (older24) out.push('<span class="tag sla">&gt;24h</span>');
+    if (r.is_test === true) out.push('<span class="tag test">test</span>');
+    if (typeof r.archived_at === "string" && r.archived_at) out.push('<span class="tag">archived</span>');
+    return out.join(" ");
+  }
+
+  const contactCell = (r: Record<string, unknown>): string =>
+    `${esc(r.phone ?? "")}${r.email ? `<br>${esc(r.email)}` : ""}`;
+
+  const statusPill = (r: Record<string, unknown>): string =>
+    `<span class="pill ${r.status === "new" || r.status === "read" ? "dr" : "pub"}">${esc(r.status)}</span> ${badges(r)}`;
+
+  function rowHtml(r: Record<string, unknown>): string {
+    const kind = isMessage() ? "message" : state.type;
+    const cols = isMessage()
+      ? `<td>${esc(r.name)}</td><td>${esc(r.email ?? "")}</td><td>${esc(r.subject ?? "—")}</td><td style="max-width:240px">${esc(String(r.message ?? "").slice(0, 120))}</td><td>${statusPill(r)}</td><td>${fmtDate(r.created_at)}</td>`
+      : state.type === "puja"
+        ? `<td>${esc(r.name)}</td><td>${contactCell(r)}</td><td>${esc(r.puja_id ?? "—")}</td><td>${fmtDate(r.date)}</td><td>${esc([r.gotra, r.location, r.language].filter(Boolean).join(" · ") || "—")}</td><td>${statusPill(r)}</td><td>${fmtDate(r.created_at)}</td>`
+        : `<td>${esc(r.name)}</td><td>${contactCell(r)}</td><td>${esc(r.topic ?? "—")}</td><td>${fmtDate(r.preferred_date)} ${esc(r.preferred_time ?? "")}</td><td>${statusPill(r)}</td><td>${fmtDate(r.created_at)}</td>`;
+    return `<tr class="rowlink" data-kind="${kind}" data-id="${esc(r.id)}" tabindex="0">${cols}</tr>`;
+  }
+
+  function metaLine(): void {
+    const n = el<HTMLParagraphElement>("#list-meta")!;
+    n.textContent =
+      state.total > 0
+        ? `Showing ${state.shown} of ${state.total}`
+        : "";
+  }
+
+  function queryString(extra: Record<string, string> = {}): string {
+    const qs = new URLSearchParams({ per_page: "50" });
+    if (state.q) qs.set("q", state.q);
+    if (state.status) qs.set("status", state.status);
+    if (state.older) qs.set("older_than", "24h");
+    if (state.test) qs.set("include_test", "true");
+    if (state.archived) qs.set("archived", "true");
+    for (const [k, v] of Object.entries(extra)) qs.set(k, v);
+    return qs.toString();
+  }
+
+  async function load(): Promise<void> {
+    const rowsEl = el<HTMLTableSectionElement>("#rows")!;
+    rowsEl.innerHTML = '<tr><td colspan="8" class="empty">Loading…</td></tr>';
+    if (isMessage()) {
+      const res = await api<{
+        data?: { messages?: Array<Record<string, unknown>> };
+        meta?: { total?: number };
+      }>(`/api/v1/admin/messages?${queryString()}`);
+      if (!res.ok) {
+        renderRows("#rows", [], rowHtml, "Could not load messages. Try again.");
+        toast(res.body.error?.message ?? "Loading failed", true);
+        metaLine();
+        return;
+      }
+      const rows = res.body.data?.messages;
+      state.shown = rows?.length ?? 0;
+      state.total = res.body.meta?.total ?? 0;
+      renderRows("#rows", rows, rowHtml, "No messages yet.");
+    } else {
+      const res = await api<{
+        data?: { requests?: Array<Record<string, unknown>> };
+        meta?: { total?: number };
+      }>(`/api/v1/admin/requests?${queryString({ type: state.type })}`);
+      if (!res.ok) {
+        // honest error state for ANY failure — 500 (incl. the old live
+        // puja-preferred_date regression), 400 bad ?type/?status, 403 viewer.
+        // Falling through to "No requests yet." would hide the problem.
+        renderRows("#rows", [], rowHtml, "Could not load requests. Try again.");
+        toast(res.body.error?.message ?? "Loading failed", true);
+        metaLine();
+        return;
+      }
+      const rows = res.body.data?.requests;
+      state.shown = rows?.length ?? 0;
+      state.total = res.body.meta?.total ?? 0;
+      renderRows(
+        "#rows",
+        rows,
+        rowHtml,
+        state.archived
+          ? "No archived items."
+          : state.test
+            ? "No test rows."
+            : "No requests yet.",
+      );
+    }
+    metaLine();
+  }
+
+  /* ----------------------------- drawer ----------------------------- */
+
+  interface Row {
+    id: string;
+    status?: string;
+    verified_at?: string | null;
+    created_at?: string;
+    [k: string]: unknown;
+  }
+
+  let drawerId = "";
+
+  // dialog semantics (review P3): remember the trigger on first open, restore
+  // focus when the drawer closes — no full focus trap needed (Escape + close
+  // button both restore).
+  let drawerReturnFocus: HTMLElement | null = null;
+
+  function closeDrawer(): void {
+    const drawer = el<HTMLElement>("#drawer")!;
+    if (drawer.hidden) return;
+    drawer.hidden = true;
+    drawerId = "";
+    drawerReturnFocus?.focus();
+    drawerReturnFocus = null;
+  }
+
+  const fieldRow = (label: string, value: unknown): string =>
+    `<div><dt>${label}</dt><dd>${esc(value === null || value === undefined || value === "" ? "—" : value)}</dd></div>`;
+
+  /** tel:/WhatsApp links — only for roles that can actually see the number. */
+  function contactLinks(r: Row): string {
+    const phone = typeof r.phone === "string" ? r.phone : "";
+    const email = typeof r.email === "string" ? r.email : "";
+    const out: string[] = [];
+    if (phone && !phone.includes("•")) {
+      const digits = phone.replace(/\D/g, "");
+      const e164 = digits.length === 10 ? `91${digits}` : digits;
+      out.push(`<a class="chip" href="tel:+${e164}">📞 Call</a>`);
+      out.push(
+        `<a class="chip" href="https://wa.me/${e164}" target="_blank" rel="noopener noreferrer">WhatsApp</a>`,
+      );
+    }
+    if (email && !email.includes("•")) {
+      out.push(`<a class="chip" href="mailto:${esc(email)}">✉ Email</a>`);
+    }
+    return out.join("");
+  }
+
+  function fieldsHtml(kind: Kind, r: Row): string {
+    if (kind === "message") {
+      return [
+        fieldRow("Name", r.name),
+        fieldRow("Email", r.email),
+        fieldRow("Subject", r.subject),
+        fieldRow("Message", r.message),
+        fieldRow("Received", fmtDate(r.created_at)),
+      ].join("");
+    }
+    if (kind === "puja") {
+      return [
+        fieldRow("Name", r.name),
+        fieldRow("Phone", r.phone),
+        fieldRow("Email", r.email),
+        fieldRow("Puja", r.puja_id),
+        fieldRow("Gotra", r.gotra),
+        fieldRow("Date", fmtDate(r.date)),
+        fieldRow("Location", r.location),
+        fieldRow("Language", r.language),
+        fieldRow("Message", r.message),
+        fieldRow("Created", fmtDate(r.created_at)),
+      ].join("");
+    }
+    const birth =
+      r.birth_details && typeof r.birth_details === "object"
+        ? JSON.stringify(r.birth_details, null, 1)
+        : r.birth_details;
+    return [
+      fieldRow("Name", r.name),
+      fieldRow("Phone", r.phone),
+      fieldRow("Email", r.email),
+      fieldRow("Topic", r.topic),
+      fieldRow("Preferred", `${fmtDate(r.preferred_date)} ${r.preferred_time ?? ""}`.trim()),
+      fieldRow("Birth details", birth),
+      fieldRow(
+        "Birth consent",
+        r.birth_details_consent === true ? "given" : r.birth_details_consent === false ? "not given" : "—",
+      ),
+      fieldRow("Message", r.message),
+      fieldRow("Created", fmtDate(r.created_at)),
+    ].join("");
+  }
+
+  function notesHtml(
+    notes: Array<{ id?: string; body?: unknown; created_at?: string; author?: { display_name?: unknown } }>,
+  ): string {
+    if (!notes || notes.length === 0) return '<li class="meta">No notes yet.</li>';
+    return notes
+      .map(
+        (n) =>
+          `<li>${esc(n.body)}<div class="meta">${esc(n.author?.display_name ?? "staff")} · ${fmtDate(n.created_at)}</div></li>`,
+      )
+      .join("");
+  }
+
+  function renderActions(r: Row, kind: Kind): void {
+    const write = canWrite();
+    const terminal = nextStatuses(String(r.status ?? "")).length === 0;
+    const verified = typeof r.verified_at === "string" && r.verified_at;
+
+    // verify row (requests only; the API 409s closes until verified)
+    const verifyWrap = el<HTMLDivElement>("#d-verify")!;
+    if (kind === "message" || !write || terminal || verified) {
+      verifyWrap.innerHTML =
+        kind !== "message" && verified
+          ? '<span class="tag" style="color:#8fc98f;border-color:#2f5a2f">verified ✓</span>'
+          : "";
+    } else {
+      verifyWrap.innerHTML = `<button type="button" class="btn" data-act="verify">Mark verified</button>`;
+    }
+
+    // transition-map status buttons; terminal rows say so
+    const transWrap = el<HTMLDivElement>("#d-transitions")!;
+    if (!write) transWrap.innerHTML = "";
+    else if (terminal) transWrap.innerHTML = '<span class="tag">terminal — no further changes</span>';
+    else
+      transWrap.innerHTML = nextStatuses(String(r.status))
+        .map(
+          (s) =>
+            `<button type="button" class="chip" data-act="status" data-status="${s}">→ ${s}</button>`,
+        )
+        .join("");
+
+    // assignee select (requests only)
+    const assignWrap = el<HTMLDivElement>("#d-assign")!;
+    if (kind === "message" || !write) {
+      assignWrap.innerHTML = "";
+    } else {
+      assignWrap.innerHTML = `<label for="d-assignee">Assignee</label><select id="d-assignee"><option value="">— unassigned —</option></select>`;
+      void api<{ data?: Array<{ user_id: string; display_name: string; email: string; role: string }> }>(
+        "/api/v1/admin/requests/assignees",
+      ).then((res) => {
+        const sel = el<HTMLSelectElement>("#d-assignee");
+        if (!sel || !res.ok) return;
+        for (const a of res.body.data ?? []) {
+          const opt = document.createElement("option");
+          opt.value = a.user_id;
+          opt.textContent = `${a.display_name || a.email} (${a.role.replace(/_/g, " ")})`;
+          if (a.user_id === r.assignee_id) opt.selected = true;
+          sel.appendChild(opt);
+        }
+      });
+    }
+
+    // reschedule (scheduled requests only — story AC 2)
+    const reschedWrap = el<HTMLDivElement>("#d-resched")!;
+    if (kind !== "message" && write && r.status === "scheduled") {
+      const local = typeof r.scheduled_for === "string" && r.scheduled_for
+        ? new Date(r.scheduled_for).toISOString().slice(0, 16)
+        : "";
+      reschedWrap.innerHTML = `<label for="d-sched">Reschedule</label><input type="datetime-local" id="d-sched" value="${local}" /><button type="button" class="btn ghost" data-act="resched" style="margin-top:8px">Save schedule</button>`;
+    } else {
+      reschedWrap.innerHTML = "";
+    }
+
+    // archive + test toggles
+    const toggleWrap = el<HTMLDivElement>("#d-toggles")!;
+    if (!write) toggleWrap.innerHTML = "";
+    else {
+      const archived = typeof r.archived_at === "string" && r.archived_at;
+      const test = r.is_test === true;
+      toggleWrap.innerHTML = [
+        `<button type="button" class="chip" data-act="archive" data-to="${archived ? "false" : "true"}">${archived ? "Unarchive" : "Archive"}</button>`,
+        `<button type="button" class="chip" data-act="test" data-to="${test ? "false" : "true"}">${test ? "Unset test flag" : "Mark as test"}</button>`,
+      ].join("");
+    }
+
+    // notes add form — requests only (the API has no message-notes route)
+    const noteAdd = el<HTMLDivElement>("#d-note-add")!;
+    noteAdd.hidden = kind === "message" || !write;
+  }
+
+  async function openDrawer(kind: Kind, id: string): Promise<void> {
+    const drawer = el<HTMLElement>("#drawer")!;
+    drawerId = id;
+    const firstOpen = drawer.hidden;
+    if (firstOpen) {
+      drawerReturnFocus =
+        document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    }
+    drawer.hidden = false;
+    drawer.dataset.kind = kind;
+    // one shared body type so the ok/error discriminant narrows properly
+    interface DetailBody {
+      message?: Row;
+      request?: Row;
+      notes?: Array<{
+        id?: string;
+        body?: unknown;
+        created_at?: string;
+        author?: { display_name?: unknown };
+      }>;
+    }
+    const res =
+      kind === "message"
+        ? await api<DetailBody>(`/api/v1/admin/messages/${id}`)
+        : await api<DetailBody>(`/api/v1/admin/requests/${id}?type=${kind}`);
+    if (!res.ok) {
+      toast(res.body.error?.message ?? "Could not load details", true);
+      closeDrawer();
+      return;
+    }
+    const row = (kind === "message" ? res.body.message : res.body.request) as Row;
+    if (!row) {
+      toast("Details payload missing.", true);
+      closeDrawer();
+      return;
+    }
+    const notes = res.body.notes ?? [];
+    el<HTMLSpanElement>("#d-name")!.textContent = String(row.name ?? row.id ?? "");
+    const pill = el<HTMLSpanElement>("#d-status")!;
+    pill.textContent = String(row.status ?? "");
+    pill.className = `pill ${row.status === "new" || row.status === "read" ? "dr" : "pub"}`;
+    el<HTMLDivElement>("#d-badges")!.innerHTML = badges(row);
+    el<HTMLDListElement>("#d-fields")!.innerHTML = fieldsHtml(kind, row);
+    el<HTMLDivElement>("#d-contact")!.innerHTML = contactLinks(row);
+    el<HTMLUListElement>("#d-notes")!.innerHTML = notesHtml(notes);
+    renderActions(row, kind);
+    if (firstOpen) el<HTMLButtonElement>("#d-close")!.focus();
+  }
+
+  /* --------------------------- mutations --------------------------- */
+
+  async function patchRow(kind: Kind, id: string, body: Record<string, unknown>): Promise<boolean> {
+    const res =
+      kind === "message"
+        ? await api(`/api/v1/admin/messages/${id}`, { method: "PATCH", body: JSON.stringify(body) })
+        : await api(`/api/v1/admin/requests/${id}`, {
+            method: "PATCH",
+            body: JSON.stringify({ type: kind, ...body }),
+          });
+    toast(res.ok ? "Saved." : res.body.error?.message ?? "Update failed", !res.ok);
+    return res.ok;
+  }
 
   document.addEventListener("click", async (ev) => {
-    const btn = (ev.target as HTMLElement).closest("button[data-st]") as HTMLElement | null;
+    const t = ev.target as HTMLElement;
+
+    // row → drawer
+    const row = t.closest("tr.rowlink") as HTMLElement | null;
+    if (row) {
+      const { kind, id } = row.dataset as { kind: string; id: string };
+      await openDrawer(kind as Kind, id);
+      return;
+    }
+
+    // tab switch
+    const tab = t.closest("button.tab") as HTMLElement | null;
+    if (tab) {
+      for (const b of document.querySelectorAll("button.tab")) {
+        b.classList.toggle("on", b === tab);
+        b.setAttribute("aria-selected", b === tab ? "true" : "false");
+      }
+      state.type = (tab.dataset.type ?? "consultation") as Kind;
+      state.status = "";
+      state.q = "";
+      (el<HTMLInputElement>("#f-q")!).value = "";
+      tableHead();
+      chips();
+      const canExp = caps().includes("inbox.export") && !isMessage();
+      (el<HTMLButtonElement>("#export-csv")!).hidden = !canExp;
+      await load();
+      return;
+    }
+
+    // status filter chip (list)
+    const chip = t.closest("#chips .chip") as HTMLElement | null;
+    if (chip) {
+      state.status = chip.dataset.st ?? "";
+      chips();
+      await load();
+      return;
+    }
+
+    // drawer actions
+    const btn = t.closest("button[data-act]") as HTMLElement | null;
     if (!btn) return;
-    const { st, type, id } = btn.dataset as { st: string; type: string; id: string };
-    const res =
-      type === "message"
-        ? await api(`/api/v1/admin/messages/${id}`, { method: "PATCH", body: JSON.stringify({ status: st }) })
-        : await api(`/api/v1/admin/requests/${id}`, { method: "PATCH", body: JSON.stringify({ type, status: st }) });
-    toast(res.ok ? `Marked ${st}.` : res.body.error?.message ?? "Update failed", !res.ok);
-    await load();
+    const drawer = el<HTMLElement>("#drawer")!;
+    const kind = (drawer.dataset.kind ?? state.type) as Kind;
+    const act = btn.dataset.act ?? "";
+    if (act === "verify") {
+      const res = await api(`/api/v1/admin/requests/${drawerId}/verify`, {
+        method: "POST",
+        body: JSON.stringify({ type: kind }),
+      });
+      toast(res.ok ? "Verified." : res.body.error?.message ?? "Verify failed", !res.ok);
+      if (res.ok) await openDrawer(kind, drawerId);
+      return;
+    }
+    if (act === "status") {
+      if (await patchRow(kind, drawerId, { status: btn.dataset.status })) {
+        await openDrawer(kind, drawerId);
+        await load();
+      }
+      return;
+    }
+    if (act === "resched") {
+      const v = (el<HTMLInputElement>("#d-sched")!).value;
+      if (!v) {
+        toast("Pick a date and time first.", true);
+        return;
+      }
+      const iso = new Date(v).toISOString();
+      if (await patchRow(kind, drawerId, { scheduled_for: iso })) {
+        await openDrawer(kind, drawerId);
+        await load();
+      }
+      return;
+    }
+    if (act === "archive" || act === "test") {
+      const body = act === "archive" ? { archived: btn.dataset.to === "true" } : { is_test: btn.dataset.to === "true" };
+      if (await patchRow(kind, drawerId, body)) {
+        await openDrawer(kind, drawerId);
+        await load();
+      }
+      return;
+    }
+    if (act === "note") {
+      const body = (el<HTMLTextAreaElement>("#d-note-body")!).value.trim();
+      if (!body) {
+        toast("Write the note first.", true);
+        return;
+      }
+      const res = await api(`/api/v1/admin/requests/${drawerId}/notes`, {
+        method: "POST",
+        body: JSON.stringify({ type: kind, body }),
+      });
+      toast(res.ok ? "Note added." : res.body.error?.message ?? "Could not add note", !res.ok);
+      if (res.ok) {
+        (el<HTMLTextAreaElement>("#d-note-body")!).value = "";
+        await openDrawer(kind, drawerId);
+      }
+    }
   });
-  document.getElementById("admin-logout")?.addEventListener("click", logout);
-  if (await requireSession()) await load();
+
+  // assignee change
+  document.addEventListener("change", async (ev) => {
+    const sel = ev.target as HTMLSelectElement;
+    if (sel.id !== "d-assignee") return;
+    const drawer = el<HTMLElement>("#drawer")!;
+    const kind = (drawer.dataset.kind ?? state.type) as Kind;
+    if (await patchRow(kind, drawerId, { assignee_id: sel.value || null })) {
+      toast(sel.value ? "Assigned." : "Unassigned.");
+    }
+  });
+
+  el<HTMLButtonElement>("#d-close")!.addEventListener("click", () => closeDrawer());
+  document.addEventListener("keydown", (ev) => {
+    if (ev.key === "Escape" && !(el<HTMLElement>("#drawer")!).hidden) closeDrawer();
+  });
+
+  el<HTMLFormElement>("#filters")?.addEventListener("submit", (ev) => {
+    ev.preventDefault();
+    state.q = (el<HTMLInputElement>("#f-q")!).value.trim();
+    state.older = (el<HTMLInputElement>("#f-older")!).checked;
+    state.test = (el<HTMLInputElement>("#f-test")!).checked;
+    state.archived = (el<HTMLInputElement>("#f-archived")!).checked;
+    void load();
+  });
+
+  el<HTMLButtonElement>("#export-csv")!.addEventListener("click", () => {
+    // auth-header download (same pattern as the settings subscriber export)
+    void (async () => {
+      const token = sessionStorage.getItem("vyotish.admin.token");
+      const res = await fetch(
+        `${API_BASE}/api/v1/admin/requests/export.csv?${queryString({ type: state.type })}`,
+        { headers: token ? { Authorization: `Bearer ${token}` } : {} },
+      );
+      if (!res.ok) {
+        toast("Export failed", true);
+        return;
+      }
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(await res.blob());
+      a.download = `vyotish-${state.type}-requests.csv`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+      toast("CSV downloaded.");
+    })();
+  });
+
+  document.getElementById("admin-logout")?.addEventListener("click", () => logout());
+
+  if (await requireSession()) {
+    // deep links from the dashboard (?type=puja&older_than=24h&status=…&q=…)
+    const p = new URLSearchParams(location.search);
+    const t = p.get("type");
+    if (t === "puja" || t === "message" || t === "consultation") state.type = t;
+    if (p.get("older_than") === "24h") {
+      state.older = true;
+      (el<HTMLInputElement>("#f-older")!).checked = true;
+    }
+    const st = p.get("status");
+    if (st) state.status = st;
+    const q = p.get("q");
+    if (q) {
+      state.q = q;
+      (el<HTMLInputElement>("#f-q")!).value = q;
+    }
+    const tabBtn = document.querySelector<HTMLButtonElement>(`button.tab[data-type="${state.type}"]`);
+    if (tabBtn) {
+      for (const b of document.querySelectorAll("button.tab")) {
+        b.classList.toggle("on", b === tabBtn);
+        b.setAttribute("aria-selected", b === tabBtn ? "true" : "false");
+      }
+    }
+    // search placeholder states the role's actual reach (story AC 3)
+    (el<HTMLInputElement>("#f-q")!).placeholder = canPii()
+      ? "Search name, phone or email…"
+      : "Search by name (contacts hidden for your role)";
+    (el<HTMLButtonElement>("#export-csv")!).hidden = !(caps().includes("inbox.export") && !isMessage());
+    tableHead();
+    chips();
+    await load();
+  }
 </script>

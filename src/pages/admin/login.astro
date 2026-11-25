@@ -22,12 +22,14 @@ import "../../styles/fonts.css";
       button { width: 100%; margin-top: 18px; background: #d4a843; color: #1a1206; border: 0; border-radius: 8px; padding: 10px; font: inherit; font-weight: 600; cursor: pointer; }
       button:disabled { opacity: 0.6; cursor: wait; }
       .err { color: #e08a8a; font-size: 12.5px; margin-top: 12px; min-height: 16px; }
+      .notice { color: #d4a843; font-size: 12.5px; margin: -12px 0 12px; }
     </style>
   </head>
   <body>
     <form class="card" id="login-form" data-api-base={API_BASE}>
       <h1>Vyotish Admin</h1>
       <p>Sign in with your Vyotish admin account.</p>
+      <p class="notice" id="notice" hidden role="status"></p>
       <label for="email">Email</label>
       <input id="email" name="email" type="email" autocomplete="username" required />
       <label for="password">Password</label>
@@ -38,6 +40,11 @@ import "../../styles/fonts.css";
     <script>
       // Auth goes through the backend proxy (D4): the browser never talks to
       // Supabase directly and never sees a Supabase key.
+      const notice = document.getElementById("notice") as HTMLElement;
+      if (new URLSearchParams(location.search).get("reason") === "idle") {
+        notice.textContent = "You were signed out after 30 minutes of inactivity.";
+        notice.hidden = false;
+      }
       const form = document.getElementById("login-form") as HTMLFormElement;
       form.addEventListener("submit", async (ev) => {
         ev.preventDefault();

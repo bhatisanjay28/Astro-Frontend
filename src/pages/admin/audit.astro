@@ -1,0 +1,177 @@
+---
+/** Admin Phase 1 — Audit log reader (backend GET /admin/audit, capability
+ * audit.read). Filterable, newest first, paginated. Read-only by design:
+ * entries are written by the API and never editable from the UI. */
+import Admin from "../../layouts/Admin.astro";
+---
+
+<Admin title="Audit log — Vyotish Admin" active="audit">
+  <h1>Audit log</h1>
+  <p class="hint">
+    Every sign-in, export and content change is recorded here. Entries are
+    append-only — they cannot be edited or removed from the panel.
+  </p>
+
+  <section class="filters card">
+    <div>
+      <label for="f-action">Action</label>
+      <input id="f-action" type="text" placeholder="e.g. blog_posts.update" />
+    </div>
+    <div>
+      <label for="f-entity">Entity</label>
+      <input id="f-entity" type="text" placeholder="e.g. blog_posts" />
+    </div>
+    <div>
+      <label for="f-actor">Actor (user id)</label>
+      <input id="f-actor" type="text" placeholder="uuid" />
+    </div>
+    <div>
+      <label for="f-from">From</label>
+      <input id="f-from" type="datetime-local" />
+    </div>
+    <div>
+      <label for="f-to">To</label>
+      <input id="f-to" type="datetime-local" />
+    </div>
+    <div class="filter-actions">
+      <button type="button" id="apply" class="btn">Apply</button>
+      <button type="button" id="reset" class="btn ghost">Reset</button>
+    </div>
+  </section>
+
+  <table>
+    <thead>
+      <tr>
+        <th>When</th>
+        <th>Actor</th>
+        <th>Action</th>
+        <th>Entity</th>
+        <th>Details</th>
+      </tr>
+    </thead>
+    <tbody id="audit-tbody"></tbody>
+  </table>
+
+  <div class="pager">
+    <button type="button" id="prev" class="btn ghost">Previous</button>
+    <span id="page-info" class="hint"></span>
+    <button type="button" id="next" class="btn ghost">Next</button>
+  </div>
+</Admin>
+
+<script>
+  import { api, el, esc, logout, renderRows, requireSession, toast } from "../../scripts/admin/api";
+
+  interface AuditRow {
+    id: number;
+    actor: string | null;
+    action: string;
+    entity: string;
+    entity_id: string | null;
+    details: unknown;
+    created_at: string;
+  }
+
+  const LIMIT = 50;
+  let page = 1;
+  let total = 0;
+
+  const when = new Intl.DateTimeFormat("en-IN", { dateStyle: "medium", timeStyle: "short" });
+
+  function short(v: string | null, n = 12): string {
+    if (!v) return "—";
+    return v.length > n ? `${v.slice(0, n)}…` : v;
+  }
+
+  function detailsText(d: unknown): string {
+    if (d === null || d === undefined) return "—";
+    const s = typeof d === "string" ? d : JSON.stringify(d);
+    return s.length > 140 ? `${s.slice(0, 140)}…` : s;
+  }
+
+  function readFilters(): string {
+    const parts: string[] = [];
+    const push = (key: string, sel: string, transform?: (v: string) => string): void => {
+      const v = el<HTMLInputElement>(sel)?.value.trim() ?? "";
+      if (v) parts.push(`${key}=${encodeURIComponent(transform ? transform(v) : v)}`);
+    };
+    push("action", "#f-action");
+    push("entity", "#f-entity");
+    push("actor", "#f-actor");
+    // datetime-local gives local time without zone; send as-is (ISO-ish)
+    push("from", "#f-from");
+    push("to", "#f-to");
+    return parts.length ? `&${parts.join("&")}` : "";
+  }
+
+  async function load(): Promise<void> {
+    const res = await api<{ data?: AuditRow[]; meta?: { total: number } }>(
+      `/api/v1/admin/audit?page=${page}&limit=${LIMIT}${readFilters()}`,
+    );
+    if (!res.ok) {
+      toast(res.body.error?.message ?? "Could not load the audit log.", true);
+      renderRows<AuditRow>("#audit-tbody", [], () => "", "Could not load the audit log.");
+      return;
+    }
+    total = res.body.meta?.total ?? 0;
+    renderRows<AuditRow>("#audit-tbody", res.body.data, (r) => {
+      const d = r.details === null || r.details === undefined ? null : detailsText(r.details);
+      return `<tr>
+        <td title="${esc(r.created_at)}">${esc(when.format(new Date(r.created_at)))}</td>
+        <td title="${esc(r.actor ?? "")}">${esc(short(r.actor))}</td>
+        <td>${esc(r.action)}</td>
+        <td title="${esc(r.entity_id ?? "")}">${esc(r.entity)}${r.entity_id ? ` <span class="hint">(${esc(short(r.entity_id))})</span>` : ""}</td>
+        <td class="det">${d ? esc(d) : "—"}</td>
+      </tr>`;
+    }, "No audit entries match.");
+    const pages = Math.max(1, Math.ceil(total / LIMIT));
+    const info = el<HTMLElement>("#page-info");
+    if (info) info.textContent = `Page ${page} of ${pages} — ${total} entries`;
+    const prev = el<HTMLButtonElement>("#prev");
+    const next = el<HTMLButtonElement>("#next");
+    if (prev) prev.disabled = page <= 1;
+    if (next) next.disabled = page >= pages;
+  }
+
+  const ready = await requireSession();
+  if (ready) {
+    document.getElementById("admin-logout")?.addEventListener("click", () => logout());
+    el<HTMLButtonElement>("#apply")?.addEventListener("click", () => {
+      page = 1;
+      void load();
+    });
+    el<HTMLButtonElement>("#reset")?.addEventListener("click", () => {
+      for (const sel of ["#f-action", "#f-entity", "#f-actor", "#f-from", "#f-to"]) {
+        const input = el<HTMLInputElement>(sel);
+        if (input) input.value = "";
+      }
+      page = 1;
+      void load();
+    });
+    el<HTMLButtonElement>("#prev")?.addEventListener("click", () => {
+      if (page > 1) {
+        page -= 1;
+        void load();
+      }
+    });
+    el<HTMLButtonElement>("#next")?.addEventListener("click", () => {
+      if (page * LIMIT < total) {
+        page += 1;
+        void load();
+      }
+    });
+    await load();
+  }
+</script>
+
+<!-- is:global: the tbody rows are built by the module script, and Astro
+     scoped CSS never matches JS-generated DOM (S17 precedent). -->
+<style is:global>
+  .filters { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0 16px; margin-bottom: 16px; }
+  .filter-actions { display: flex; align-items: flex-end; gap: 8px; padding-bottom: 2px; }
+  .pager { display: flex; align-items: center; gap: 14px; margin-top: 14px; }
+  td.det { max-width: 340px; overflow-wrap: anywhere; color: var(--a-dim); font-size: 12px; }
+  .hint { color: var(--a-dim); font-size: 12px; }
+  td .hint { margin: 0; }
+  @media (max-width: 800px) { .filters { grid-template-columns: 1fr; } }
+</style>

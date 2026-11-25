@@ -1,0 +1,218 @@
+---
+/** Admin Phase 1 — Users & roles (super_admin only, enforced by the API:
+ * every /admin/users route 403s without users.manage). The UI hides the
+ * controls for other roles but the server remains the real gate. */
+import Admin from "../../layouts/Admin.astro";
+---
+
+<Admin title="Users & roles — Vyotish Admin" active="users">
+  <h1>Users &amp; roles</h1>
+  <p class="hint">
+    Admin accounts for this panel. Role changes and deactivation take effect
+    immediately (existing sessions are checked on every request).
+  </p>
+
+  <section id="manage" hidden>
+    <div class="card">
+      <h2>Invite an admin</h2>
+      <div class="invite">
+        <div>
+          <label for="inv-email">Email</label>
+          <input id="inv-email" type="email" autocomplete="off" placeholder="name@vyotish.com" />
+        </div>
+        <div>
+          <label for="inv-name">Display name (optional)</label>
+          <input id="inv-name" type="text" autocomplete="off" />
+        </div>
+        <div>
+          <label for="inv-role">Role</label>
+          <select id="inv-role">
+            <option value="viewer">viewer — read-only panel access</option>
+            <option value="booking_manager">booking manager — inbox, bookings, exports</option>
+            <option value="content_editor">content editor — blog, media, horoscopes</option>
+            <option value="admin">admin — everything except users &amp; engine</option>
+            <option value="super_admin">super admin — all capabilities</option>
+          </select>
+        </div>
+        <div class="invite-actions">
+          <button type="button" id="invite-btn" class="btn">Send invite</button>
+        </div>
+      </div>
+      <p class="hint">They receive a Supabase email with an accept link to set their password (requires project SMTP).</p>
+    </div>
+
+    <h2>Admin accounts</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Email</th>
+          <th>Role</th>
+          <th>Status</th>
+          <th>Last sign-in</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="users-tbody"></tbody>
+    </table>
+    <p class="hint">
+      Deactivating bans the account and ends its sessions immediately — nothing is
+      deleted. Reactivate to restore access.
+    </p>
+  </section>
+
+  <p id="no-access" class="empty-note" hidden>
+    Your role does not include user management. Ask a super admin for access.
+  </p>
+</Admin>
+
+<script>
+  import { api, el, esc, fmtDate, logout, renderRows, requireSession, toast } from "../../scripts/admin/api";
+
+  interface AdminUser {
+    user_id: string;
+    email: string;
+    role: string;
+    is_active: boolean;
+    display_name: string | null;
+    created_at: string;
+    last_sign_in_at: string | null;
+  }
+
+  const ROLES = ["super_admin", "admin", "content_editor", "booking_manager", "viewer"] as const;
+
+  function me(): { userId: string; role: string; capabilities: string[] } {
+    return (
+      (window as unknown as { __vyotishAdmin?: { userId: string; role: string; capabilities: string[] } })
+        .__vyotishAdmin ?? { userId: "", role: "", capabilities: [] }
+    );
+  }
+
+  async function load(): Promise<void> {
+    const res = await api<{ data?: AdminUser[] }>("/api/v1/admin/users");
+    if (!res.ok) {
+      toast(res.body.error?.message ?? "Could not load admin users.", true);
+      renderRows<AdminUser>("#users-tbody", [], () => "", "Could not load admin users.");
+      return;
+    }
+    const my = me();
+    renderRows<AdminUser>("#users-tbody", res.body.data, (u) => {
+      const self = u.user_id === my.userId;
+      const roleSel = `<select data-role-for="${esc(u.user_id)}" aria-label="Role for ${esc(u.email)}"${
+        self ? " disabled" : ""
+      }>${ROLES.map(
+        (r) => `<option value="${r}"${u.role === r ? " selected" : ""}>${r.replace(/_/g, " ")}</option>`,
+      ).join("")}</select>`;
+      const status = u.is_active
+        ? '<span class="pill pub">active</span>'
+        : '<span class="pill" style="color:#e08a8a;border-color:#7a2f2f">deactivated</span>';
+      const actions = self
+        ? '<span class="pill">you</span>'
+        : `<div class="row-actions">
+             <button type="button" class="btn ghost" data-act="save-role" data-id="${esc(u.user_id)}">Save role</button>
+             <button type="button" class="btn danger" data-act="toggle-active" data-id="${esc(u.user_id)}" data-active="${u.is_active ? "1" : "0"}">${
+               u.is_active ? "Deactivate" : "Reactivate"
+             }</button>
+           </div>`;
+      return `<tr>
+        <td>${esc(u.display_name || "—")}</td>
+        <td>${esc(u.email)}</td>
+        <td>${roleSel}</td>
+        <td>${status}</td>
+        <td>${fmtDate(u.last_sign_in_at)}</td>
+        <td>${actions}</td>
+      </tr>`;
+    }, "No admin accounts yet.");
+  }
+
+  async function invite(): Promise<void> {
+    const email = el<HTMLInputElement>("#inv-email")?.value.trim() ?? "";
+    const displayName = el<HTMLInputElement>("#inv-name")?.value.trim() ?? "";
+    const role = el<HTMLSelectElement>("#inv-role")?.value ?? "";
+    if (!email) {
+      toast("Enter an email to invite.", true);
+      return;
+    }
+    const btn = el<HTMLButtonElement>("#invite-btn");
+    if (btn) btn.disabled = true;
+    const res = await api<{ data?: { email: string } }>("/api/v1/admin/users/invite", {
+      method: "POST",
+      body: JSON.stringify({ email, role, display_name: displayName }),
+    });
+    if (btn) btn.disabled = false;
+    if (!res.ok) {
+      toast(res.body.error?.message ?? "Invite failed.", true);
+      return;
+    }
+    toast(`Invite sent to ${email} — ask them to check their inbox.`);
+    const invEmail = el<HTMLInputElement>("#inv-email");
+    const invName = el<HTMLInputElement>("#inv-name");
+    if (invEmail) invEmail.value = "";
+    if (invName) invName.value = "";
+    await load();
+  }
+
+  async function toggleActive(id: string, currentlyActive: boolean): Promise<void> {
+    const verb = currentlyActive ? "deactivate" : "reactivate";
+    if (!confirm(`Really ${verb} this admin? ${currentlyActive ? "Their sessions end immediately." : "They regain panel access."}`)) {
+      return;
+    }
+    const res = await api<{ data?: AdminUser }>(`/api/v1/admin/users/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      body: JSON.stringify({ is_active: !currentlyActive }),
+    });
+    if (!res.ok) {
+      toast(res.body.error?.message ?? "Update failed.", true);
+      return;
+    }
+    toast(currentlyActive ? "Admin deactivated." : "Admin reactivated.");
+    await load();
+  }
+
+  async function saveRole(id: string): Promise<void> {
+    const sel = el<HTMLSelectElement>(`select[data-role-for="${CSS.escape(id)}"]`);
+    const role = sel?.value ?? "";
+    if (!role) return;
+    const res = await api<{ data?: AdminUser }>(`/api/v1/admin/users/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      body: JSON.stringify({ role }),
+    });
+    if (!res.ok) {
+      toast(res.body.error?.message ?? "Role change failed.", true);
+      await load();
+      return;
+    }
+    toast("Role updated — takes effect on their next request.");
+  }
+
+  const ready = await requireSession();
+  if (ready) {
+    document.getElementById("admin-logout")?.addEventListener("click", () => logout());
+    const canManage = me().capabilities.includes("users.manage");
+    const manage = el<HTMLElement>("#manage");
+    const noAccess = el<HTMLElement>("#no-access");
+    if (canManage) {
+      if (manage) manage.removeAttribute("hidden");
+      el<HTMLButtonElement>("#invite-btn")?.addEventListener("click", () => void invite());
+      const tbody = el<HTMLTableSectionElement>("#users-tbody");
+      tbody?.addEventListener("click", (e) => {
+        const btn = (e.target as HTMLElement).closest("button[data-act]");
+        if (!(btn instanceof HTMLElement)) return;
+        const id = btn.dataset.id ?? "";
+        if (btn.dataset.act === "save-role") void saveRole(id);
+        if (btn.dataset.act === "toggle-active") void toggleActive(id, btn.dataset.active === "1");
+      });
+      await load();
+    } else if (noAccess) {
+      noAccess.removeAttribute("hidden");
+    }
+  }
+</script>
+
+<style>
+  .hint { color: var(--a-dim); font-size: 12px; margin: 6px 0 14px; }
+  .empty-note { color: var(--a-dim); }
+  .invite { display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px; }
+  .invite-actions { display: flex; align-items: flex-end; padding-bottom: 2px; }
+  @media (max-width: 800px) { .invite { grid-template-columns: 1fr; } }
+</style>

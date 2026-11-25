@@ -1,64 +1,177 @@
 ---
-/** /admin — dashboard (Epic 6.4). Live counts from the admin API. */
+/** /admin — dashboard. Phase 2 rebuild: one /admin/stats call is the source
+ * of truth (Mary's audit: the old cards counted the wrong sets). Every card
+ * label states exactly what its number counts and links to the pre-filtered
+ * list behind it. */
 import Admin from "../../layouts/Admin.astro";
 ---
 
 <Admin title="Dashboard | Vyotish Admin" active="home">
   <h1>Dashboard</h1>
+
+  <div id="alert" class="alert" hidden role="alert"></div>
+
   <div class="grid2">
-    <a class="card" href="/admin/posts"><h2>Blog posts</h2><p class="stat" id="stat-posts">…</p><span class="hint">drafts waiting to publish</span></a>
-    <a class="card" href="/admin/inbox"><h2>Inbox</h2><p class="stat" id="stat-inbox">…</p><span class="hint">new requests + messages</span></a>
+    <a class="card link" href="/admin/posts?status=published"><h2>Published posts</h2><p class="stat" id="s-posts">…</p><span class="hint" id="h-posts"></span></a>
+    <a class="card link" href="/admin/media"><h2>Media items</h2><p class="stat" id="s-media">…</p><span class="hint">images uploaded to the library</span></a>
   </div>
   <div class="grid2">
-    <a class="card" href="/admin/horoscopes"><h2>Horoscope content</h2><p class="stat" id="stat-horo">…</p><span class="hint">rows in the library</span></a>
-    <a class="card" href="/admin/catalog"><h2>Catalogue</h2><p class="stat" id="stat-catalog">…</p><span class="hint">astrologers + poojas</span></a>
+    <a class="card link" href="/admin/catalog?tab=astrologers"><h2>Active astrologers</h2><p class="stat" id="s-astro">…</p><span class="hint" id="h-astro"></span></a>
+    <a class="card link" href="/admin/catalog?tab=poojas"><h2>Active poojas</h2><p class="stat" id="s-pujas">…</p><span class="hint">listed on the public pooja page</span></a>
   </div>
-  <h2>Getting started</h2>
-  <p class="note">
-    Blog: write under <a href="/admin/posts">posts</a> — markdown is sanitised at render time.
-    Media: upload images under <a href="/admin/media">media</a> and paste the URL into a post.
-    Requests and messages land in the <a href="/admin/inbox">inbox</a>.
+  <h2>Inbox</h2>
+  <div class="grid2">
+    <a class="card link" href="/admin/inbox"><h2>New requests & messages</h2><p class="stat" id="s-inbox-new">…</p><span class="hint" id="h-inbox-new"></span></a>
+    <a class="card link" href="/admin/inbox"><h2>Scheduled today</h2><p class="stat" id="s-today">…</p><span class="hint" id="h-today"></span></a>
+  </div>
+  <h2>Audience</h2>
+  <div class="grid2">
+    <a class="card link" href="/admin/settings"><h2>Confirmed subscribers</h2><p class="stat" id="s-subs">…</p><span class="hint" id="h-subs"></span></a>
+    <a class="card link" href="/admin/audit"><h2>Audit trail</h2><p class="stat stat-plain">every admin action is logged</p><span class="hint">who changed what, and when</span></a>
+  </div>
+
+  <h2>Quick actions</h2>
+  <p class="quick">
+    <a class="btn" href="/admin/posts/edit">+ Write a new post</a>
+    <a class="btn ghost" href="/admin/inbox?older_than=24h">Review requests older than 24h</a>
   </p>
 </Admin>
 
 <style is:global>
-  .card { display: block; text-decoration: none; }
-  .card h2 { margin: 0; }
-  .stat { font-size: 26px; color: #d4a843; margin: 6px 0 0; }
-  .hint { color: #9b8f7a; font-size: 12px; }
-  .note { color: #9b8f7a; font-size: 13px; }
-  .note a { color: #d4a843; }
+  /* hover affordance on stat cards (Mary's audit: links without a cue) */
+  .card.link { transition: border-color 0.15s ease, transform 0.15s ease; }
+  .card.link:hover { border-color: var(--a-gold); transform: translateY(-2px); }
+  .card h2 { margin: 0; font-size: 14px; color: var(--a-dim); font-weight: 500; }
+  .stat { font-size: 26px; color: var(--a-gold); margin: 6px 0 0; font-weight: 600; }
+  .stat.stat-plain { font-size: 15px; color: var(--a-text); font-weight: 400; align-self: center; }
+  .hint { color: var(--a-dim); font-size: 12px; }
+  /* inter-row gap between stacked card rows (Mary's audit) */
+  .main .grid2 + .grid2 { margin-top: 16px; }
+  .main h2 + .grid2 { margin-top: 4px; }
+  .quick { display: flex; gap: 10px; flex-wrap: wrap; }
+  /* new-request alert row (story AC 1 — review #3) */
+  .alert { background: rgba(212, 168, 67, 0.1); border: 1px solid var(--a-gold); border-radius: 10px; padding: 12px 16px; margin: 0 0 16px; font-size: 13px; }
+  .alert a { color: var(--a-gold); font-weight: 600; }
+  .alert .old { color: #e0b08a; }
 </style>
 
 <script>
-  import { api, el, requireSession, logout } from "../../scripts/admin/api";
+  import { api, el, requireSession, toast, logout } from "../../scripts/admin/api";
 
-  async function counts(): Promise<void> {
-    const [posts, reqC, reqP, msgs, horo, astro, pujas] = await Promise.all([
-      api<{ data?: { posts?: unknown[] }; meta?: { total?: number } }>("/api/v1/admin/posts?per_page=1"),
-      api<{ meta?: { total?: number } }>("/api/v1/admin/requests?type=consultation&status=new&per_page=1"),
-      api<{ meta?: { total?: number } }>("/api/v1/admin/requests?type=puja&status=new&per_page=1"),
-      api<{ meta?: { total?: number } }>("/api/v1/admin/messages?status=new&per_page=1"),
-      api<{ meta?: { total?: number } }>("/api/v1/admin/horoscopes?per_page=1"),
-      api<{ data?: { astrologers?: unknown[] } }>("/api/v1/admin/astrologers"),
-      api<{ data?: { pujas?: unknown[] } }>("/api/v1/admin/pujas"),
-    ]);
-    const set = (id: string, text: string) => {
-      const n = el<HTMLParagraphElement>(id);
-      if (n) n.textContent = text;
-    };
-    // the api() union's error branch carries an unknown meta — narrow it here
-    const meta = (r: { ok: boolean; body: { meta?: unknown } }) =>
-      r.ok ? (r.body.meta as { total?: number } | undefined)?.total ?? 0 : 0;
-    set("#stat-posts", `${posts.ok ? posts.body.meta?.total ?? 0 : "?"} posts`);
-    set("#stat-inbox", `${meta(reqC) + meta(reqP)} requests · ${meta(msgs)} messages`);
-    set("#stat-horo", `${meta(horo)} rows`);
-    set(
-      "#stat-catalog",
-      `${astro.ok ? astro.body.data?.astrologers?.length ?? 0 : "?"} astrologers · ${pujas.ok ? pujas.body.data?.pujas?.length ?? 0 : "?"} poojas`,
+  interface Stats {
+    posts: { published: number; draft: number; trashed: number };
+    astrologers: { active: number; inactive: number };
+    pujas: { active: number };
+    inbox: { new: number; older_24h: number; scheduled_today: number; closed_7d: number };
+    subscribers: { confirmed: number; unsubscribed: number };
+    media: { count: number };
+  }
+
+  const set = (id: string, text: string): void => {
+    const n = el<HTMLParagraphElement>(id);
+    if (n) n.textContent = text;
+  };
+  const setHint = (id: string, text: string): void => {
+    const n = el<HTMLSpanElement>(id);
+    if (n) n.textContent = text;
+  };
+
+  function render(s: Stats): void {
+    set("#s-posts", String(s.posts.published));
+    setHint("#h-posts", `${s.posts.draft} draft${s.posts.draft === 1 ? "" : "s"} waiting`);
+    set("#s-media", String(s.media.count));
+    set("#s-astro", String(s.astrologers.active));
+    setHint(
+      "#h-astro",
+      s.astrologers.inactive === 0 ? "none inactive" : `${s.astrologers.inactive} inactive`,
+    );
+    set("#s-pujas", String(s.pujas.active));
+    set("#s-inbox-new", String(s.inbox.new));
+    setHint(
+      "#h-inbox-new",
+      s.inbox.older_24h === 0
+        ? "none older than 24h"
+        : `${s.inbox.older_24h} older than 24h — review now`,
+    );
+    set("#s-today", String(s.inbox.scheduled_today));
+    setHint(
+      "#h-today",
+      s.inbox.closed_7d === 0 ? "no closures this week" : `${s.inbox.closed_7d} closed in 7 days`,
+    );
+    set("#s-subs", String(s.subscribers.confirmed));
+    setHint(
+      "#h-subs",
+      s.subscribers.unsubscribed === 0
+        ? "no unsubscribes"
+        : `${s.subscribers.unsubscribed} unsubscribed`,
     );
   }
 
-  document.getElementById("admin-logout")?.addEventListener("click", logout);
-  if (await requireSession()) await counts();
+  function markUnavailable(): void {
+    for (const id of [
+      "#s-posts",
+      "#s-media",
+      "#s-astro",
+      "#s-pujas",
+      "#s-inbox-new",
+      "#s-today",
+      "#s-subs",
+    ]) {
+      set(id, "unavailable");
+    }
+  }
+
+  async function loadStats(): Promise<void> {
+    const res = await api<{ data?: Stats }>("/api/v1/admin/stats");
+    // honest error state — never an eternal "Loading…"
+    if (!res.ok) {
+      markUnavailable();
+      toast(res.body.error?.message ?? "Stats are unavailable right now.", true);
+      return;
+    }
+    if (!res.body.data) {
+      markUnavailable();
+      toast("Stats payload missing.", true);
+      return;
+    }
+    const s = res.body.data;
+    render(s);
+
+    // sidebar inbox badge (review #3)
+    const badge = el<HTMLSpanElement>("#inbox-badge");
+    if (badge) {
+      badge.textContent = String(s.inbox.new);
+      badge.hidden = s.inbox.new === 0;
+    }
+
+    // alert row linking into the pre-filtered inbox (review #3)
+    const alert = el<HTMLDivElement>("#alert");
+    if (alert) {
+      if (s.inbox.new === 0 && s.inbox.older_24h === 0) {
+        alert.hidden = true;
+        alert.innerHTML = "";
+      } else {
+        const bits: string[] = [];
+        if (s.inbox.new > 0)
+          bits.push(
+            `${s.inbox.new} new request${s.inbox.new === 1 ? "" : "s"} awaiting a first response — <a href="/admin/inbox">open inbox</a>`,
+          );
+        if (s.inbox.older_24h > 0)
+          bits.push(
+            `<span class="old">${s.inbox.older_24h} older than 24h</span> — <a href="/admin/inbox?older_than=24h">review now</a>`,
+          );
+        // bits are built here from counts, never from user data — safe as HTML
+        alert.innerHTML = bits.join(" · ");
+        alert.hidden = false;
+      }
+    }
+
+    if (s.inbox.new > 0)
+      toast(
+        `${s.inbox.new} new inbox item${s.inbox.new === 1 ? "" : "s"} need${s.inbox.new === 1 ? "s" : ""} attention`,
+      );
+  }
+
+  document.getElementById("admin-logout")?.addEventListener("click", () => logout());
+  if (await requireSession()) await loadStats();
 </script>
