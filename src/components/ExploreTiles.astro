@@ -1,20 +1,29 @@
 ---
 /**
- * Explore Vyotish — one tile per tab (PRD §6).
+ * Explore Vyotish — one tile per tab (PRD §6). Used on both homes; on the
+ * Hindi home the horoscope tile links to /hi/horoscope (S22) and the other
+ * tiles keep their EN hrefs (no hi twins yet — honest fallback).
  */
-import { NAV_TABS } from "../data/navigation";
+import { NAV_TABS, withLang } from "../data/navigation";
+
+interface Props {
+  lang?: "en" | "hi";
+}
+const { lang = "en" } = Astro.props;
+const hi = lang === "hi";
+const tileHref = (href: string) => withLang(href, hi ? "/hi/" : "/");
 ---
 
-<section class="explore" aria-labelledby="explore-h">
-  <h2 id="explore-h">Explore Vyotish</h2>
+<section class:list={["explore", { "explore-hi": hi }]} aria-labelledby="explore-h">
+  <h2 id="explore-h">{hi ? "व्योतिष देखें" : "Explore Vyotish"}</h2>
   <div class="tiles">
     {
       NAV_TABS.map((t) => (
-        <a class="tile" href={t.href}>
+        <a class="tile" href={tileHref(t.href)}>
           <span class="icon" aria-hidden="true">
             {t.icon}
           </span>
-          <span class="t-label">{t.label}</span>
+          <span class="t-label">{hi ? t.label_hi : t.label}</span>
           <span class="t-desc">{t.description}</span>
         </a>
       ))
@@ -60,4 +69,12 @@ import { NAV_TABS } from "../data/navigation";
   .icon { font-size: 22px; }
   .t-label { color: var(--ivory); font-weight: 500; font-size: 15px; }
   .t-desc { color: var(--text-dim); font-size: 12.5px; line-height: 1.45; }
+
+  /* Hindi home (S22): Devanagari heading/labels on the self-hosted face. */
+  .explore-hi h2 {
+    font-family: "Noto Sans Devanagari", var(--font-display);
+  }
+  .explore-hi .t-label {
+    font-family: "Noto Sans Devanagari", var(--font-body);
+  }
 </style>

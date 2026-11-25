@@ -349,3 +349,17 @@ export const LEGAL_LINKS = [
   { label: "Refund & Cancellation", href: "/refund" },
   { label: "Disclaimer", href: "/disclaimer" },
 ];
+
+/**
+ * Prefix /hi onto a horoscope href when the visitor is on a Hindi page (S22
+ * item 4): only the horoscope section has real /hi/ twins today, so every
+ * other href is returned unchanged (EN page — honest fallback, never a dead
+ * link). "/" keeps its trailing slash ("/hi/").
+ */
+export function withLang(href: string, currentPath: string): string {
+  const onHi = currentPath === "/hi/" || currentPath === "/hi" || currentPath.startsWith("/hi/");
+  if (!onHi) return href;
+  if (href === "/") return "/hi/";
+  if (href === "/horoscope" || href.startsWith("/horoscope/")) return `/hi${href}`;
+  return href;
+}

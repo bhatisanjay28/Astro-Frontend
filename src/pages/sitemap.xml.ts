@@ -101,6 +101,11 @@ export async function GET() {
   const entries: Entry[] = STATIC.map((p) => ({ loc: p }));
   entries.push({ loc: "/hi" });
   for (const s of SIGNS) for (const per of PERIODS) entries.push({ loc: `/horoscope/${s}/${per}` });
+  // Hindi horoscope section (S22 item 4): the /hi/ twin pages are real
+  // prerendered routes — list them beside their English originals.
+  entries.push({ loc: "/hi/horoscope" });
+  for (const s of SIGNS)
+    for (const per of PERIODS) entries.push({ loc: `/hi/horoscope/${s}/${per}` });
   for (const t of TOOLS) entries.push({ loc: `/calculators/${t}` });
   for (const p of canonicalPairs()) {
     entries.push({ loc: `/compatibility/${p.sign1.slug}/${p.sign2.slug}` });

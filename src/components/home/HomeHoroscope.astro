@@ -4,10 +4,22 @@
  * (Epic 5.1 minimal). D12: rashiphal TEXT is data — it comes only from the
  * API (Supabase); the card grid below renders an honest "unavailable" line
  * until the response lands. The 12-sign identity (slug/symbol/hi/en) is
- * presentation config, like NAV_TABS. Period tabs switch the requested
- * period (daily content is seeded; other periods show a friendly note until
- * admin content lands).
+ * presentation config, like NAV_TABS.
+ *
+ * S22: lang prop ("en" on /, "hi" on /hi/) — labels, fetched rows and card
+ * links follow the page language; and item 2: the ACTIVE PERIOD TAB now
+ * drives every sign card's href (Monthly tab → /horoscope/leo/monthly),
+ * re-synced on every tab click. Tab→page mapping: today→daily, others 1:1.
  */
+import type { HoroLang } from "../../lib/horoscope-l10n";
+
+export interface Props {
+  lang?: HoroLang;
+}
+const { lang = "en" } = Astro.props;
+const hi = lang === "hi";
+const pageBase = hi ? "/hi/horoscope" : "/horoscope";
+
 const SIGNS = [
   { slug: "aries", symbol: "♈", hi: "मेष", en: "Mesh (Aries)" },
   { slug: "taurus", symbol: "♉", hi: "वृषभ", en: "Vrishabha (Taurus)" },
@@ -22,79 +34,105 @@ const SIGNS = [
   { slug: "aquarius", symbol: "♒", hi: "कुम्भ", en: "Kumbha (Aquarius)" },
   { slug: "pisces", symbol: "♓", hi: "मीन", en: "Meen (Pisces)" },
 ];
-const PERIODS = ["Yesterday", "Today", "Tomorrow", "Weekly", "Monthly", "Yearly"];
-const LOADING_LINE = "Fetching today's rashiphal…";
-const UNAVAILABLE_LINE = "Rashiphal unavailable right now — please refresh shortly.";
+const PERIODS = hi
+  ? [
+      { slug: "yesterday", label: "बीते कल" },
+      { slug: "today", label: "आज" },
+      { slug: "tomorrow", label: "कल" },
+      { slug: "weekly", label: "साप्ताहिक" },
+      { slug: "monthly", label: "मासिक" },
+      { slug: "yearly", label: "वार्षिक" },
+    ]
+  : [
+      { slug: "yesterday", label: "Yesterday" },
+      { slug: "today", label: "Today" },
+      { slug: "tomorrow", label: "Tomorrow" },
+      { slug: "weekly", label: "Weekly" },
+      { slug: "monthly", label: "Monthly" },
+      { slug: "yearly", label: "Yearly" },
+    ];
+const LOADING_LINE = hi ? "आज का राशिफल लाया जा रहा है…" : "Fetching today's rashiphal…";
+const UNAVAILABLE_LINE = hi
+  ? "राशिफल अभी उपलब्ध नहीं है — कृपया थोड़ी देर बाद दोबारा करें।"
+  : "Rashiphal unavailable right now — please refresh shortly.";
 ---
 
-<section id="horoscope" class="py-12 px-4 sm:px-8 border-b border-light-outline-variant/40 dark:border-dark-outline-variant/30 bg-light-surface-variant dark:bg-dark-surface-variant">
+<section id="horoscope" class:list={["py-12 px-4 sm:px-8 border-b border-light-outline-variant/40 dark:border-dark-outline-variant/30 bg-light-surface-variant dark:bg-dark-surface-variant", { "hz-home-hi": hi }]}>
   <div class="max-w-7xl mx-auto">
     <div class="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4">
       <div>
         <div class="flex items-center gap-2 mb-1">
-          <span class="font-label text-label-sm font-semibold uppercase tracking-wider text-saffron dark:text-dark-primary">Rashiphal (राशिफल)</span>
+          <span class="font-label text-label-sm font-semibold uppercase tracking-wider text-saffron dark:text-dark-primary">{hi ? "राशिफल" : "Rashiphal (राशिफल)"}</span>
           <span class="font-label text-label-sm bg-light-surface dark:bg-dark-surface px-2 py-0.5 rounded border border-light-outline-variant dark:border-dark-outline-variant text-light-outline dark:text-dark-outline">
-            Based on Moon Sign (चंद्र राशि)
+            {hi ? "चंद्र राशि आधारित" : "Based on Moon Sign (चंद्र राशि)"}
           </span>
         </div>
         <h2 class="font-headline text-headline-md font-bold text-light-on-surface dark:text-dark-on-surface">
-          Daily, Weekly &amp; Yearly Horoscope
+          {hi ? "दैनिक, साप्ताहिक और वार्षिक राशिफल" : "Daily, Weekly & Yearly Horoscope"}
         </h2>
         <p class="font-body text-body-sm text-light-on-surface-variant dark:text-dark-on-surface-variant mt-1">
-          Vedic predictions calculated from Gochar transits. Don't know your sign? <a href="/calculators" class="text-light-primary dark:text-dark-primary font-semibold underline">Find with free Rashi Calculator</a>.
+          {hi
+            ? <>गोचर से गणना की गई वैदिक भविष्यवाणियाँ। अपनी राशि नहीं जानते? <a href="/calculators" class="text-light-primary dark:text-dark-primary font-semibold underline">मुफ़्त राशि कैलकुलेटर से जानें</a>।</>
+            : <>Vedic predictions calculated from Gochar transits. Don't know your sign? <a href="/calculators" class="text-light-primary dark:text-dark-primary font-semibold underline">Find with free Rashi Calculator</a>.</>}
         </p>
       </div>
 
       <!-- Time Period Tabs -->
-      <div class="inline-flex flex-wrap rounded border border-light-outline-variant dark:border-dark-outline-variant p-1 bg-light-surface dark:bg-dark-surface font-label text-label-sm" role="tablist" aria-label="Horoscope period">
+      <div class="inline-flex flex-wrap rounded border border-light-outline-variant dark:border-dark-outline-variant p-1 bg-light-surface dark:bg-dark-surface font-label text-label-sm" role="tablist" aria-label={hi ? "राशिफल अवधि" : "Horoscope period"}>
         {
           PERIODS.map((p, i) => (
             <button
               type="button"
               role="tab"
-              data-period={p.toLowerCase()}
+              data-period={p.slug}
               aria-selected={i === 1 ? "true" : "false"}
               class={i === 1
                 ? "px-3 py-1.5 rounded bg-light-primary text-light-on-primary dark:bg-dark-primary dark:text-dark-on-primary font-semibold"
                 : "px-3 py-1.5 rounded text-light-outline dark:text-dark-outline hover:text-light-on-surface dark:hover:text-dark-on-surface"}
             >
-              {p}
+              {p.label}
             </button>
           ))
         }
       </div>
     </div>
 
-    <!-- 12 Signs Grid (English + Hindi names & Symbols) -->
+    <!-- 12 Signs Grid (English + Hindi names & Symbols); hrefs carry the
+         selected period — synced by the script on load and tab clicks -->
     <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3.5" data-signs>
       {
         SIGNS.map((s) => (
-          <a href={`/horoscope/${s.slug}/daily`} class="p-4 rounded-lg bg-light-surface dark:bg-dark-surface border border-light-outline-variant/60 dark:border-dark-outline-variant/40 hover:border-light-primary dark:hover:border-dark-primary hover:shadow-sm transition-all group" data-sign={s.slug}>
+          <a href={`${pageBase}/${s.slug}/daily`} class="p-4 rounded-lg bg-light-surface dark:bg-dark-surface border border-light-outline-variant/60 dark:border-dark-outline-variant/40 hover:border-light-primary dark:hover:border-dark-primary hover:shadow-sm transition-all group" data-sign={s.slug}>
             <div class="flex items-center justify-between mb-2">
               <span class="w-8 h-8 rounded-full bg-light-primary-container text-light-primary dark:bg-dark-primary-container dark:text-dark-primary flex items-center justify-center font-display font-bold text-title-sm" aria-hidden="true">{s.symbol}</span>
-              <span class="font-body text-body-sm text-light-outline dark:text-dark-outline hi-text" lang="hi">{s.hi}</span>
+              <span class="font-body text-body-sm text-light-outline dark:text-dark-outline hi-text" lang={hi ? "en" : "hi"}>{hi ? s.en : s.hi}</span>
             </div>
-            <div class="font-title text-title-sm font-semibold text-light-on-surface dark:text-dark-on-surface group-hover:text-light-primary dark:group-hover:text-dark-primary">{s.en}</div>
+            <div class="font-title text-title-sm font-semibold text-light-on-surface dark:text-dark-on-surface group-hover:text-light-primary dark:group-hover:text-dark-primary">{hi ? s.hi : s.en}</div>
             <p class="font-body text-body-sm text-light-outline dark:text-dark-outline mt-1 line-clamp-2 text-balance" data-line>{LOADING_LINE}</p>
           </a>
         ))
       }
     </div>
-
-    <p class="hidden font-body text-body-sm text-light-outline dark:text-dark-outline mt-4" data-period-note>
-      Weekly, monthly &amp; yearly editorial rashiphal is being prepared — daily predictions are live.
-    </p>
   </div>
 </section>
 
-<script define:vars={{ apiBase: import.meta.env.PUBLIC_API_BASE_URL ?? "https://astro-backend.vyotish.workers.dev", unavailableLine: UNAVAILABLE_LINE }}>
+<script define:vars={{ apiBase: import.meta.env.PUBLIC_API_BASE_URL ?? "https://astro-backend.vyotish.workers.dev", unavailableLine: UNAVAILABLE_LINE, pageBase, lang }}>
   (function () {
     var API = apiBase;
     var root = document.querySelector("#horoscope");
     if (!root) return;
     var tabs = root.querySelectorAll("[data-period]");
-    var note = root.querySelector("[data-period-note]");
     var state = "daily";
+    // Home tab slug → sign-page period slug (today→daily, others 1:1).
+    var PAGE_SLUG = { yesterday: "yesterday", today: "daily", tomorrow: "tomorrow", weekly: "weekly", monthly: "monthly", yearly: "yearly" };
+
+    // Sign cards link to the SELECTED period tab, not always daily.
+    function syncHrefs() {
+      var ps = PAGE_SLUG[state] || "daily";
+      root.querySelectorAll("[data-sign]").forEach(function (card) {
+        card.setAttribute("href", pageBase + "/" + card.getAttribute("data-sign") + "/" + ps);
+      });
+    }
 
     function apply(data) {
       var bySign = {};
@@ -106,11 +144,10 @@ const UNAVAILABLE_LINE = "Rashiphal unavailable right now — please refresh sho
         // D12: text comes ONLY from the API — no baked fallback lines.
         if (el) el.textContent = row && row.overview ? row.overview : unavailableLine;
       });
-      if (note) note.classList.toggle("hidden", state === "daily");
     }
 
     function load() {
-      fetch(API + "/api/v1/horoscope?period=" + state + "&lang=en")
+      fetch(API + "/api/v1/horoscope?period=" + state + "&lang=" + lang)
         .then(function (r) { return r.ok ? r.json() : Promise.reject(new Error("http " + r.status)); })
         .then(function (body) { apply(body.data); })
         .catch(function () { apply(null); });
@@ -126,9 +163,25 @@ const UNAVAILABLE_LINE = "Rashiphal unavailable right now — please refresh sho
             ? "px-3 py-1.5 rounded bg-light-primary text-light-on-primary dark:bg-dark-primary dark:text-dark-on-primary font-semibold"
             : "px-3 py-1.5 rounded text-light-outline dark:text-dark-outline hover:text-light-on-surface dark:hover:text-dark-on-surface";
         });
+        syncHrefs();
         load();
       });
     });
+    syncHrefs();
     load();
   })();
 </script>
+
+<style>
+  /* Hindi home (S22 item 4): the Tailwind font utilities map to Latin faces;
+     on /hi/ the widget's Devanagari text renders on the self-hosted
+     Devanagari face instead. Scoped (0,2,0) beats the utilities. */
+  .hz-home-hi .font-headline,
+  .hz-home-hi .font-title {
+    font-family: "Noto Sans Devanagari", var(--font-display);
+  }
+  .hz-home-hi .font-label,
+  .hz-home-hi .font-body {
+    font-family: "Noto Sans Devanagari", var(--font-body);
+  }
+</style>

@@ -11,6 +11,7 @@
  * without chips. Honest empty state when nothing exists.
  */
 import type { HoroscopeBlocks, HoroscopePayload, HoroscopeSignRow } from "../lib/content";
+import { DETAIL, type HoroLang, MONTHS_SHORT as L10N_MONTHS } from "../lib/horoscope-l10n";
 import HoroscopeChip from "./HoroscopeChip.astro";
 
 export interface Props {
@@ -19,9 +20,12 @@ export interface Props {
   row: HoroscopeSignRow | null;
   blocks: HoroscopeBlocks;
   range: { start: string; end: string } | null;
+  lang?: HoroLang;
+  signHi?: string;
 }
 
-const { period, signEn, row, blocks, range } = Astro.props;
+const { period, signEn, row, blocks, range, lang = "en", signHi } = Astro.props;
+const hi = lang === "hi";
 const payload: HoroscopePayload | null = row?.payload ?? null;
 
 const H = blocks.headers ?? {};
@@ -32,7 +36,7 @@ const bandmark = (band?: string): { label: string; glyph: string } | null => {
   return { label: LABELS[band].label, glyph: LABELS[band].glyph };
 };
 
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const MONTHS = L10N_MONTHS[lang];
 const fmtDay = (key: string): string => {
   const [y, m, d] = key.split("-").map(Number);
   return `${MONTHS[(m ?? 1) - 1]} ${d}, ${y}`;
@@ -56,17 +60,33 @@ const CARD_ORDER: Array<{ key: string; combined?: string }> = [
   { key: "family" },
 ];
 
-const sadeSatiPhase = (label: string): string => label.replace(/^Sade Sati — /, "");
+// Sade Sati detection must work in both langs — the payload keeps the EN
+// structural `label` even on Hindi rows, while `label_hi` carries the prefix.
+const isSadeSati = (ph: { label: string; label_hi: string }): boolean =>
+  ph.label.includes("Sade Sati") || ph.label_hi.includes("साढ़े साती");
+const phaseName = (ph: { label: string; label_hi: string }): string =>
+  (hi ? ph.label_hi : ph.label).replace(hi ? /^साढ़े साती\s*—\s*/ : /^Sade Sati\s*—\s*/, "");
+const phaseMonths = (ph: { months_en: string; months_hi: string }): string =>
+  hi ? ph.months_hi : ph.months_en;
 const fillWhy = (tpl: string, p: { planet: string; sign: string }): string =>
   tpl.replace(/\{\{planet\}\}/g, p.planet).replace(/\{\{sign\}\}/g, p.sign);
 const fillNote = (tpl: string, phase: string, months: string): string =>
   tpl.replace(/\{\{phase\}\}/g, phase).replace(/\{\{months\}\}/g, months);
 
-const unavailable = "This reading is being prepared — please check back shortly.";
+const unavailable = DETAIL[lang].unavailable;
 const hasLegacy = !!row && (row.overview || row.love || row.career || row.finance || row.health);
+const LEGACY: Array<[string, string]> = [
+  ["love", DETAIL[lang].legacy_love],
+  ["career", DETAIL[lang].legacy_career],
+  ["finance", DETAIL[lang].legacy_finance],
+  ["health", DETAIL[lang].legacy_health],
+];
 ---
 
-<section class="hzd" aria-label={`${signEn} horoscope`}>
+<section
+  class:list={["hzd", { "hzd-hi": hi }]}
+  aria-label={hi ? `${signHi ?? signEn} राशिफल` : `${signEn} horoscope`}
+>
   {
     !row && <p class="hzd-empty">{unavailable}</p>
   }
@@ -80,14 +100,7 @@ const hasLegacy = !!row && (row.overview || row.love || row.career || row.financ
             <p>{row.overview}</p>
           </>
         )}
-        {(
-          [
-            ["love", "Love & Relationships"],
-            ["career", "Career & Business"],
-            ["finance", "Finance"],
-            ["health", "Health"],
-          ] as Array<[string, string]>
-        ).map(([key, label]) =>
+        {LEGACY.map(([key, label]) =>
           row[key as "love"] ? (
             <>
               <h3>{label}</h3>
@@ -185,13 +198,14 @@ const hasLegacy = !!row && (row.overview || row.love || row.career || row.financ
             <span class="cap">{H.best_days ?? "Best days"}</span>
             {payload.best_days.map((b) => (
               <span class="hzd-daypill best" role="listitem">
-                <span aria-hidden="true">▲</span> {fmtShort(b.date)} · {b.planets_en.join(", ")}
+                <span aria-hidden="true">▲</span> {fmtShort(b.date)} ·{" "}
+                {(hi ? b.planets_hi : b.planets_en).join(", ")}
               </span>
             ))}
             {payload.testing_day && (
               <span class="hzd-daypill test" role="listitem">
                 <span aria-hidden="true">▼</span> {fmtShort(payload.testing_day.date)} ·{" "}
-                {payload.testing_day.planets_en.join(", ")}
+                {(hi ? payload.testing_day.planets_hi : payload.testing_day.planets_en).join(", ")}
               </span>
             )}
           </div>
@@ -203,7 +217,7 @@ const hasLegacy = !!row && (row.overview || row.love || row.career || row.financ
             <ul class="hzd-sky">
               {payload.sky.map((s) => (
                 <li>
-                  <b>{fmtShort(s.date)}</b> — {s.en}
+                  <b>{fmtShort(s.date)}</b> — {hi ? s.hi || s.en : s.en}
                 </li>
               ))}
             </ul>
@@ -214,13 +228,13 @@ const hasLegacy = !!row && (row.overview || row.love || row.career || row.financ
           <aside class="hzd-sadesati">
             {/* Dhaiya/Ashtama years get their own heading — the card is not always Sade Sati */}
             <h2>
-              {payload.sadesati.phases.some((ph) => ph.label.includes("Sade Sati"))
-                ? "Sade Sati"
-                : "Saturn's transit phase"}
+              {payload.sadesati.phases.some(isSadeSati)
+                ? DETAIL[lang].sadesati
+                : DETAIL[lang].saturn_phase}
             </h2>
             {payload.sadesati.phases.map((ph) => (
               <p>
-                {fillNote(blocks.sadesati_note!.text, sadeSatiPhase(ph.label), ph.months_en)}
+                {fillNote(blocks.sadesati_note!.text, phaseName(ph), phaseMonths(ph))}
               </p>
             ))}
           </aside>
@@ -252,9 +266,9 @@ const hasLegacy = !!row && (row.overview || row.love || row.career || row.financ
               </caption>
               <thead>
                 <tr>
-                  <th scope="col">Month</th>
+                  <th scope="col">{DETAIL[lang].month_col}</th>
                   <th scope="col">{H.outlook_col ?? "Outlook"}</th>
-                  <th scope="col"><span class="visually-hidden">Rating</span></th>
+                  <th scope="col"><span class="visually-hidden">{DETAIL[lang].rating_col}</span></th>
                 </tr>
               </thead>
               <tbody>
@@ -262,7 +276,7 @@ const hasLegacy = !!row && (row.overview || row.love || row.career || row.financ
                   const lbl = LABELS[m.rating];
                   return (
                     <tr>
-                      <th scope="row">{m.month}</th>
+                      <th scope="row">{hi ? m.month_hi || m.month : m.month}</th>
                       <td>{m.clause}</td>
                       <td>
                         {lbl ? (
@@ -529,5 +543,23 @@ const hasLegacy = !!row && (row.overview || row.love || row.career || row.financ
     .hzd-dos {
       grid-template-columns: 1fr;
     }
+  }
+
+  /* Hindi variant (S22): Devanagari text uses the self-hosted Devanagari
+     face — the Latin display/title fonts carry no Devanagari glyphs. */
+  .hzd-hi {
+    font-family: "Noto Sans Devanagari", var(--font-body);
+  }
+  .hzd-hi .hzd-card h2,
+  .hzd-hi .hzd-sadesati h2,
+  .hzd-hi .hzd-thought p {
+    font-family: "Noto Sans Devanagari", var(--font-display);
+  }
+  .hzd-hi .hzd-card h3,
+  .hzd-hi .hzd-card h4,
+  .hzd-hi .hzd-mtable th,
+  .hzd-hi .hzd-thought .lbl,
+  .hzd-hi .hzd-dayrow .cap {
+    font-family: "Noto Sans Devanagari", var(--font-body);
   }
 </style>

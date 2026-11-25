@@ -1,8 +1,11 @@
 ---
 import ExploreTiles from "../../components/ExploreTiles.astro";
+import HomeHoroscope from "../../components/home/HomeHoroscope.astro";
 import TodayAtAGlance from "../../components/TodayAtAGlance.astro";
-/** Hindi home skeleton (PRD §9/§11): structure proof for the /hi/ prefix +
- * hreflang pair. Full Hindi translation lands per-epic with the EN pages. */
+/** Hindi home (PRD §9/§11). S22: the horoscope section is now fully Hindi —
+ * the /hi/ twin of the EN home widget (labels, API rows and sign links in
+ * Hindi). The rest of the build remains staged: non-horoscope pages still
+ * have no /hi/ twins, so the en-note says exactly that. */
 import Base from "../../layouts/Base.astro";
 
 const apiBase = import.meta.env.PUBLIC_API_BASE_URL ?? "https://astro-backend.vyotish.workers.dev";
@@ -28,14 +31,15 @@ const apiBase = import.meta.env.PUBLIC_API_BASE_URL ?? "https://astro-backend.vy
         <a class="secondary" href="/consultations">ज्योतिषी से बात करें</a>
       </div>
       <p class="en-note">
-        Hindi build is in progress — English pages are complete today.
+        हिन्दी बिल्ड चरणबद्ध है — राशिफल अब हिन्दी में उपलब्ध है; बाकी पेज अंग्रेज़ी में हैं।
         <a href="/">Switch to English</a>
       </p>
     </div>
   </section>
 
   <TodayAtAGlance apiBase={apiBase} />
-  <ExploreTiles />
+  <HomeHoroscope lang="hi" />
+  <ExploreTiles lang="hi" />
 
   <style>
     .hero {

@@ -8,32 +8,30 @@
  * mantra, why-line) comes from the API payload and content_blocks. The
  * lucky-heading period wording ("Lucky today / this week / …") is chrome.
  * Direction is hidden when the payload omits it (Ketu → null).
+ *
+ * S22: lang-aware chrome (Hindi labels/values via the payload's hi twins on
+ * /hi/ pages) and the reviewer sentence removed — the trust card keeps its
+ * heading + attribution only.
  */
 import type { HoroscopeBlocks, HoroscopePayload } from "../lib/content";
+import { type HoroLang, luckyHeading, PERIOD_SIDEBAR_LABEL, TRUST } from "../lib/horoscope-l10n";
 
 export interface Props {
   period: string;
   signSlug: string;
   lucky: HoroscopePayload["lucky"] | null;
   blocks: HoroscopeBlocks;
+  lang?: HoroLang;
 }
 
-const { period, signSlug, lucky, blocks } = Astro.props;
+const { period, signSlug, lucky, blocks, lang = "en" } = Astro.props;
+const hi = lang === "hi";
 const H = blocks.headers ?? {};
 
-// Period-aware chrome wording; daily uses the block header verbatim.
-const luckyHeading =
-  period === "yesterday"
-    ? "Lucky yesterday"
-    : period === "tomorrow"
-      ? "Lucky tomorrow"
-      : period === "daily"
-        ? (H.lucky_heading ?? "Lucky today")
-        : period === "weekly"
-          ? "Lucky this week"
-          : period === "monthly"
-            ? "Lucky this month"
-            : "Lucky this year";
+// The Hindi payload carries hi twins for every lucky value; fall back to en.
+const pick = (v: { en: string; hi: string }): string => (hi ? v.hi || v.en : v.en);
+
+const luckyTitle = luckyHeading(lang, period, H.lucky_heading);
 
 /** Fill a lucky_why template with the payload's attribution params. */
 const fillWhy = (tpl: string, why: NonNullable<HoroscopePayload["lucky"]>["why"]): string => {
@@ -53,31 +51,42 @@ const whyLine =
 // (defense-in-depth on top of the validator's palette check).
 const safeSwatch = (v: string): string | null => (/^#[0-9a-fA-F]{3,8}$/.test(v) ? v : null);
 
-const OTHER_PERIODS = [
-  { slug: "yesterday", label: "Yesterday's rashiphal" },
-  { slug: "daily", label: "Today's rashiphal" },
-  { slug: "tomorrow", label: "Tomorrow's rashiphal" },
-  { slug: "weekly", label: "Weekly rashiphal" },
-  { slug: "monthly", label: "Monthly rashiphal" },
-  { slug: "yearly", label: "Yearly rashiphal" },
-].filter((p) => p.slug !== period);
+const LABELS = hi
+  ? { number: "संख्या", colours: "रंग", direction: "दिशा", deity: "देवता", mantra: "मंत्र" }
+  : {
+      number: "Number",
+      colours: "Colours",
+      direction: "Direction",
+      deity: "Deity",
+      mantra: "Mantra",
+    };
+const ARIA = hi
+  ? { trust: "इस सामग्री के बारे में", explore: "और देखें" }
+  : { trust: "About this content", explore: "Explore more" };
+const CTA = hi ? "परामर्श बुक करें" : "Book a Consultation";
+
+// Links stay inside the current language section (S22 carry).
+const base = hi ? "/hi/horoscope" : "/horoscope";
+const OTHER_PERIODS = ["yesterday", "daily", "tomorrow", "weekly", "monthly", "yearly"]
+  .filter((p) => p !== period)
+  .map((p) => ({ slug: p, label: PERIOD_SIDEBAR_LABEL[lang][p] ?? p }));
 ---
 
-<aside class="hzs">
+<aside class:list={["hzs", { "hzs-hi": hi }]}>
   {
     lucky && (
-      <section class="card lucky" aria-label={luckyHeading}>
-        <h2>{luckyHeading}</h2>
+      <section class="card lucky" aria-label={luckyTitle}>
+        <h2>{luckyTitle}</h2>
         {whyLine && <p class="why">{whyLine}</p>}
         <dl class="triad">
           <div class="row">
-            <dt>Number</dt>
+            <dt>{LABELS.number}</dt>
             <dd>
               <span class="num">{lucky.number}</span>
             </dd>
           </div>
           <div class="row">
-            <dt>Colours</dt>
+            <dt>{LABELS.colours}</dt>
             <dd>
               <ul class="colours">
                 {lucky.colours.map((c) => {
@@ -85,7 +94,7 @@ const OTHER_PERIODS = [
                   return (
                     <li>
                       {sw && <span class="sw" style={`background:${sw}`} aria-hidden="true" />}
-                      {c.en}
+                      {pick(c)}
                     </li>
                   );
                 })}
@@ -94,17 +103,17 @@ const OTHER_PERIODS = [
           </div>
           {lucky.direction && (
             <div class="row">
-              <dt>Direction</dt>
-              <dd>{lucky.direction.en}</dd>
+              <dt>{LABELS.direction}</dt>
+              <dd>{pick(lucky.direction)}</dd>
             </div>
           )}
           <div class="row">
-            <dt>Deity</dt>
-            <dd>{lucky.deity.en}</dd>
+            <dt>{LABELS.deity}</dt>
+            <dd>{pick(lucky.deity)}</dd>
           </div>
         </dl>
         <div class="mantra">
-          <span class="lbl">Mantra</span>
+          <span class="lbl">{LABELS.mantra}</span>
           <p lang="hi">{lucky.mantra.hi}</p>
           <p class="tr">{lucky.mantra.en}</p>
         </div>
@@ -112,27 +121,23 @@ const OTHER_PERIODS = [
     )
   }
 
-  <section class="card trust" aria-label="About this content">
-    <h2>Team Vyotish</h2>
-    <p>
-      Composed from classical Jyotish rules (planetary strength, weekday lords and Sade
-      Sati phases) and reviewed by our Jyotishi panel.
-    </p>
-    <p class="muted">Panel reviewer names are published with the launch.</p>
+  <section class="card trust" aria-label={ARIA.trust}>
+    <h2>{TRUST[lang].title}</h2>
+    <p>{TRUST[lang].body}</p>
   </section>
 
-  <section class="card explore" aria-label="Explore more">
-    <h2>Explore</h2>
+  <section class="card explore" aria-label={ARIA.explore}>
+    <h2>{hi ? "और देखें" : "Explore"}</h2>
     <ul class="links">
       {
         OTHER_PERIODS.map((p) => (
           <li>
-            <a href={`/horoscope/${signSlug}/${p.slug}`}>{p.label}</a>
+            <a href={`${base}/${signSlug}/${p.slug}`}>{p.label}</a>
           </li>
         ))
       }
     </ul>
-    <a class="book" href="/consultations/">Book a Consultation</a>
+    <a class="book" href="/consultations/">{CTA}</a>
   </section>
 </aside>
 
@@ -247,11 +252,6 @@ const OTHER_PERIODS = [
     font-style: italic;
     margin-top: var(--space-1);
   }
-  .trust .muted {
-    color: var(--text-dim);
-    font-size: 12.5px;
-    margin-top: var(--space-1);
-  }
   .links {
     list-style: none;
     margin: 0 0 var(--space-3);
@@ -282,5 +282,18 @@ const OTHER_PERIODS = [
   }
   .book:hover {
     box-shadow: var(--gold-shadow);
+  }
+
+  /* Hindi variant: Devanagari text uses the self-hosted Devanagari face
+     (the Latin display font has no Devanagari glyphs — browser fallback
+     would look off-brand). The lucky number stays on the display face. */
+  .hzs-hi {
+    font-family: "Noto Sans Devanagari", var(--font-body);
+  }
+  .hzs-hi .card h2 {
+    font-family: "Noto Sans Devanagari", var(--font-display);
+  }
+  .hzs-hi .mantra p {
+    font-family: "Noto Sans Devanagari", var(--font-display);
   }
 </style>

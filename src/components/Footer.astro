@@ -15,7 +15,15 @@
  * now points at /calculators/numerology instead of the hub, "Blog & Admin"
  * simplified to "Blog" (internal chrome stays out of public copy — audit C5).
  */
-import { NAV_TABS } from "../data/navigation";
+import { NAV_TABS, withLang } from "../data/navigation";
+
+interface Props {
+  /** Page language — on hi pages the Horoscope portal link carries /hi (S22). */
+  lang?: "en" | "hi";
+}
+const { lang = "en" } = Astro.props;
+// Only horoscope hrefs change (withLang is a no-op for everything else).
+const fl = (href: string) => withLang(href, lang === "hi" ? "/hi/" : "/");
 
 const portals = NAV_TABS.map((t) => ({
   label: t.label,
@@ -83,7 +91,7 @@ const legal = [
         {
           portals.map((p) => (
             <li>
-              <a href={p.href} class="flink">
+              <a href={fl(p.href)} class="flink">
                 <span class="dot" aria-hidden="true" />
                 <span class="flabel">{p.display}</span>
                 {p.soon && <span class="badge-soon">Soon</span>}

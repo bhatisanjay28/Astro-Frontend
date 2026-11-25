@@ -3,10 +3,11 @@
  * Base HTML shell — Epic 2.1/2.4.
  * Theme: no-flash inline script (localStorage → prefers-color-scheme).
  * i18n: hreflang alternates when `langPath` provided (PRD §11). Audit
- * (2026-11-20): only the home page has a real Hindi counterpart today, so
- * langPath is passed ONLY by index.astro (/) and hi/index.astro — pages must
- * never emit a hreflang="hi" link to a /hi/* URL that does not exist. When
- * Hindi pages land per-section, re-add langPath to those pages only.
+ * (2026-11-20): home + horoscope have real Hindi counterparts (S22 added the
+ * /hi/horoscope/* section), so langPath is passed ONLY by those pages — pages
+ * must never emit a hreflang="hi" link to a /hi/* URL that does not exist.
+ * The UtilityBar switcher gets exact counterpart hrefs for those sections and
+ * flat fallback links elsewhere (never a dead link).
  * Fonts: hotlinked for Coming-Soon parity — self-host before launch (P3).
  */
 import "../styles/tokens.css";
@@ -50,6 +51,18 @@ const {
 } = Astro.props;
 const canonicalUrl = canonical ?? `https://vyotish.com${Astro.url.pathname}`;
 const themeLock = lockDark ? "dark" : null;
+
+// Language-switcher hrefs (S22): the exact counterpart exists only on / and
+// the horoscope section (/hi/horoscope/*). Everywhere else the switcher falls
+// back to the flat language home — never a dead link.
+const SECTIONS_WITH_HI = ["/", "/horoscope"]; // "/" also prefix-matches nothing else
+const enPath = Astro.url.pathname.startsWith("/hi")
+  ? Astro.url.pathname.slice(3) || "/"
+  : Astro.url.pathname;
+const hasCounterpart =
+  enPath === "/" || SECTIONS_WITH_HI.some((p) => p !== "/" && enPath.startsWith(p));
+const switcherEnHref = hasCounterpart ? enPath : "/";
+const switcherHiHref = hasCounterpart ? (enPath === "/" ? "/hi/" : `/hi${enPath}`) : "/hi/";
 ---
 
 <!doctype html>
@@ -118,14 +131,14 @@ const themeLock = lockDark ? "dark" : null;
   </head>
   <body>
     <a class="skip-link" href="#main-content">Skip to main content</a>
-    {chrome && <UtilityBar lang={lang} />}
+    {chrome && <UtilityBar lang={lang} enHref={switcherEnHref} hiHref={switcherHiHref} />}
     {
       chrome && <Header currentPath={Astro.url.pathname} />
     }
     <main id="main-content">
       <slot />
     </main>
-    {chrome && <Footer />}
+    {chrome && <Footer lang={lang} />}
 
     <!-- Cookie notice: analytics stay off until the visitor accepts — the
          notice states that honestly and remembers acceptance in localStorage. -->

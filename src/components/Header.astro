@@ -13,12 +13,15 @@
  * re-mapped to the site tokens. Desktop triggers carry no chevron: the 9-tab
  * row is already width-bound at the 1280px entry point.
  */
-import { NAV_TABS } from "../data/navigation";
+import { NAV_TABS, withLang } from "../data/navigation";
 
 interface Props {
   currentPath?: string;
 }
 const { currentPath = "/" } = Astro.props;
+// S22: on Hindi pages the horoscope tab/mega/drawer links carry the /hi
+// prefix (the only section with real hi twins); everything else stays EN.
+const hp = (href: string) => withLang(href, currentPath);
 const isActive = (href: string) =>
   currentPath === href || (href !== "/" && currentPath.startsWith(href));
 /** Stable DOM id per tab from its route (e.g. "/calculators" → "mm-calculators"). */
@@ -47,7 +50,7 @@ const navId = (href: string) => `mm-${href.replace(/\//g, "") || "home"}`;
       <ul class="flex items-center gap-1">
         {
           NAV_TABS.map((t) => {
-            const active = isActive(t.href);
+            const active = isActive(hp(t.href));
             const tone =
               t.label === "Gemstones"
                 ? "text-light-outline dark:text-dark-outline hover:text-light-on-surface dark:hover:text-dark-on-surface relative"
@@ -57,7 +60,7 @@ const navId = (href: string) => `mm-${href.replace(/\//g, "") || "home"}`;
             return (
               <li class="mm-item" data-mm>
                 <a
-                  href={t.href}
+                  href={hp(t.href)}
                   aria-current={active ? "page" : undefined}
                   aria-expanded={t.menu ? "false" : undefined}
                   aria-controls={t.menu ? navId(t.href) : undefined}
@@ -78,7 +81,7 @@ const navId = (href: string) => `mm-${href.replace(/\//g, "") || "home"}`;
                           <ul>
                             {g.links.map((l) => (
                               <li>
-                                <a class="mm-link" href={l.href}>
+                                <a class="mm-link" href={hp(l.href)}>
                                   <span class="mm-row">
                                     <span class="mm-label">{l.label}</span>
                                     {l.hi && <span class="mm-hi hi-text" lang="hi">{l.hi}</span>}
@@ -118,7 +121,7 @@ const navId = (href: string) => `mm-${href.replace(/\//g, "") || "home"}`;
       {
         NAV_TABS.map((t) => {
           const row = `flex items-center gap-2 px-3 py-3 rounded ${
-            isActive(t.href)
+            isActive(hp(t.href))
               ? "bg-light-primary-container text-light-primary dark:bg-dark-primary-container dark:text-dark-primary font-semibold"
               : "text-light-on-surface-variant dark:text-dark-on-surface-variant"
           }`;
@@ -134,7 +137,7 @@ const navId = (href: string) => `mm-${href.replace(/\//g, "") || "home"}`;
           );
           if (!t.menu) {
             return (
-              <a href={t.href} class={row}>
+              <a href={hp(t.href)} class={row}>
                 {icon}
                 <span>{t.label}</span>
                 {hi}
@@ -145,7 +148,7 @@ const navId = (href: string) => `mm-${href.replace(/\//g, "") || "home"}`;
           return (
             <div class="acc" data-acc>
               <div class="flex items-center gap-1">
-                <a href={t.href} class={`${row} flex-1 min-w-0`}>
+                <a href={hp(t.href)} class={`${row} flex-1 min-w-0`}>
                   {icon}
                   <span>{t.label}</span>
                   {hi}
@@ -166,7 +169,7 @@ const navId = (href: string) => `mm-${href.replace(/\//g, "") || "home"}`;
                   {t.menu.flatMap((g) =>
                     g.links.map((l) => (
                       <li>
-                        <a href={l.href} class="acc-link">
+                        <a href={hp(l.href)} class="acc-link">
                           <span>{l.label}</span>
                           {l.hi && <span class="hi-text" lang="hi">{l.hi}</span>}
                         </a>

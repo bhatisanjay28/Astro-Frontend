@@ -1,0 +1,111 @@
+---
+/**
+ * /hi/horoscope/{sign}/{period} — Hindi twin of the sign×period pages (S22
+ * item 4). Renders the SAME shared SignPage component as the English route
+ * with lang="hi": Hindi chrome (h1/chips/crumbs/dates/picker) plus the API's
+ * Hindi horoscope rows and content_blocks (DB parity verified — nothing
+ * invented). getStaticPaths stays INLINE (hoisting NOTE below).
+ */
+import SignPage from "../../../../components/horoscope/SignPage.astro";
+
+// NOTE: SIGNS/PERIODS live INSIDE getStaticPaths below — Astro's worker build
+// hoists getStaticPaths to its own scope where module-level consts are not
+// visible.
+export function getStaticPaths() {
+  const SIGNS = [
+    { slug: "aries", symbol: "♈", hi: "मेष", en: "Mesh (Aries)", zodiac: "Aries", lord: "Mars" },
+    {
+      slug: "taurus",
+      symbol: "♉",
+      hi: "वृषभ",
+      en: "Vrishabha (Taurus)",
+      zodiac: "Taurus",
+      lord: "Venus",
+    },
+    {
+      slug: "gemini",
+      symbol: "♊",
+      hi: "मिथुन",
+      en: "Mithun (Gemini)",
+      zodiac: "Gemini",
+      lord: "Mercury",
+    },
+    {
+      slug: "cancer",
+      symbol: "♋",
+      hi: "कर्क",
+      en: "Karka (Cancer)",
+      zodiac: "Cancer",
+      lord: "Moon",
+    },
+    { slug: "leo", symbol: "♌", hi: "सिंह", en: "Simha (Leo)", zodiac: "Leo", lord: "Sun" },
+    {
+      slug: "virgo",
+      symbol: "♍",
+      hi: "कन्या",
+      en: "Kanya (Virgo)",
+      zodiac: "Virgo",
+      lord: "Mercury",
+    },
+    { slug: "libra", symbol: "♎", hi: "तुला", en: "Tula (Libra)", zodiac: "Libra", lord: "Venus" },
+    {
+      slug: "scorpio",
+      symbol: "♏",
+      hi: "वृश्चिक",
+      en: "Vrishchika (Scorpio)",
+      zodiac: "Scorpio",
+      lord: "Mars",
+    },
+    {
+      slug: "sagittarius",
+      symbol: "♐",
+      hi: "धनु",
+      en: "Dhanu (Sagittarius)",
+      zodiac: "Sagittarius",
+      lord: "Jupiter",
+    },
+    {
+      slug: "capricorn",
+      symbol: "♑",
+      hi: "मकर",
+      en: "Makar (Capricorn)",
+      zodiac: "Capricorn",
+      lord: "Saturn",
+    },
+    {
+      slug: "aquarius",
+      symbol: "♒",
+      hi: "कुम्भ",
+      en: "Kumbha (Aquarius)",
+      zodiac: "Aquarius",
+      lord: "Saturn",
+    },
+    {
+      slug: "pisces",
+      symbol: "♓",
+      hi: "मीन",
+      en: "Meen (Pisces)",
+      zodiac: "Pisces",
+      lord: "Jupiter",
+    },
+  ];
+  const PERIODS = [
+    { slug: "yesterday", label: "बीते कल" },
+    { slug: "daily", label: "आज" },
+    { slug: "tomorrow", label: "कल" },
+    { slug: "weekly", label: "साप्ताहिक" },
+    { slug: "monthly", label: "मासिक" },
+    { slug: "yearly", label: "वार्षिक" },
+  ];
+  return SIGNS.flatMap((s) =>
+    PERIODS.map((p) => ({
+      params: { sign: s.slug, period: p.slug },
+      props: { sign: s, period: p, signs: SIGNS, periods: PERIODS },
+    })),
+  );
+}
+
+const { sign, period, signs, periods } = Astro.props;
+---
+
+<SignPage lang="hi" sign={sign} period={period} signs={signs} periods={periods} />
