@@ -56,6 +56,7 @@
         resolve("");
         return;
       }
+      ensure(container);
       var waited = 0;
       (function poll() {
         var id = slot.dataset.widgetId;

@@ -72,5 +72,14 @@ const turnstileSitekey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY ?? "";
         send("");
       }
     });
+    var tsTries = 0;
+    var initTs = function () {
+      if (window.VyotishTurnstile) {
+        window.VyotishTurnstile.ensure(form);
+        return;
+      }
+      if (tsTries++ < 15) setTimeout(initTs, 300);
+    };
+    initTs();
   }
 </script>
