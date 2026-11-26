@@ -5,11 +5,14 @@
  * in consultation_requests + routed to the admin inbox). Birth details are
  * not collected here: the backend stores birth_details only after the Epic
  * 6.4 consent flow, so asking for them would silently drop user input.
- * Turnstile badge renders as designed; enforcement is Epic 7.2.
+ * Turnstile bot check: widget renders in the modal slot (ensure() on first
+ * open — display:none can't render) and the token rides the submit payload.
  */
 import DateField from "../DateField.astro";
 import FieldLabel from "../forms/FieldLabel.astro";
 import RequiredNote from "../forms/RequiredNote.astro";
+
+const turnstileSitekey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY ?? "";
 ---
 
 <div id="booking-modal" class="chrome-reset fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 hidden">
@@ -84,13 +87,14 @@ import RequiredNote from "../forms/RequiredNote.astro";
         </label>
       </div>
 
-      <!-- Security Turnstile Badge -->
+      <!-- Turnstile bot check (public sitekey only; challenge is managed) -->
+      <div data-turnstile-slot data-turnstile-sitekey={turnstileSitekey} class="flex justify-center"></div>
       <div class="p-2.5 rounded bg-light-surface-variant dark:bg-dark-surface-variant border border-light-outline-variant/40 dark:border-dark-outline-variant/40 flex items-center justify-between font-body text-body-sm text-light-outline dark:text-dark-outline">
         <div class="flex items-center gap-1.5">
           <span class="material-symbols-outlined text-title-md text-success">verified</span>
-          <span>Cloudflare Turnstile Protected</span>
+          <span>Protected by Cloudflare Turnstile</span>
         </div>
-        <span class="font-data text-label-sm">No CAPTCHA required</span>
+        <span class="font-data text-label-sm">Automatic bot check</span>
       </div>
 
       <button type="submit" class="w-full py-3 rounded bg-light-primary text-light-on-primary dark:bg-dark-primary dark:text-dark-on-primary font-label text-label-md font-semibold text-center hover:opacity-95 transition-opacity">
@@ -107,10 +111,14 @@ import RequiredNote from "../forms/RequiredNote.astro";
   (function () {
     var modal = document.getElementById("booking-modal");
     if (!modal) return;
+    var ts = function () {
+      return window.VyotishTurnstile;
+    };
     document.querySelectorAll("[data-open-booking]").forEach(function (btn) {
       btn.addEventListener("click", function (e) {
         e.preventDefault();
         modal.classList.remove("hidden");
+        if (ts()) ts().ensure(modal);
       });
     });
     modal.querySelectorAll("[data-modal-close]").forEach(function (btn) {
@@ -137,19 +145,23 @@ import RequiredNote from "../forms/RequiredNote.astro";
         if (fail) { fail.classList.add("hidden"); fail.textContent = failDefault; }
         if (submitBtn) submitBtn.disabled = true;
         // POST /api/v1/requests/consultation — 201 stores the request for
-        // the team to follow up.
-        fetch(apiBase + "/api/v1/requests/consultation", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
+        // the team to follow up. Turnstile token first (single-use; the
+        // widget resets itself after each read).
+        var send = function (turnstileToken) {
+          var payload = {
             name: form.querySelector("#bk-name").value.trim(),
             phone: form.querySelector("#bk-phone").value.trim(),
             email: form.querySelector("#bk-email").value.trim(),
             topic: form.querySelector("#bk-topic").value,
             preferred_date: form.querySelector("#bk-date").value,
             preferred_time: form.querySelector("#bk-window").value,
-          }),
-        })
+          };
+          if (turnstileToken) payload.turnstile_token = turnstileToken;
+          fetch(apiBase + "/api/v1/requests/consultation", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          })
           .then(function (res) {
             if (res.ok) return res.json();
             return res
@@ -179,6 +191,12 @@ import RequiredNote from "../forms/RequiredNote.astro";
             }
           })
           .finally(function () { if (submitBtn) submitBtn.disabled = false; });
+        };
+        if (ts()) {
+          ts().getToken(form).then(send);
+        } else {
+          send("");
+        }
       });
     }
   })();

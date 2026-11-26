@@ -101,6 +101,7 @@ const switcherHiHref = hasCounterpart ? (enPath === "/" ? "/hi/" : `/hi${enPath}
         <link rel="alternate" hreflang="x-default" href={`https://vyotish.com${langPath}`} />
       )
     }
+    <script is:inline src="/turnstile.js" defer></script>
     <script is:inline>
       // No-flash theme bootstrap: follows the SYSTEM setting by default,
       // remembers an explicit user choice (localStorage "vyotish-theme").

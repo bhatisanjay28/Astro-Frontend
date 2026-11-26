@@ -22,6 +22,7 @@ const {
   submitLabel = "Send Request",
 } = Astro.props;
 const endpoint = kind === "puja" ? "/api/v1/requests/puja" : "/api/v1/requests/consultation";
+const turnstileSitekey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY ?? "";
 const inputClass =
   "w-full px-3 py-2 min-h-[44px] rounded bg-light-surface dark:bg-dark-surface border border-light-outline-variant dark:border-dark-outline-variant text-light-on-surface dark:text-dark-on-surface font-body text-body-sm";
 const labelClass =
@@ -128,6 +129,7 @@ const subjects =
     <label class={labelClass} for="bk-message">Message (optional)</label>
     <textarea class={inputClass} id="bk-message" name="message" rows="3"></textarea>
   </div>
+  <div class="sm:col-span-2" data-turnstile-slot data-turnstile-sitekey={turnstileSitekey}></div>
   <div class="sm:col-span-2">
     <button
       type="submit"
@@ -150,6 +152,9 @@ const subjects =
 <script>
   import { installFormValidation } from "../scripts/form-validation";
 
+  type VyotishTurnstile = { ensure(c: ParentNode): void; getToken(c: ParentNode): Promise<string> };
+  const ts = () => (window as unknown as { VyotishTurnstile?: VyotishTurnstile }).VyotishTurnstile;
+
   function initBookingForm() {
     const form = document.querySelector<HTMLFormElement>("form[data-booking-endpoint]");
     const box = document.querySelector<HTMLElement>("[data-booking-result]");
@@ -162,6 +167,7 @@ const subjects =
         { el: form.querySelector<HTMLInputElement>("#bk-phone")!, required: true, message: "Please enter your phone number." },
       ],
     });
+    ts()?.ensure(form);
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
       const apiBase =
@@ -176,6 +182,8 @@ const subjects =
         email: get("email") || undefined,
         message: get("message") || undefined,
       };
+      const turnstileToken = await ts()?.getToken(form);
+      if (turnstileToken) payload.turnstile_token = turnstileToken;
       if (kind === "puja") {
         payload.puja_slug = slug || undefined;
         payload.puja_name = get("puja_name") || undefined;

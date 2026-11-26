@@ -1,6 +1,8 @@
 ---
 import { API_BASE } from "../../scripts/admin/api";
 import "../../styles/fonts.css";
+
+const turnstileSitekey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY ?? "";
 ---
 
 <html lang="en">
@@ -24,6 +26,7 @@ import "../../styles/fonts.css";
       .err { color: #e08a8a; font-size: 12.5px; margin-top: 12px; min-height: 16px; }
       .notice { color: #d4a843; font-size: 12.5px; margin: -12px 0 12px; }
     </style>
+    <script is:inline src="/turnstile.js" defer></script>
   </head>
   <body>
     <form class="card" id="login-form" data-api-base={API_BASE}>
@@ -34,6 +37,7 @@ import "../../styles/fonts.css";
       <input id="email" name="email" type="email" autocomplete="username" required />
       <label for="password">Password</label>
       <input id="password" name="password" type="password" autocomplete="current-password" required />
+      <div data-turnstile-slot data-turnstile-sitekey={turnstileSitekey} style="margin-top:14px"></div>
       <button type="submit" id="go">Sign in</button>
       <div class="err" id="err" role="alert"></div>
     </form>
@@ -46,6 +50,9 @@ import "../../styles/fonts.css";
         notice.hidden = false;
       }
       const form = document.getElementById("login-form") as HTMLFormElement;
+      type VyotishTurnstile = { ensure(c: ParentNode): void; getToken(c: ParentNode): Promise<string> };
+      const ts = () => (window as unknown as { VyotishTurnstile?: VyotishTurnstile }).VyotishTurnstile;
+      ts()?.ensure(form);
       form.addEventListener("submit", async (ev) => {
         ev.preventDefault();
         const btn = document.getElementById("go") as HTMLButtonElement;
@@ -56,10 +63,11 @@ import "../../styles/fonts.css";
         const password = (document.getElementById("password") as HTMLInputElement).value;
         const apiBase = form.dataset.apiBase || "";
         try {
+          const turnstileToken = await ts()?.getToken(form);
           const res = await fetch(apiBase + "/api/v1/auth/login", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email, password }),
+            body: JSON.stringify({ email, password, turnstile_token: turnstileToken || undefined }),
           });
           const body = await res.json();
           if (!res.ok || !body?.data?.access_token) {

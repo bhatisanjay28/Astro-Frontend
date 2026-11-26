@@ -12,40 +12,65 @@ interface Props {
   success: string;
 }
 const { source, placeholder, buttonClass, inputClass, success } = Astro.props;
+const turnstileSitekey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY ?? "";
 ---
 
-<form data-newsletter-form data-source={source} class="max-w-md w-full mx-auto flex flex-col sm:flex-row gap-2 mt-2">
+<form data-newsletter-form data-source={source} class="max-w-md w-full mx-auto flex flex-col sm:flex-row flex-wrap gap-2 mt-2">
   {/* min-h appended here so every call site gets the 44px tap target without
       each caller having to remember it (UX audit F6) */}
   <input type="email" required placeholder={placeholder} aria-label="Email address" class={`${inputClass} min-h-[44px]`} />
   <button type="submit" class={`${buttonClass} min-h-[44px]`}>
     {source === "gemstones_notify" ? "Notify Me" : "Subscribe"}
   </button>
+  <div class="w-full" data-turnstile-slot data-turnstile-sitekey={turnstileSitekey}></div>
 </form>
 <p class="hidden font-body text-body-sm text-success dark:text-[var(--color-auspicious-text)] font-medium mt-1" data-newsletter-ok>{success}</p>
 <p class="hidden font-body text-body-sm text-error dark:text-[var(--color-error-text)] mt-1" data-newsletter-fail role="alert">Could not subscribe right now — please try again.</p>
 
-<script define:vars={{ apiBase: import.meta.env.PUBLIC_API_BASE_URL ?? "https://astro-backend.vyotish.workers.dev" }}>
-  document.querySelectorAll("[data-newsletter-form]").forEach(function (form) {
+<script define:vars={{ apiBase: import.meta.env.PUBLIC_API_BASE_URL ?? "https://astro-backend.vyotish.workers.dev", source: source }}>
+  var form = document.querySelector('[data-newsletter-form][data-source="' + source + '"]');
+  if (form) {
     form.addEventListener("submit", function (e) {
       e.preventDefault();
       var ok = form.nextElementSibling;
       var fail = ok && ok.nextElementSibling;
       var email = form.querySelector("input[type=email]").value.trim();
-      fetch(apiBase + "/api/v1/newsletter", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ email: email, source: form.getAttribute("data-source") }),
-      })
-        .then(function (r) { if (!r.ok) throw new Error("http " + r.status); return r.json(); })
-        .then(function () {
-          if (ok) ok.classList.remove("hidden");
-          if (fail) fail.classList.add("hidden");
-          form.reset();
+      var send = function (turnstileToken) {
+        var payload = { email: email, source: form.getAttribute("data-source") };
+        if (turnstileToken) payload.turnstile_token = turnstileToken;
+        fetch(apiBase + "/api/v1/newsletter", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(payload),
         })
-        .catch(function () {
-          if (fail) fail.classList.remove("hidden");
-        });
+          .then(function (r) {
+            if (!r.ok) {
+              return r.json()
+                .catch(function () { return null; })
+                .then(function (err) {
+                  throw { serverMsg: err && err.error && err.error.message ? err.error.message : "" };
+                });
+            }
+            return r.json();
+          })
+          .then(function () {
+            if (ok) ok.classList.remove("hidden");
+            if (fail) fail.classList.add("hidden");
+            form.reset();
+          })
+          .catch(function (err) {
+            if (fail) {
+              fail.textContent =
+                (err && err.serverMsg) || "Could not subscribe right now — please try again.";
+              fail.classList.remove("hidden");
+            }
+          });
+      };
+      if (window.VyotishTurnstile) {
+        window.VyotishTurnstile.getToken(form).then(send);
+      } else {
+        send("");
+      }
     });
-  });
+  }
 </script>
