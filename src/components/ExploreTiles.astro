@@ -20,7 +20,7 @@ const tileHref = (href: string) => withLang(href, hi ? "/hi/" : "/");
     {
       NAV_TABS.map((t) => (
         <a class="tile" href={tileHref(t.href)}>
-          <span class="icon" aria-hidden="true">
+          <span class="icon material-symbols-outlined" aria-hidden="true">
             {t.icon}
           </span>
           <span class="t-label">{hi ? t.label_hi : t.label}</span>

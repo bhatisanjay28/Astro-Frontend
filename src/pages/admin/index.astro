@@ -60,7 +60,7 @@ import Admin from "../../layouts/Admin.astro";
 
   interface Stats {
     posts: { published: number; draft: number; trashed: number };
-    astrologers: { active: number; inactive: number };
+    astrologers: { active: number; inactive: number; unconsented: number };
     pujas: { active: number };
     inbox: { new: number; older_24h: number; scheduled_today: number; closed_7d: number };
     subscribers: { confirmed: number; unsubscribed: number; active: number };
@@ -81,9 +81,17 @@ import Admin from "../../layouts/Admin.astro";
     setHint("#h-posts", `${s.posts.draft} draft${s.posts.draft === 1 ? "" : "s"} waiting`);
     set("#s-media", String(s.media.count));
     set("#s-astro", String(s.astrologers.active));
+    // closeout C1: consent-NULL actives are unlisted from the public directory —
+    // the card must say so (phase-2 review #9, unblocked by 0018)
+    const unconsented = s.astrologers.unconsented ?? 0;
     setHint(
       "#h-astro",
-      s.astrologers.inactive === 0 ? "none inactive" : `${s.astrologers.inactive} inactive`,
+      [
+        s.astrologers.inactive === 0 ? "none inactive" : `${s.astrologers.inactive} inactive`,
+        unconsented === 0 ? null : `${unconsented} unconsented (unlisted)`,
+      ]
+        .filter(Boolean)
+        .join(" · "),
     );
     set("#s-pujas", String(s.pujas.active));
     set("#s-inbox-new", String(s.inbox.new));
