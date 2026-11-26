@@ -68,6 +68,7 @@ import Admin from "../../layouts/Admin.astro";
 
 <script>
   import { api, el, esc, fmtDate, logout, renderRows, requireSession, toast } from "../../scripts/admin/api";
+  import { confirmDialog } from "../../scripts/admin/confirm";
 
   interface AdminUser {
     user_id: string;
@@ -154,9 +155,13 @@ import Admin from "../../layouts/Admin.astro";
 
   async function toggleActive(id: string, currentlyActive: boolean): Promise<void> {
     const verb = currentlyActive ? "deactivate" : "reactivate";
-    if (!confirm(`Really ${verb} this admin? ${currentlyActive ? "Their sessions end immediately." : "They regain panel access."}`)) {
-      return;
-    }
+    const okGo = await confirmDialog({
+      title: currentlyActive ? "Deactivate admin" : "Reactivate admin",
+      message: `Really ${verb} this admin? ${currentlyActive ? "Their sessions end immediately." : "They regain panel access."}`,
+      confirmText: currentlyActive ? "Deactivate" : "Reactivate",
+      danger: currentlyActive,
+    });
+    if (!okGo) return;
     const res = await api<{ data?: AdminUser }>(`/api/v1/admin/users/${encodeURIComponent(id)}`, {
       method: "PATCH",
       body: JSON.stringify({ is_active: !currentlyActive }),

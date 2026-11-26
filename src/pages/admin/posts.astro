@@ -1,94 +1,333 @@
 ---
-/** /admin/posts — blog post list + quick actions (Epic 6.4). */
+/** /admin/posts — blog list (phase 3). URL-synced filters, joined
+ * category/author display, bulk publish/unpublish/trash, Trash view with
+ * restore + typed-slug purge. The backend is the real gate; UI affordances
+ * (purge button) key off /admin/me capabilities. */
 import Admin from "../../layouts/Admin.astro";
 ---
 
 <Admin title="Posts | Vyotish Admin" active="posts">
   <h1>Blog posts</h1>
   <p><a class="btn" href="/admin/posts/edit">+ New post</a></p>
-  <form id="filters" style="display:flex; gap:8px; margin: 14px 0;">
-    <select id="f-status" style="max-width:160px">
+
+  <div class="tabs">
+    <button type="button" id="tab-live">All posts</button>
+    <button type="button" id="tab-trash">Trash</button>
+  </div>
+
+  <div class="bulkbar" id="bulkbar" hidden>
+    <span><span class="count" id="bulk-count">0</span> selected</span>
+    <button type="button" class="btn ghost" id="bulk-publish">Publish</button>
+    <button type="button" class="btn ghost" id="bulk-unpublish">Unpublish</button>
+    <button type="button" class="btn danger" id="bulk-trash">Trash</button>
+    <span class="autosave" id="bulk-note"></span>
+  </div>
+
+  <form id="filters" class="toolbar">
+    <select id="f-status">
       <option value="">All statuses</option>
       <option value="draft">Draft</option>
       <option value="scheduled">Scheduled</option>
       <option value="published">Published</option>
       <option value="archived">Archived</option>
     </select>
-    <input id="f-q" placeholder="Search title…" style="max-width:240px" />
-    <button type="submit" class="btn ghost">Filter</button>
+    <select id="f-lang">
+      <option value="">All languages</option>
+      <option value="en">English</option>
+      <option value="hi">हिन्दी</option>
+    </select>
+    <input id="f-q" placeholder="Search title…" />
+    <select id="f-sort">
+      <option value="updated_at.desc">Recently updated</option>
+      <option value="updated_at.asc">Oldest updated</option>
+      <option value="publish_at.desc">Newest publish</option>
+      <option value="publish_at.asc">Oldest publish</option>
+      <option value="title.asc">Title A–Z</option>
+      <option value="created_at.desc">Recently created</option>
+    </select>
+    <button type="submit" class="btn ghost">Apply</button>
   </form>
+
   <table>
     <thead>
-      <tr><th>Title</th><th>Status</th><th>Publish</th><th>Category</th><th>Updated</th><th>Actions</th></tr>
+      <tr>
+        <th id="th-chk" style="width:28px"><input type="checkbox" id="chk-all" class="chk" aria-label="Select all on page" /></th>
+        <th>Title</th><th>Status</th><th>Category / author</th><th>Publish</th><th>Updated</th><th>Actions</th>
+      </tr>
     </thead>
-    <tbody id="rows"><tr><td colspan="6" class="empty">Loading…</td></tr></tbody>
+    <tbody id="rows"><tr><td colspan="8" class="empty">Loading…</td></tr></tbody>
   </table>
+  <div class="pager">
+    <button type="button" class="btn ghost" id="prev">← Prev</button>
+    <span id="page-info"></span>
+    <button type="button" class="btn ghost" id="next">Next →</button>
+  </div>
 </Admin>
 
 <script>
-  import { api, el, esc, fmtDate, renderRows, requireSession, toast, logout } from "../../scripts/admin/api";
+  import { api, el, esc, fmtDate, requireSession, toast, logout } from "../../scripts/admin/api";
+  import { confirmDialog } from "../../scripts/admin/confirm";
 
-  const row = (p: Record<string, unknown>) => {
-    const status = String(p.status ?? "draft");
-    const scheduled = status === "draft" && typeof p.publish_at === "string" && new Date(p.publish_at) > new Date();
-    const pill = scheduled ? '<span class="pill dr">scheduled</span>' : status === "published" ? '<span class="pill pub">published</span>' : `<span class="pill">${status}</span>`;
-    const next =
-      status === "published"
-        ? `<button class="btn ghost" data-act="unpublish" data-id="${p.id}" data-slug="${p.slug}">Unpublish</button>`
-        : status === "draft"
-          ? `<button class="btn ghost" data-act="publish" data-id="${p.id}" data-slug="${p.slug}">Publish</button>`
-          : "";
-    return `<tr>
-      <td><a href="/admin/posts/edit?id=${p.id}" style="color:#d4a843">${esc(p.title)}</a></td>
-      <td>${pill}</td>
+  interface Post {
+    id: string;
+    slug: string;
+    title: string;
+    status: string;
+    lang?: string | null;
+    publish_at?: string | null;
+    updated_at?: string;
+    category?: { name: string; slug: string } | null;
+    author?: { display_name: string | null } | null;
+  }
+  interface ListRes {
+    data?: { posts?: Post[] };
+    meta?: { page: number; per_page: number; total: number };
+  }
+
+  // ---- URL state (shareable + survives refresh) --------------------------
+  interface State {
+    status: string;
+    lang: string;
+    q: string;
+    sort: string;
+    deleted: boolean;
+    page: number;
+  }
+  const readState = (): State => {
+    const p = new URLSearchParams(location.search);
+    return {
+      status: p.get("status") ?? "",
+      lang: p.get("lang") ?? "",
+      q: p.get("q") ?? "",
+      sort: p.get("sort") ?? "updated_at.desc",
+      deleted: p.get("deleted") === "true",
+      page: Math.max(1, Number(p.get("page") ?? "1") || 1),
+    };
+  };
+  let state = readState();
+  let caps = new Set<string>();
+  const PER_PAGE = 20;
+
+  function writeUrl(): void {
+    const p = new URLSearchParams();
+    if (state.status) p.set("status", state.status);
+    if (state.lang) p.set("lang", state.lang);
+    if (state.q) p.set("q", state.q);
+    if (state.sort !== "updated_at.desc") p.set("sort", state.sort);
+    if (state.deleted) p.set("deleted", "true");
+    if (state.page > 1) p.set("page", String(state.page));
+    history.replaceState(null, "", `/admin/posts${p.size ? `?${p}` : ""}`);
+  }
+
+  function syncControls(): void {
+    (el<HTMLSelectElement>("#f-status")!).value = state.status;
+    (el<HTMLSelectElement>("#f-lang")!).value = state.lang;
+    (el<HTMLInputElement>("#f-q")!).value = state.q;
+    (el<HTMLSelectElement>("#f-sort")!).value = state.sort;
+    (el<HTMLButtonElement>("#tab-live")!).className = state.deleted ? "" : "on";
+    (el<HTMLButtonElement>("#tab-trash")!).className = state.deleted ? "on" : "";
+    // bulk selection is a live-view affordance — no checkboxes in Trash
+    // (the bulkbar is already hidden there) — phase-3 review P3-7.
+    const chkHead = el<HTMLElement>("#th-chk");
+    if (chkHead) chkHead.hidden = state.deleted;
+    (el<HTMLInputElement>("#chk-all")!).checked = false;
+  }
+
+  // ---- rows ---------------------------------------------------------------
+  const pill = (p: Post): string => {
+    const scheduled =
+      p.status === "draft" && typeof p.publish_at === "string" && new Date(p.publish_at) > new Date();
+    if (p.status === "published") return '<span class="pill pub">published</span>';
+    if (scheduled) return '<span class="pill dr">scheduled</span>';
+    if (p.status === "archived") return '<span class="pill arch">archived</span>';
+    return `<span class="pill">${esc(p.status)}</span>`;
+  };
+
+  const row = (p: Post): string => {
+    const lang =
+      p.lang === "hi" ? '<span class="badge">हि</span>' : p.lang === "en" ? '<span class="badge">EN</span>' : "";
+    const cat = p.category
+      ? `${esc(p.category.name)}<span class="sub">${esc(p.category.slug)}</span>`
+      : "—";
+    const author = p.author?.display_name ? `<span class="sub">by ${esc(p.author.display_name)}</span>` : "";
+    const actions = state.deleted
+      ? `<button class="btn ghost" data-act="restore" data-id="${p.id}">Restore</button>
+         ${caps.has("posts.purge") ? `<button class="btn danger" data-act="purge" data-id="${p.id}" data-slug="${esc(p.slug)}" data-title="${esc(p.title)}">Delete forever</button>` : ""}`
+      : `<button class="btn ghost" data-act="${p.status === "published" ? "unpublish" : "publish"}" data-id="${p.id}">${p.status === "published" ? "Unpublish" : "Publish"}</button>
+         <button class="btn danger" data-act="trash" data-id="${p.id}" data-title="${esc(p.title)}">Trash</button>`;
+    return `<tr data-id="${p.id}">
+      ${state.deleted ? "" : `<td><input type="checkbox" class="chk row-chk" data-id="${p.id}" aria-label="Select ${esc(p.title)}" /></td>`}
+      <td><a href="/admin/posts/edit?id=${p.id}" style="color:var(--a-gold)">${esc(p.title)}</a><span class="sub">${esc(p.slug)}</span></td>
+      <td>${pill(p)} ${lang}</td>
+      <td>${cat}${author}</td>
       <td>${fmtDate(p.publish_at)}</td>
-      <td>${esc((p.category_id as string) ?? "—").slice(0, 8)}</td>
       <td>${fmtDate(p.updated_at)}</td>
-      <td class="row-actions">${next}<button class="btn danger" data-act="delete" data-id="${p.id}" data-slug="${p.slug}">Delete</button></td>
+      <td class="row-actions">${actions}</td>
     </tr>`;
   };
 
   async function load(): Promise<void> {
-    const status = el<HTMLSelectElement>("#f-status")?.value ?? "";
-    const q = el<HTMLInputElement>("#f-q")?.value.trim() ?? "";
-    const qs = new URLSearchParams({ per_page: "50" });
-    if (status) qs.set("status", status);
-    if (q) qs.set("q", q);
-    const res = await api(`/api/v1/admin/posts?${qs.toString()}`);
-    if (res.ok) {
-      const posts = (res.body.data as { posts?: Array<Record<string, unknown>> })?.posts ?? [];
-      renderRows("#rows", posts, row, "No posts yet — write the first one.");
-    } else {
+    const qs = new URLSearchParams({ page: String(state.page), per_page: String(PER_PAGE) });
+    if (state.status) qs.set("status", state.status);
+    if (state.lang) qs.set("lang", state.lang);
+    if (state.q) qs.set("q", state.q);
+    const [col, dir] = state.sort.split(".");
+    qs.set("sort", col ?? "updated_at");
+    qs.set("order", dir === "asc" ? "asc" : "desc");
+    if (state.deleted) qs.set("deleted", "true");
+
+    const res = await api<ListRes>(`/api/v1/admin/posts?${qs.toString()}`);
+    const tbody = el<HTMLTableSectionElement>("#rows")!;
+    if (!res.ok) {
+      // surface the failure in place — a toast alone left the "Loading…"
+      // skeleton stuck on screen (phase-3 review P3-6)
+      const msg = res.body.error?.message ?? "try again";
+      tbody.innerHTML = `<tr><td colspan="8" class="empty">Couldn't load posts — ${esc(msg)}</td></tr>`;
       toast(res.body.error?.message ?? "Loading failed", true);
+      return;
     }
+    const posts = res.body.data?.posts ?? [];
+    const total = res.body.meta?.total ?? 0;
+    tbody.innerHTML =
+      posts.length > 0
+        ? posts.map(row).join("")
+        : `<tr><td colspan="8" class="empty">${state.deleted ? "Trash is empty." : "No posts match — write the first one."}</td></tr>`;
+    const pages = Math.max(1, Math.ceil(total / PER_PAGE));
+    (el<HTMLElement>("#page-info")!).textContent = `Page ${state.page} of ${pages} · ${total} post${total === 1 ? "" : "s"}`;
+    (el<HTMLButtonElement>("#prev")!).disabled = state.page <= 1;
+    (el<HTMLButtonElement>("#next")!).disabled = state.page >= pages;
+    updateBulk();
   }
 
+  function refresh(next: Partial<State> = { page: 1 }): void {
+    state = { ...state, ...next };
+    writeUrl();
+    syncControls();
+    void load();
+  }
+
+  // ---- filters ------------------------------------------------------------
+  let qTimer: ReturnType<typeof setTimeout> | undefined;
+  el<HTMLInputElement>("#f-q")!.addEventListener("input", () => {
+    if (qTimer !== undefined) clearTimeout(qTimer);
+    qTimer = setTimeout(() => refresh(), 350);
+  });
+  el<HTMLFormElement>("#filters")!.addEventListener("submit", (ev) => {
+    ev.preventDefault();
+    refresh({
+      status: (el<HTMLSelectElement>("#f-status")!).value,
+      lang: (el<HTMLSelectElement>("#f-lang")!).value,
+      q: (el<HTMLInputElement>("#f-q")!).value.trim(),
+      sort: (el<HTMLSelectElement>("#f-sort")!).value,
+    });
+  });
+  el<HTMLButtonElement>("#tab-live")!.addEventListener("click", () => refresh({ deleted: false, page: 1 }));
+  el<HTMLButtonElement>("#tab-trash")!.addEventListener("click", () => refresh({ deleted: true, page: 1 }));
+  el<HTMLButtonElement>("#prev")!.addEventListener("click", () => refresh({ page: state.page - 1 }));
+  el<HTMLButtonElement>("#next")!.addEventListener("click", () => refresh({ page: state.page + 1 }));
+
+  // ---- bulk ---------------------------------------------------------------
+  const selected = (): string[] =>
+    [...document.querySelectorAll<HTMLInputElement>(".row-chk:checked")].map((c) => c.dataset.id ?? "");
+
+  function updateBulk(): void {
+    const n = selected().length;
+    (el<HTMLElement>("#bulkbar")!).hidden = n === 0 || state.deleted;
+    (el<HTMLElement>("#bulk-count")!).textContent = String(n);
+    (el<HTMLInputElement>("#chk-all")!).checked =
+      n > 0 && n === document.querySelectorAll<HTMLInputElement>(".row-chk").length;
+  }
+
+  document.addEventListener("change", (ev) => {
+    const t = ev.target as HTMLElement;
+    if (t.id === "chk-all") {
+      const on = (t as HTMLInputElement).checked;
+      for (const c of document.querySelectorAll<HTMLInputElement>(".row-chk")) c.checked = on;
+    }
+    if (t.classList.contains("chk")) updateBulk();
+  });
+
+  el<HTMLButtonElement>("#bulk-publish")!.addEventListener("click", () => void bulk("publish"));
+  el<HTMLButtonElement>("#bulk-unpublish")!.addEventListener("click", () => void bulk("unpublish"));
+  el<HTMLButtonElement>("#bulk-trash")!.addEventListener("click", () => void bulk("trash"));
+
+  async function bulk(action: "publish" | "unpublish" | "trash"): Promise<void> {
+    const ids = selected();
+    if (ids.length === 0) return;
+    const res = await api<{ data?: { results?: Array<{ id: string; ok: boolean; error?: string }> } }>(
+      "/api/v1/admin/posts/bulk",
+      { method: "POST", body: JSON.stringify({ action, ids }) },
+    );
+    if (!res.ok) {
+      toast(res.body.error?.message ?? "Bulk action failed", true);
+      return;
+    }
+    const results = res.body.data?.results ?? [];
+    const failed = results.filter((r) => !r.ok);
+    toast(
+      `Bulk ${action}: ${results.length - failed.length} ok${failed.length ? `, ${failed.length} failed` : ""}.`,
+      failed.length > 0,
+    );
+    await load();
+  }
+
+  // ---- single actions -----------------------------------------------------
   document.addEventListener("click", async (ev) => {
     const btn = (ev.target as HTMLElement).closest("button[data-act]") as HTMLElement | null;
     if (!btn) return;
-    const { act, id, slug } = btn.dataset as { act: string; id: string; slug: string };
-    if (!confirm(`Are you sure you want to ${act} this post?`)) return;
-    const res =
-      act === "delete"
-        ? await api(`/api/v1/admin/posts/${id}`, { method: "DELETE" })
-        : await api(`/api/v1/admin/posts/${id}`, {
-            method: "PUT",
-            body: JSON.stringify({ status: act === "publish" ? "published" : "draft" }),
-          });
-    toast(res.ok ? `Post ${act === "delete" ? "deleted" : "updated"}.` : res.body.error?.message ?? "Action failed", !res.ok);
-    await load();
+    const { act, id, slug, title } = btn.dataset as {
+      act: string;
+      id: string;
+      slug?: string;
+      title?: string;
+    };
+    if (act === "purge") {
+      const okGo = await confirmDialog({
+        title: "Delete forever",
+        message: `“${title ?? slug}” and its tag links will be permanently erased. This cannot be undone.`,
+        confirmText: "Delete forever",
+        danger: true,
+        requireText: slug ?? "",
+      });
+      if (!okGo) return;
+      const res = await api(`/api/v1/admin/posts/${id}?purge=true`, { method: "DELETE" });
+      toast(res.ok ? "Post permanently deleted." : res.body.error?.message ?? "Purge failed", !res.ok);
+      await load();
+      return;
+    }
+    if (act === "trash") {
+      const okGo = await confirmDialog({
+        title: "Move to trash",
+        message: `“${title}” moves to Trash — restore any time, or purge from the Trash view.`,
+        confirmText: "Move to trash",
+        danger: true,
+      });
+      if (!okGo) return;
+    }
+    if (act === "restore") {
+      const res = await api(`/api/v1/admin/posts/${id}/restore`, { method: "POST" });
+      toast(res.ok ? "Restored as a draft." : res.body.error?.message ?? "Restore failed", !res.ok);
+      await load();
+      return;
+    }
+    if (act === "publish" || act === "unpublish") {
+      const res = await api(`/api/v1/admin/posts/${id}`, {
+        method: "PUT",
+        body: JSON.stringify({ status: act === "publish" ? "published" : "draft" }),
+      });
+      toast(res.ok ? "Post updated." : res.body.error?.message ?? "Action failed", !res.ok);
+      await load();
+    }
   });
 
-  el<HTMLFormElement>("#filters")?.addEventListener("submit", (ev) => {
-    ev.preventDefault();
-    void load();
-  });
   document.getElementById("admin-logout")?.addEventListener("click", () => logout());
-  // dashboard cards deep-link a pre-filtered list (?status=published etc.)
-  const urlStatus = new URLSearchParams(location.search).get("status");
-  if (urlStatus) {
-    const sel = el<HTMLSelectElement>("#f-status");
-    if (sel) sel.value = urlStatus;
+  syncControls();
+  if (await requireSession()) {
+    // requireSession() fills window.__vyotishAdmin — read capabilities only now
+    caps = new Set<string>(
+      (window as unknown as { __vyotishAdmin?: { capabilities?: string[] } }).__vyotishAdmin
+        ?.capabilities ?? [],
+    );
+    await load();
   }
-  if (await requireSession()) await load();
 </script>

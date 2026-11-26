@@ -1,5 +1,8 @@
 ---
-/** /admin/taxonomy — categories (create) + tags (list) (Epic 6.4). */
+/** /admin/taxonomy — categories + tags (phase 3). Categories gain Hindi
+ * name/description/display order with edit + API-409 delete guard; tags gain
+ * rename, delete and a PK-safe merge into another tag. Backend is the gate
+ * (tags.merge is admin+; the API just says 403 if the role lacks it). */
 import Admin from "../../layouts/Admin.astro";
 ---
 
@@ -7,55 +10,308 @@ import Admin from "../../layouts/Admin.astro";
   <h1>Categories & tags</h1>
   <div class="grid2">
     <div>
-      <h2>New category</h2>
+      <h2>Categories</h2>
       <form id="cat-form" class="card">
-        <label for="cat-name">Name</label>
+        <label for="cat-name">Name *</label>
         <input id="cat-name" required maxlength="80" />
+        <label for="cat-name-hi">Name (हिन्दी)</label>
+        <input id="cat-name-hi" maxlength="120" />
         <label for="cat-slug">Slug (blank → from name; provide one for Hindi names)</label>
         <input id="cat-slug" pattern="[a-z0-9]+(-[a-z0-9]+)*" />
+        <label for="cat-desc">Description</label>
+        <textarea id="cat-desc" maxlength="500" style="min-height:54px"></textarea>
+        <label for="cat-order">Display order (lower shows first)</label>
+        <input id="cat-order" type="number" min="0" max="10000" value="0" />
         <p><button type="submit" class="btn">Create category</button></p>
       </form>
       <table style="margin-top:14px">
-        <thead><tr><th>Name</th><th>Slug</th></tr></thead>
-        <tbody id="cat-rows"><tr><td colspan="2" class="empty">Loading…</td></tr></tbody>
+        <thead><tr><th>Name</th><th>Slug</th><th>Order</th><th>Posts</th><th></th></tr></thead>
+        <tbody id="cat-rows"><tr><td colspan="5" class="empty">Loading…</td></tr></tbody>
       </table>
     </div>
     <div>
       <h2>Tags (auto-created from posts)</h2>
       <table>
-        <thead><tr><th>Name</th><th>Slug</th></tr></thead>
-        <tbody id="tag-rows"><tr><td colspan="2" class="empty">Loading…</td></tr></tbody>
+        <thead><tr><th>Name</th><th>Slug</th><th>Posts</th><th></th></tr></thead>
+        <tbody id="tag-rows"><tr><td colspan="4" class="empty">Loading…</td></tr></tbody>
       </table>
     </div>
   </div>
+
+  <dialog id="cat-dlg" style="background:#1d1710; color:#ece5d8; border:1px solid #3a2f1f; border-radius:14px; padding:22px; max-width:480px; width:92vw">
+    <h2 style="margin-top:0">Edit category</h2>
+    <label for="ec-name">Name</label>
+    <input id="ec-name" maxlength="80" />
+    <label for="ec-name-hi">Name (हिन्दी)</label>
+    <input id="ec-name-hi" maxlength="120" />
+    <label for="ec-slug">Slug</label>
+    <input id="ec-slug" pattern="[a-z0-9]+(-[a-z0-9]+)*" />
+    <label for="ec-desc">Description</label>
+    <textarea id="ec-desc" maxlength="500" style="min-height:54px"></textarea>
+    <label for="ec-order">Display order</label>
+    <input id="ec-order" type="number" min="0" max="10000" />
+    <p style="display:flex; gap:10px; margin-bottom:0">
+      <button type="button" class="btn" id="ec-save">Save</button>
+      <button type="button" class="btn ghost" id="ec-close">Close</button>
+    </p>
+  </dialog>
+
+  <dialog id="tag-dlg" style="background:#1d1710; color:#ece5d8; border:1px solid #3a2f1f; border-radius:14px; padding:22px; max-width:440px; width:92vw">
+    <h2 id="tag-dlg-title" style="margin-top:0">Rename tag</h2>
+    <div id="tag-rename-fields">
+      <label for="et-name">Name</label>
+      <input id="et-name" maxlength="80" />
+      <label for="et-slug">Slug</label>
+      <input id="et-slug" pattern="[a-z0-9]+(-[a-z0-9]+)*" />
+    </div>
+    <div id="tag-merge-fields" hidden>
+      <p class="sub" id="merge-note"></p>
+      <label for="et-target">Merge into</label>
+      <select id="et-target"></select>
+    </div>
+    <p style="display:flex; gap:10px; margin-bottom:0">
+      <button type="button" class="btn" id="et-save">Save</button>
+      <button type="button" class="btn ghost" id="et-close">Close</button>
+    </p>
+  </dialog>
 </Admin>
 
 <script>
-  import { api, el, esc, renderRows, requireSession, toast, logout } from "../../scripts/admin/api";
+  import { api, el, esc, requireSession, toast, logout } from "../../scripts/admin/api";
+  import { confirmDialog } from "../../scripts/admin/confirm";
+
+  interface Cat {
+    id: string;
+    slug: string;
+    name: string;
+    name_hi?: string | null;
+    description?: string | null;
+    display_order?: number | null;
+    posts?: number;
+  }
+  interface Tag {
+    id: string;
+    slug: string;
+    name: string;
+    posts?: number;
+  }
+  let cats: Cat[] = [];
+  let tags: Tag[] = [];
 
   async function load(): Promise<void> {
-    const [cats, tags] = await Promise.all([
-      api<{ data?: { categories?: Array<{ slug: string; name: string }> } }>("/api/v1/admin/categories"),
-      api<{ data?: { tags?: Array<{ slug: string; name: string }> } }>("/api/v1/admin/tags"),
+    const [c, t] = await Promise.all([
+      api<{ data?: { categories?: Cat[] } }>("/api/v1/admin/categories"),
+      api<{ data?: { tags?: Tag[] } }>("/api/v1/admin/tags"),
     ]);
-    const pairRow = (t: { slug: string; name: string }) =>
-      `<tr><td>${esc(t.name)}</td><td>${esc(t.slug)}</td></tr>`;
-    if (cats.ok) renderRows("#cat-rows", cats.body.data?.categories, pairRow, "No categories yet.");
-    if (tags.ok) renderRows("#tag-rows", tags.body.data?.tags, pairRow, "No tags yet.");
+    if (c.ok) cats = c.body.data?.categories ?? [];
+    if (t.ok) tags = t.body.data?.tags ?? [];
+    const tbody = el<HTMLTableSectionElement>("#cat-rows")!;
+    tbody.innerHTML =
+      cats.length > 0
+        ? cats
+            .map(
+              (cat) => `<tr>
+        <td>${esc(cat.name)}${cat.name_hi ? `<span class="sub">${esc(cat.name_hi)}</span>` : ""}</td>
+        <td>${esc(cat.slug)}</td>
+        <td>${cat.display_order ?? 0}</td>
+        <td>${cat.posts ?? 0}</td>
+        <td class="row-actions">
+          <button class="btn ghost" data-cat-edit="${cat.id}">Edit</button>
+          <button class="btn danger" data-cat-del="${cat.id}">Delete</button>
+        </td>
+      </tr>`,
+            )
+            .join("")
+        : '<tr><td colspan="5" class="empty">No categories yet.</td></tr>';
+    const tbtn = el<HTMLTableSectionElement>("#tag-rows")!;
+    tbtn.innerHTML =
+      tags.length > 0
+        ? tags
+            .map(
+              (tag) => `<tr>
+        <td>${esc(tag.name)}</td>
+        <td>${esc(tag.slug)}</td>
+        <td>${tag.posts ?? 0}</td>
+        <td class="row-actions">
+          <button class="btn ghost" data-tag-rename="${tag.id}">Rename</button>
+          <button class="btn ghost" data-tag-merge="${tag.id}">Merge</button>
+          <button class="btn danger" data-tag-del="${tag.id}">Delete</button>
+        </td>
+      </tr>`,
+            )
+            .join("")
+        : '<tr><td colspan="4" class="empty">No tags yet.</td></tr>';
   }
 
+  const errText = (m: string, fallback: string): string => m || fallback;
+
+  // ---- create category ------------------------------------------------------
   el<HTMLFormElement>("#cat-form")!.addEventListener("submit", async (ev) => {
     ev.preventDefault();
-    const name = el<HTMLInputElement>("#cat-name")!.value.trim();
-    const slug = el<HTMLInputElement>("#cat-slug")!.value.trim();
-    const res = await api("/api/v1/admin/categories", { method: "POST", body: JSON.stringify({ name, slug: slug || undefined }) });
-    toast(res.ok ? "Category created." : res.body.error?.message ?? "Create failed", !res.ok);
+    const val = (sel: string) => el<HTMLInputElement | HTMLTextAreaElement>(sel)?.value.trim() ?? "";
+    const body: Record<string, unknown> = {
+      name: val("#cat-name"),
+      name_hi: val("#cat-name-hi") || undefined,
+      slug: val("#cat-slug") || undefined,
+      description: val("#cat-desc") || undefined,
+      display_order: Number(val("#cat-order") || "0") || 0,
+    };
+    const res = await api("/api/v1/admin/categories", { method: "POST", body: JSON.stringify(body) });
+    toast(res.ok ? "Category created." : errText(res.body.error?.message ?? "", "Create failed"), !res.ok);
     if (res.ok) {
-      el<HTMLInputElement>("#cat-name")!.value = "";
-      el<HTMLInputElement>("#cat-slug")!.value = "";
+      for (const s of ["#cat-name", "#cat-name-hi", "#cat-slug", "#cat-desc"]) {
+        (el<HTMLInputElement | HTMLTextAreaElement>(s)!).value = "";
+      }
+      (el<HTMLInputElement>("#cat-order")!).value = "0";
       await load();
     }
   });
+
+  // ---- edit category --------------------------------------------------------
+  let editingCat: Cat | null = null;
+  const catDlg = el<HTMLDialogElement>("#cat-dlg")!;
+  document.addEventListener("click", (ev) => {
+    const b = (ev.target as HTMLElement).closest("button[data-cat-edit]") as HTMLElement | null;
+    if (!b) return;
+    editingCat = cats.find((x) => x.id === b.dataset.catEdit) ?? null;
+    if (!editingCat) return;
+    (el<HTMLInputElement>("#ec-name")!).value = editingCat.name;
+    (el<HTMLInputElement>("#ec-name-hi")!).value = editingCat.name_hi ?? "";
+    (el<HTMLInputElement>("#ec-slug")!).value = editingCat.slug;
+    (el<HTMLTextAreaElement>("#ec-desc")!).value = editingCat.description ?? "";
+    (el<HTMLInputElement>("#ec-order")!).value = String(editingCat.display_order ?? 0);
+    catDlg.showModal();
+  });
+  el<HTMLButtonElement>("#ec-close")!.addEventListener("click", () => catDlg.close());
+  el<HTMLButtonElement>("#ec-save")!.addEventListener("click", async () => {
+    if (!editingCat) return;
+    const val = (sel: string) => el<HTMLInputElement | HTMLTextAreaElement>(sel)?.value.trim() ?? "";
+    const body: Record<string, unknown> = {
+      name: val("#ec-name"),
+      // UPDATE sends the RAW values: the backend clears name_hi/description
+      // on "" (review P2-5) — `|| undefined` would silently keep stale text.
+      name_hi: val("#ec-name-hi"),
+      slug: val("#ec-slug"),
+      description: val("#ec-desc"),
+      display_order: Number(val("#ec-order") || "0") || 0,
+    };
+    const res = await api(`/api/v1/admin/categories/${editingCat.id}`, {
+      method: "PUT",
+      body: JSON.stringify(body),
+    });
+    toast(res.ok ? "Category saved." : errText(res.body.error?.message ?? "", "Save failed"), !res.ok);
+    if (res.ok) {
+      catDlg.close();
+      await load();
+    }
+  });
+
+  // ---- delete category (API 409s when posts still use it) -------------------
+  document.addEventListener("click", async (ev) => {
+    const b = (ev.target as HTMLElement).closest("button[data-cat-del]") as HTMLElement | null;
+    if (!b) return;
+    const cat = cats.find((x) => x.id === b.dataset.catDel);
+    if (!cat) return;
+    const okGo = await confirmDialog({
+      title: "Delete category",
+      message: `Delete “${cat.name}”? Posts still assigned to it block the delete until reassigned.`,
+      confirmText: "Delete",
+      danger: true,
+    });
+    if (!okGo) return;
+    const res = await api<{ error?: { message?: string; posts?: number } }>(
+      `/api/v1/admin/categories/${cat.id}`,
+      { method: "DELETE" },
+    );
+    toast(
+      res.ok ? "Category deleted." : errText(res.body.error?.message ?? "", "Delete failed"),
+      !res.ok,
+    );
+    if (res.ok) await load();
+  });
+
+  // ---- tags: rename / merge / delete ----------------------------------------
+  let tagMode: "rename" | "merge" = "rename";
+  let editingTag: Tag | null = null;
+  const tagDlg = el<HTMLDialogElement>("#tag-dlg")!;
+  document.addEventListener("click", (ev) => {
+    const t = ev.target as HTMLElement;
+    const rn = t.closest("button[data-tag-rename]") as HTMLElement | null;
+    const mg = t.closest("button[data-tag-merge]") as HTMLElement | null;
+    if (!rn && !mg) return;
+    const id = rn?.dataset.tagRename ?? mg?.dataset.tagMerge;
+    editingTag = tags.find((x) => x.id === id) ?? null;
+    if (!editingTag) return;
+    tagMode = rn ? "rename" : "merge";
+    (el<HTMLElement>("#tag-dlg-title")!).textContent = tagMode === "rename" ? "Rename tag" : "Merge tag";
+    (el<HTMLElement>("#tag-rename-fields")!).hidden = tagMode !== "rename";
+    (el<HTMLElement>("#tag-merge-fields")!).hidden = tagMode !== "merge";
+    if (tagMode === "rename") {
+      (el<HTMLInputElement>("#et-name")!).value = editingTag.name;
+      (el<HTMLInputElement>("#et-slug")!).value = editingTag.slug;
+    } else {
+      (el<HTMLElement>("#merge-note")!).textContent =
+        `Posts on “${editingTag.name}” move to the target tag; the source tag disappears.`;
+      const sel = el<HTMLSelectElement>("#et-target")!;
+      sel.innerHTML = tags
+        .filter((x) => x.id !== editingTag!.id)
+        .map((x) => `<option value="${esc(x.id)}">${esc(x.name)} (${x.posts ?? 0} posts)</option>`)
+        .join("");
+    }
+    tagDlg.showModal();
+  });
+  el<HTMLButtonElement>("#et-close")!.addEventListener("click", () => tagDlg.close());
+  el<HTMLButtonElement>("#et-save")!.addEventListener("click", async () => {
+    if (!editingTag) return;
+    if (tagMode === "rename") {
+      const name = (el<HTMLInputElement>("#et-name")!).value.trim();
+      const slug = (el<HTMLInputElement>("#et-slug")!).value.trim();
+      const res = await api(`/api/v1/admin/tags/${editingTag.id}`, {
+        method: "PUT",
+        body: JSON.stringify({ name, slug }),
+      });
+      if (!res.ok) {
+        toast(errText(res.body.error?.message ?? "", "Save failed"), true);
+        return;
+      }
+      toast("Tag saved.");
+    } else {
+      const target = (el<HTMLSelectElement>("#et-target")!).value;
+      if (!target) {
+        toast("Pick a target tag.", true);
+        return;
+      }
+      const res = await api<{ data?: { moved?: number; replaced?: number } }>("/api/v1/admin/tags/merge", {
+        method: "POST",
+        body: JSON.stringify({ source_id: editingTag.id, target_id: target }),
+      });
+      if (!res.ok) {
+        toast(errText(res.body.error?.message ?? "", "Merge failed"), true);
+        return;
+      }
+      toast(`Merged — ${res.body.data?.moved ?? 0} post link(s) moved.`);
+    }
+    tagDlg.close();
+    await load();
+  });
+
+  document.addEventListener("click", async (ev) => {
+    const b = (ev.target as HTMLElement).closest("button[data-tag-del]") as HTMLElement | null;
+    if (!b) return;
+    const tag = tags.find((x) => x.id === b.dataset.tagDel);
+    if (!tag) return;
+    const okGo = await confirmDialog({
+      title: "Delete tag",
+      message: `Delete “${tag.name}”? It is removed from ${(tag.posts ?? 0)} post(s) — the posts themselves stay.`,
+      confirmText: "Delete",
+      danger: true,
+    });
+    if (!okGo) return;
+    const res = await api(`/api/v1/admin/tags/${tag.id}`, { method: "DELETE" });
+    toast(res.ok ? "Tag deleted." : errText(res.body.error?.message ?? "", "Delete failed"), !res.ok);
+    if (res.ok) await load();
+  });
+
   document.getElementById("admin-logout")?.addEventListener("click", () => logout());
   if (await requireSession()) await load();
 </script>

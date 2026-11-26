@@ -116,6 +116,42 @@ const NAV = [
       .pill { font-size: 11px; border: 1px solid var(--a-border); border-radius: 999px; padding: 2px 9px; color: var(--a-dim); }
       .pill.pub { color: #8fc98f; border-color: #2f5a2f; }
       .pill.dr { color: var(--a-gold); border-color: var(--a-border); }
+      .pill.arch { color: #c98fc9; border-color: #5a2f5a; }
+      .pill.trash { color: #e08a8a; border-color: #7a2f2f; }
+      /* toolbar / filter rows (posts, media, taxonomy) */
+      .toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 14px 0; }
+      .toolbar input, .toolbar select { width: auto; min-width: 0; }
+      .tabs { display: flex; gap: 6px; margin: 0 0 6px; }
+      .tabs button { background: none; border: 1px solid var(--a-border); color: var(--a-dim); border-radius: 999px; padding: 5px 14px; cursor: pointer; font: inherit; font-size: 12px; }
+      .tabs button.on { color: var(--a-gold); border-color: var(--a-gold); background: rgba(212, 168, 67, 0.08); }
+      .chk { width: auto; }
+      /* bulk action bar (posts) */
+      .bulkbar { position: sticky; top: 10px; z-index: 5; display: flex; gap: 10px; align-items: center; background: var(--a-panel); border: 1px solid var(--a-gold); border-radius: 10px; padding: 9px 14px; margin: 0 0 12px; font-size: 13px; }
+      .bulkbar[hidden] { display: none; }
+      .bulkbar .count { color: var(--a-gold); font-weight: 600; }
+      .pager { display: flex; gap: 12px; align-items: center; margin-top: 14px; font-size: 13px; color: var(--a-dim); }
+      .badge { font-size: 11px; border: 1px solid var(--a-border); border-radius: 999px; padding: 1px 8px; color: var(--a-dim); white-space: nowrap; }
+      .badge.used { color: var(--a-gold); }
+      /* shared confirm dialog (scripts/admin/confirm.ts) */
+      #confirm-dlg { background: var(--a-panel); border: 1px solid var(--a-border); border-radius: 14px; padding: 22px; max-width: 460px; width: 92vw; color: var(--a-text); }
+      #confirm-dlg::backdrop { background: rgba(0, 0, 0, 0.6); }
+      .dlg-title { margin: 0 0 8px; color: var(--a-gold); font-size: 15px; }
+      .dlg-msg { margin: 0 0 12px; font-size: 13px; }
+      .dlg-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 16px; }
+      .dlg-ok.danger { background: #7a2f2f; color: #f2d7d7; }
+      /* editor extras (posts/edit) */
+      .md-toolbar { display: flex; gap: 4px; flex-wrap: wrap; margin: 0 0 6px; }
+      .md-toolbar button { background: none; border: 1px solid var(--a-border); color: var(--a-dim); border-radius: 6px; padding: 3px 9px; cursor: pointer; font: inherit; font-size: 12px; }
+      .md-toolbar button:hover { color: var(--a-gold); border-color: var(--a-gold); }
+      .autosave { font-size: 12px; color: var(--a-dim); }
+      .autosave.err { color: #e08a8a; }
+      .pick-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; max-height: 55vh; overflow: auto; }
+      .pick-item { background: #241c13; border: 1px solid var(--a-border); border-radius: 8px; padding: 8px; cursor: pointer; text-align: center; }
+      .pick-item:hover { border-color: var(--a-gold); }
+      .pick-item img { width: 100%; height: 80px; object-fit: cover; border-radius: 6px; }
+      .pick-item .pick-path { display: block; margin-top: 6px; font-size: 10px; color: var(--a-dim); word-break: break-all; }
+      .thumb { width: 56px; height: 40px; object-fit: cover; border-radius: 6px; border: 1px solid var(--a-border); display: block; }
+      .sub { display: block; font-size: 11px; color: var(--a-dim); }
     </style>
   </body>
 </html>

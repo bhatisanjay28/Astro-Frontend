@@ -48,7 +48,10 @@ export async function api<T = ApiEnvelope>(
     headers: {
       ...(init.headers ?? {}),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(init.body && !(init.body instanceof FormData)
+      // FormData AND Blob/File bodies carry their own content-type — forcing
+      // application/json onto an upload makes the Workers validator 400
+      // (phase-3 review P1-2; File extends Blob).
+      ...(init.body && !(init.body instanceof FormData) && !(init.body instanceof Blob)
         ? { "Content-Type": "application/json" }
         : {}),
     },

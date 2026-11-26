@@ -1,5 +1,7 @@
 ---
-/** /admin/media — upload images + copy URLs (Epic 6.4). PNG/JPEG/WebP/GIF,
+/** /admin/media — upload images + copy URLs (Epic 6.4; phase 3 adds search,
+ * per-row usage badges and a guarded delete: referenced images 409 unless
+ * ?force=true, which needs media.force_delete server-side). PNG/JPEG/WebP/GIF,
  * 5MB cap — enforced server-side too. */
 import Admin from "../../layouts/Admin.astro";
 ---
@@ -13,31 +15,85 @@ import Admin from "../../layouts/Admin.astro";
     <input id="alt" placeholder="Describe the image" required />
     <p><button type="submit" class="btn">Upload</button></p>
   </form>
-  <table style="margin-top:14px">
-    <thead><tr><th>Path</th><th>MIME</th><th>Size</th><th>Uploaded</th><th>URL</th></tr></thead>
-    <tbody id="rows"><tr><td colspan="5" class="empty">Loading…</td></tr></tbody>
+
+  <form id="search" class="toolbar">
+    <input id="q" placeholder="Search path or alt text…" />
+    <button type="submit" class="btn ghost">Search</button>
+  </form>
+
+  <table>
+    <thead><tr><th></th><th>Path</th><th>MIME</th><th>Size</th><th>Used in</th><th>Uploaded</th><th>URL</th><th></th></tr></thead>
+    <tbody id="rows"><tr><td colspan="8" class="empty">Loading…</td></tr></tbody>
   </table>
 </Admin>
 
 <script>
-  import { api, el, esc, fmtDate, renderRows, requireSession, toast, logout } from "../../scripts/admin/api";
+  import { api, el, esc, fmtDate, requireSession, toast, logout } from "../../scripts/admin/api";
+  import { confirmDialog } from "../../scripts/admin/confirm";
 
-  const row = (m: Record<string, unknown>) => {
-    const url = typeof m.url === "string" ? m.url : "";
+  interface MediaRow {
+    id: string;
+    path: string;
+    mime?: string | null;
+    size_bytes?: number | null;
+    alt?: string | null;
+    created_at?: string;
+    url: string;
+    used_in: number;
+  }
+  let caps = new Set<string>();
+
+  const row = (m: MediaRow): string => {
+    const forceable = caps.has("media.force_delete");
+    // used_in === -1 means the reference scan itself failed — the backend
+    // refuses the delete rather than risk orphaning a live image, so hide
+    // the button instead of offering a click that must 500 (review P3-12).
+    const delBtn =
+      m.used_in < 0
+        ? `<button class="btn danger" disabled title="Reference scan failed — retry later">Delete</button>`
+        : m.used_in > 0 && !forceable
+          ? `<button class="btn danger" disabled title="Referenced by ${m.used_in} post(s) — admin+ can force-delete">Delete</button>`
+          : `<button class="btn danger" data-del="${m.id}" data-used="${m.used_in}" data-path="${esc(m.path)}">Delete</button>`;
     return `<tr>
-      <td>${esc(m.path)}</td>
+      <td>${m.url ? `<img class="thumb" src="${esc(m.url)}" alt="" loading="lazy" />` : "—"}</td>
+      <td>${esc(m.path)}${m.alt ? `<span class="sub">${esc(m.alt)}</span>` : ""}</td>
       <td>${esc(m.mime ?? "—")}</td>
       <td>${m.size_bytes ? `${Math.round(Number(m.size_bytes) / 1024)} KB` : "—"}</td>
+      <td>${m.used_in < 0 ? '<span class="badge">scan?</span>' : m.used_in > 0 ? `<span class="badge used">${m.used_in}</span>` : '<span class="badge">0</span>'}</td>
       <td>${fmtDate(m.created_at)}</td>
-      <td><input readonly value="${esc(url)}" style="max-width:280px; font-size:11px" onclick="this.select()" /></td>
+      <td><input readonly value="${esc(m.url)}" style="max-width:260px; font-size:11px" onclick="this.select()" /></td>
+      <td>${delBtn}</td>
     </tr>`;
   };
 
   async function load(): Promise<void> {
-    const res = await api<{ data?: { media?: Array<Record<string, unknown>> } }>("/api/v1/admin/media");
-    if (res.ok) renderRows("#rows", res.body.data?.media, row, "No media yet.");
-    else toast(res.body.error?.message ?? "Loading failed", true);
+    const q = el<HTMLInputElement>("#q")?.value.trim() ?? "";
+    const res = await api<{ data?: { items?: MediaRow[] } }>(
+      `/api/v1/admin/media${q ? `?q=${encodeURIComponent(q)}` : ""}`,
+    );
+    if (!res.ok) {
+      toast(res.body.error?.message ?? "Loading failed", true);
+      return;
+    }
+    const items = res.body.data?.items ?? [];
+    // API returns { data: { items } } — the old page read data.media, so the
+    // grid silently rendered empty (phase-3 fix).
+    const tbody = el<HTMLTableSectionElement>("#rows")!;
+    tbody.innerHTML =
+      items.length > 0
+        ? items.map(row).join("")
+        : `<tr><td colspan="8" class="empty">${q ? "Nothing matches that search." : "No media yet."}</td></tr>`;
   }
+
+  let qTimer: ReturnType<typeof setTimeout> | undefined;
+  el<HTMLInputElement>("#q")!.addEventListener("input", () => {
+    if (qTimer !== undefined) clearTimeout(qTimer);
+    qTimer = setTimeout(() => void load(), 350);
+  });
+  el<HTMLFormElement>("#search")!.addEventListener("submit", (ev) => {
+    ev.preventDefault();
+    void load();
+  });
 
   el<HTMLFormElement>("#up")!.addEventListener("submit", async (ev) => {
     ev.preventDefault();
@@ -51,7 +107,7 @@ import Admin from "../../layouts/Admin.astro";
       body: file,
     });
     if (res.ok) {
-      toast("Uploaded — URL copied to the table below.");
+      toast("Uploaded.");
       el<HTMLInputElement>("#file")!.value = "";
       el<HTMLInputElement>("#alt")!.value = "";
       await load();
@@ -59,6 +115,35 @@ import Admin from "../../layouts/Admin.astro";
       toast(res.body.error?.message ?? "Upload failed", true);
     }
   });
+
+  document.addEventListener("click", async (ev) => {
+    const b = (ev.target as HTMLElement).closest("button[data-del]") as HTMLElement | null;
+    if (!b) return;
+    const used = Number(b.dataset.used ?? "0");
+    const path = b.dataset.path ?? "";
+    const okGo = await confirmDialog({
+      title: used > 0 ? "Force-delete a referenced image" : "Delete image",
+      message:
+        used > 0
+          ? `“${path}” is used by ${used} post(s). Force-delete breaks those references — the image disappears from the live pages.`
+          : `Delete “${path}”? This removes the storage object and the library row.`,
+      confirmText: used > 0 ? "Force delete" : "Delete",
+      danger: true,
+    });
+    if (!okGo) return;
+    const res = await api(`/api/v1/admin/media/${b.dataset.del}${used > 0 ? "?force=true" : ""}`, {
+      method: "DELETE",
+    });
+    toast(res.ok ? "Deleted." : res.body.error?.message ?? "Delete failed", !res.ok);
+    if (res.ok) await load();
+  });
+
   document.getElementById("admin-logout")?.addEventListener("click", () => logout());
-  if (await requireSession()) await load();
+  if (await requireSession()) {
+    caps = new Set<string>(
+      (window as unknown as { __vyotishAdmin?: { capabilities?: string[] } }).__vyotishAdmin
+        ?.capabilities ?? [],
+    );
+    await load();
+  }
 </script>

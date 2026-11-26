@@ -80,6 +80,7 @@ import Admin from "../../layouts/Admin.astro";
 
 <script>
   import { api, el, esc, renderRows, requireSession, toast, logout } from "../../scripts/admin/api";
+  import { confirmDialog } from "../../scripts/admin/confirm";
 
   let kind: "astrologers" | "pujas" = "astrologers";
   let current: Record<string, unknown> | null = null;
@@ -205,7 +206,15 @@ import Admin from "../../layouts/Admin.astro";
       const list = (rows.ok ? (kind === "astrologers" ? rows.body.data?.astrologers : rows.body.data?.pujas) : undefined);
       const item = list?.find((r) => r.id === edit.dataset.edit);
       if (item) openEditor(item);
-    } else if (del && confirm("Delete this entry? (site history keeps consultation links via NULL)")) {
+    } else if (del) {
+      const okGo = await confirmDialog({
+        title: kind === "astrologers" ? "Delete astrologer" : "Delete pooja",
+        message:
+          "The entry is hidden from the site (soft delete — site history keeps consultation links via NULL).",
+        confirmText: "Delete",
+        danger: true,
+      });
+      if (!okGo) return;
       const res = await api(`/api/v1/admin/${kind}/${del.dataset.del}`, { method: "DELETE" });
       toast(res.ok ? "Deleted." : res.body.error?.message ?? "Delete failed", !res.ok);
       await load();

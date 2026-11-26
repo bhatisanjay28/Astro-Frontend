@@ -1,7 +1,8 @@
 ---
 import DateField from "../../../components/DateField.astro";
-/** /admin/posts/edit — create/edit a blog post (Epic 6.4). Markdown body,
- * taxonomy, schedule, SEO + featured image (paste a /admin/media URL). */
+/** /admin/posts/edit — create/edit a blog post (Epic 6.4; phase 3 adds the
+ * Markdown toolbar, sanitised live preview, 30s draft autosave, the lang
+ * toggle (0017) and a media-library featured-image picker). */
 import Admin from "../../../layouts/Admin.astro";
 ---
 
@@ -20,6 +21,11 @@ import Admin from "../../../layouts/Admin.astro";
         <select id="category"><option value="">— none —</option></select>
         <label for="tags">Tags (comma-separated)</label>
         <input id="tags" placeholder="panchang, basics" />
+        <label for="lang">Language</label>
+        <select id="lang">
+          <option value="en">English</option>
+          <option value="hi">हिन्दी</option>
+        </select>
         <label for="status">Status</label>
         <select id="status">
           <option value="draft">Draft</option>
@@ -35,9 +41,24 @@ import Admin from "../../../layouts/Admin.astro";
       </div>
       <div>
         <label for="content_md">Body (Markdown) *</label>
+        <div class="md-toolbar" id="md-tools">
+          <button type="button" data-md="b" title="Bold">B</button>
+          <button type="button" data-md="i" title="Italic"><i>I</i></button>
+          <button type="button" data-md="h2" title="Heading">H2</button>
+          <button type="button" data-md="h3" title="Subheading">H3</button>
+          <button type="button" data-md="link" title="Link">Link</button>
+          <button type="button" data-md="ul" title="Bullet list">• List</button>
+          <button type="button" data-md="quote" title="Quote">❝</button>
+          <button type="button" data-md="code" title="Inline code">&lt;/&gt;</button>
+        </div>
         <textarea id="content_md" required style="min-height:280px"></textarea>
+        <label>Preview (rendered + sanitised exactly like the public page)</label>
+        <div id="preview" class="preview"><span class="sub">Start typing to preview.</span></div>
         <label for="featured_image_url">Featured image URL</label>
-        <input id="featured_image_url" placeholder="https://…/media/2026-11/…png" />
+        <p style="display:flex; gap:8px">
+          <input id="featured_image_url" placeholder="https://…/media/2026-11/…png" />
+          <button type="button" class="btn ghost" id="pick-open">Pick from media</button>
+        </p>
         <label for="alt_text">Image alt text</label>
         <input id="alt_text" />
         <label for="seo_title">SEO title</label>
@@ -50,16 +71,25 @@ import Admin from "../../../layouts/Admin.astro";
         <input id="og_image_url" />
       </div>
     </div>
-    <p style="margin-top:18px; display:flex; gap:10px;">
+    <p style="margin-top:18px; display:flex; gap:10px; align-items:center;">
       <button type="submit" class="btn" id="save">Save post</button>
       <a class="btn ghost" href="/admin/posts">Back</a>
       <span id="save-state" class="pill"></span>
+      <span id="autosave-state" class="autosave"></span>
     </p>
   </form>
+
+  <dialog id="pick-dlg" style="background:#1d1710; color:#ece5d8; border:1px solid #3a2f1f; border-radius:14px; padding:22px; max-width:680px; width:92vw">
+    <h2 style="margin-top:0">Pick a featured image</h2>
+    <div id="pick-grid" class="pick-grid"><span class="sub">Loading media…</span></div>
+    <p style="margin-bottom:0"><button type="button" class="btn ghost" id="pick-close">Close</button></p>
+  </dialog>
 </Admin>
 
 <script>
-  import { api, el, requireSession, toast, logout } from "../../../scripts/admin/api";
+  import { api, el, esc, requireSession, toast, logout } from "../../../scripts/admin/api";
+  import { confirmDialog } from "../../../scripts/admin/confirm";
+  import { renderArticle } from "../../../lib/markdown";
 
   const id = new URLSearchParams(location.search).get("id");
   el<HTMLHeadingElement>("#heading")!.textContent = id ? "Edit post" : "New post";
@@ -93,6 +123,7 @@ import Admin from "../../../layouts/Admin.astro";
     set("#slug", p.slug);
     set("#excerpt", p.excerpt);
     set("#content_md", p.content_md);
+    set("#lang", typeof p.lang === "string" && p.lang ? p.lang : "en");
     set("#featured_image_url", p.featured_image_url);
     set("#alt_text", p.alt_text);
     set("#seo_title", p.seo_title);
@@ -117,34 +148,46 @@ import Admin from "../../../layouts/Admin.astro";
     if (catSel && typeof p.category === "object" && p.category !== null && "slug" in p.category) {
       catSel.value = String((p.category as { slug: string }).slug);
     }
+    markSnapshot();
+    void renderPreview();
+  }
+
+  // ---- payload ------------------------------------------------------------
+  function currentBody(): Record<string, unknown> {
+    const val = (sel: string) => el<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>(sel)?.value.trim() ?? "";
+    const publishAt = val("#publish_at");
+    return {
+      title: val("#title"),
+      content_md: val("#content_md"),
+      // Clearable optionals send their RAW value — the backend maps "" to an
+      // explicit null, so emptying a field here clears it on the post
+      // (phase-3 review P2-5; `|| undefined` would silently keep old data).
+      excerpt: val("#excerpt"),
+      slug: val("#slug") || undefined, // blank → server derives from title
+      category: val("#category"),
+      tags: val("#tags") ? val("#tags").split(",").map((t) => t.trim()).filter(Boolean) : [],
+      lang: val("#lang") || undefined,
+      status: val("#status") || "draft",
+      // null clears the schedule — same explicit-clear semantics as ""
+      publish_at: publishAt ? new Date(publishAt).toISOString() : null,
+      featured_image_url: val("#featured_image_url"),
+      alt_text: val("#alt_text"),
+      seo_title: val("#seo_title"),
+      seo_description: val("#seo_description"),
+      canonical_url: val("#canonical_url"),
+      og_image_url: val("#og_image_url"),
+    };
   }
 
   el<HTMLFormElement>("#form")!.addEventListener("submit", async (ev) => {
     ev.preventDefault();
-    const val = (sel: string) => el<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>(sel)?.value.trim() ?? "";
-    const publishAt = val("#publish_at");
-    const body: Record<string, unknown> = {
-      title: val("#title"),
-      content_md: val("#content_md"),
-      excerpt: val("#excerpt") || undefined,
-      slug: val("#slug") || undefined,
-      category: val("#category") || undefined,
-      tags: val("#tags") ? val("#tags").split(",").map((t) => t.trim()).filter(Boolean) : [],
-      status: val("#status") || "draft",
-      publish_at: publishAt ? new Date(publishAt).toISOString() : undefined,
-      featured_image_url: val("#featured_image_url") || undefined,
-      alt_text: val("#alt_text") || undefined,
-      seo_title: val("#seo_title") || undefined,
-      seo_description: val("#seo_description") || undefined,
-      canonical_url: val("#canonical_url") || undefined,
-      og_image_url: val("#og_image_url") || undefined,
-    };
     const res = await api<{ data?: { id?: string } }>(`/api/v1/admin/posts${id ? `/${id}` : ""}`, {
       method: id ? "PUT" : "POST",
-      body: JSON.stringify(body),
+      body: JSON.stringify(currentBody()),
     });
     if (res.ok) {
       toast("Saved.");
+      markSnapshot();
       if (!id && res.body.data?.id) {
         location.href = `/admin/posts/edit?id=${res.body.data.id}`;
       }
@@ -157,6 +200,163 @@ import Admin from "../../../layouts/Admin.astro";
       toast(msg, true);
     }
   });
+
+  // ---- Markdown toolbar + sanitised preview -------------------------------
+  function mdEdit(kind: string): void {
+    const ta = el<HTMLTextAreaElement>("#content_md")!;
+    const s = ta.selectionStart;
+    const e = ta.selectionEnd;
+    const sel = ta.value.slice(s, e);
+    if (kind === "b") ta.setRangeText(`**${sel || "bold"}**`, s, e, "end");
+    else if (kind === "i") ta.setRangeText(`*${sel || "italic"}*`, s, e, "end");
+    else if (kind === "code") ta.setRangeText(`\`${sel || "code"}\``, s, e, "end");
+    else if (kind === "link") ta.setRangeText(`[${sel || "link text"}](https://vyotish.com/)`, s, e, "end");
+    else if (kind === "h2" || kind === "h3" || kind === "quote" || kind === "ul") {
+      const prefix = kind === "h2" ? "## " : kind === "h3" ? "### " : kind === "quote" ? "> " : "- ";
+      const lineStart = ta.value.lastIndexOf("\n", s - 1) + 1;
+      ta.setRangeText(prefix, lineStart, lineStart, "end");
+    }
+    ta.focus();
+    void renderPreview();
+  }
+  el<HTMLDivElement>("#md-tools")!.addEventListener("click", (ev) => {
+    const b = (ev.target as HTMLElement).closest("button[data-md]") as HTMLElement | null;
+    if (b) mdEdit(b.dataset.md ?? "");
+  });
+
+  let pvTimer: ReturnType<typeof setTimeout> | undefined;
+  async function renderPreview(): Promise<void> {
+    const md = el<HTMLTextAreaElement>("#content_md")!.value;
+    const box = el<HTMLDivElement>("#preview")!;
+    if (!md.trim()) {
+      box.innerHTML = '<span class="sub">Start typing to preview.</span>';
+      return;
+    }
+    try {
+      const { html } = await renderArticle(md);
+      box.innerHTML = html; // rehype-sanitised by the same pipeline as production
+    } catch {
+      box.innerHTML = '<span class="sub">Preview unavailable.</span>';
+    }
+  }
+  el<HTMLTextAreaElement>("#content_md")!.addEventListener("input", () => {
+    if (pvTimer !== undefined) clearTimeout(pvTimer);
+    pvTimer = setTimeout(() => void renderPreview(), 400);
+  });
+
+  // ---- autosave: 30s, existing drafts only, only when dirty ---------------
+  let snapshot = "";
+  let savedStatus = "";
+  let savedPublishAt = "";
+  const markSnapshot = (): void => {
+    snapshot = JSON.stringify(currentBody());
+    // Autosave must never carry status/schedule edits (phase-3 review P1-1):
+    // flipping a published post to "draft" in the UI and letting autosave
+    // PUT it would silently unpublish AND clear the schedule.
+    savedStatus = (el<HTMLSelectElement>("#status")!).value;
+    savedPublishAt = (el<HTMLInputElement>("#publish_at")!).value.trim();
+  };
+  const setAutosave = (msg: string, bad = false): void => {
+    const n = el<HTMLSpanElement>("#autosave-state")!;
+    n.textContent = msg;
+    n.className = bad ? "autosave err" : "autosave";
+  };
+  let autosaveBusy = false;
+  setInterval(async () => {
+    if (!id || autosaveBusy || snapshot === "") return;
+    // Status/schedule diverging from the saved values is a deliberate
+    // editorial decision — prompt an explicit Save instead of autosaving it.
+    const st = (el<HTMLSelectElement>("#status")!).value;
+    const pa = (el<HTMLInputElement>("#publish_at")!).value.trim();
+    if (st !== savedStatus || pa !== savedPublishAt) {
+      setAutosave("Status/schedule changed — press Save to apply");
+      return;
+    }
+    if (st !== "draft") return;
+    if (JSON.stringify(currentBody()) === snapshot) return;
+    autosaveBusy = true;
+    setAutosave("Autosaving…");
+    const res = await api(`/api/v1/admin/posts/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(currentBody()),
+    });
+    autosaveBusy = false;
+    if (res.ok) {
+      markSnapshot();
+      setAutosave(`Autosaved ${new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}`);
+    } else {
+      setAutosave("Autosave failed — save manually", true);
+    }
+  }, 30_000);
+
+  // ---- unsaved-changes guards (phase-3 review P1-3) ------------------------
+  const dirty = (): boolean => snapshot !== "" && JSON.stringify(currentBody()) !== snapshot;
+  let leaveConfirmed = false;
+  window.addEventListener("beforeunload", (ev) => {
+    if (leaveConfirmed || !dirty()) return;
+    ev.preventDefault();
+    ev.returnValue = ""; // Chrome requires the legacy attribute
+  });
+  // In-panel links (sidebar, Back) bypass beforeunload's visible prompt on
+  // some flows — intercept and confirm through the shared dialog instead.
+  document.addEventListener("click", (ev) => {
+    if (!dirty() || ev.defaultPrevented) return;
+    const a = (ev.target as HTMLElement).closest('a[href^="/"]') as HTMLAnchorElement | null;
+    if (!a || a.target === "_blank") return;
+    ev.preventDefault();
+    void confirmDialog({
+      title: "Unsaved changes",
+      message: "You have unsaved changes. Leave this editor without saving?",
+      confirmText: "Leave without saving",
+      danger: true,
+    }).then((go) => {
+      if (go) {
+        leaveConfirmed = true;
+        location.href = a.href;
+      }
+    });
+  });
+
+  // ---- featured-image picker (media library) ------------------------------
+  let pickLoaded = false;
+  el<HTMLButtonElement>("#pick-open")!.addEventListener("click", () => {
+    (el<HTMLDialogElement>("#pick-dlg")!).showModal();
+    if (pickLoaded) return;
+    void (async () => {
+      const res = await api<{ data?: { items?: Array<{ url?: string; path?: string; alt?: string }> } }>(
+        "/api/v1/admin/media",
+      );
+      const grid = el<HTMLDivElement>("#pick-grid")!;
+      const items = res.ok ? (res.body.data?.items ?? []) : [];
+      if (!res.ok || items.length === 0) {
+        grid.innerHTML = `<span class="sub">${res.ok ? "No media yet — upload some first." : esc(res.body.error?.message ?? "Loading failed")}</span>`;
+        pickLoaded = res.ok; // a real empty library won't change; errors retry
+        return;
+      }
+      grid.innerHTML = items
+        .map(
+          (m) => `<button type="button" class="pick-item" data-url="${esc(m.url)}" data-alt="${esc(m.alt)}">
+            <img src="${esc(m.url)}" alt="" loading="lazy" />
+            <span class="pick-path">${esc(m.path)}</span>
+          </button>`,
+        )
+        .join("");
+      pickLoaded = true;
+    })();
+  });
+  el<HTMLDivElement>("#pick-grid")!.addEventListener("click", (ev) => {
+    const item = (ev.target as HTMLElement).closest("button.pick-item") as HTMLElement | null;
+    if (!item) return;
+    (el<HTMLInputElement>("#featured_image_url")!).value = item.dataset.url ?? "";
+    const alt = el<HTMLInputElement>("#alt_text")!;
+    if (!alt.value.trim()) alt.value = item.dataset.alt ?? "";
+    (el<HTMLDialogElement>("#pick-dlg")!).close();
+    toast("Featured image set.");
+  });
+  el<HTMLButtonElement>("#pick-close")!.addEventListener("click", () =>
+    (el<HTMLDialogElement>("#pick-dlg")!).close(),
+  );
+
   document.getElementById("admin-logout")?.addEventListener("click", () => logout());
   if (await requireSession()) await load();
 </script>
