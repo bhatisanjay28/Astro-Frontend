@@ -26,7 +26,7 @@ import Admin from "../../layouts/Admin.astro";
   </div>
   <h2>Audience</h2>
   <div class="grid2">
-    <a class="card link" href="/admin/settings"><h2>Confirmed subscribers</h2><p class="stat" id="s-subs">…</p><span class="hint" id="h-subs"></span></a>
+    <a class="card link" href="/admin/subscribers"><h2>Active subscribers</h2><p class="stat" id="s-subs">…</p><span class="hint" id="h-subs"></span></a>
     <a class="card link" href="/admin/audit"><h2>Audit trail</h2><p class="stat stat-plain">every admin action is logged</p><span class="hint">who changed what, and when</span></a>
   </div>
 
@@ -63,7 +63,7 @@ import Admin from "../../layouts/Admin.astro";
     astrologers: { active: number; inactive: number };
     pujas: { active: number };
     inbox: { new: number; older_24h: number; scheduled_today: number; closed_7d: number };
-    subscribers: { confirmed: number; unsubscribed: number };
+    subscribers: { confirmed: number; unsubscribed: number; active: number };
     media: { count: number };
   }
 
@@ -98,12 +98,17 @@ import Admin from "../../layouts/Admin.astro";
       "#h-today",
       s.inbox.closed_7d === 0 ? "no closures this week" : `${s.inbox.closed_7d} closed in 7 days`,
     );
-    set("#s-subs", String(s.subscribers.confirmed));
+    // phase-4 [R5]: the card counts ACTIVE (still subscribed) subscribers,
+    // not confirmed-but-unsubscribed ones
+    set("#s-subs", String(s.subscribers.active));
     setHint(
       "#h-subs",
-      s.subscribers.unsubscribed === 0
-        ? "no unsubscribes"
-        : `${s.subscribers.unsubscribed} unsubscribed`,
+      [
+        s.subscribers.confirmed === 0
+          ? "none confirmed yet"
+          : `${s.subscribers.confirmed} confirmed`,
+        s.subscribers.unsubscribed === 0 ? "no unsubscribes" : `${s.subscribers.unsubscribed} unsubscribed`,
+      ].join(" · "),
     );
   }
 

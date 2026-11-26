@@ -1,18 +1,27 @@
 ---
-/** /admin/horoscopes — horoscope content library (Epic 6.4). Filter, then
- * edit a row's five text sections + status inline. */
+/** /admin/horoscopes — horoscope content library (Epic 6.4, phase-4 §10).
+ * Sign/period/status/lang filters + pagination; the editor opens from the
+ * rows already on screen (no extra fetch); creation takes the language too
+ * (409 handles duplicates); rows can be deleted outright by holders of
+ * horoscope.delete (the generator/cron is the primary writer — this is the
+ * manual override). */
 import Admin from "../../layouts/Admin.astro";
 ---
 
 <Admin title="Horoscope content | Vyotish Admin" active="horoscopes">
   <h1>Horoscope content</h1>
-  <form id="filters" style="display:flex; gap:8px; margin: 0 0 14px;">
-    <select id="f-sign" style="max-width:150px"><option value="">All signs</option></select>
-    <select id="f-period" style="max-width:150px"><option value="">All periods</option></select>
-    <select id="f-status" style="max-width:130px">
+  <form id="filters" class="toolbar">
+    <select id="f-sign" aria-label="Filter by sign"><option value="">All signs</option></select>
+    <select id="f-period" aria-label="Filter by period"><option value="">All periods</option></select>
+    <select id="f-status" aria-label="Filter by status">
       <option value="">All statuses</option>
       <option value="published">Published</option>
       <option value="draft">Draft</option>
+    </select>
+    <select id="f-lang" aria-label="Filter by language">
+      <option value="">All languages</option>
+      <option value="en">en</option>
+      <option value="hi">hi</option>
     </select>
     <button class="btn ghost" type="submit">Filter</button>
     <button class="btn" type="button" id="new">+ New row</button>
@@ -21,6 +30,11 @@ import Admin from "../../layouts/Admin.astro";
     <thead><tr><th>Sign</th><th>Period</th><th>Lang</th><th>Status</th><th>Updated</th><th></th></tr></thead>
     <tbody id="rows"><tr><td colspan="6" class="empty">Loading…</td></tr></tbody>
   </table>
+  <div class="pager">
+    <button type="button" id="prev" class="btn ghost">‹ Prev</button>
+    <span id="pageinfo">page 1</span>
+    <button type="button" id="next" class="btn ghost">Next ›</button>
+  </div>
 
   <dialog id="editor" style="background:#1d1710; color:#ece5d8; border:1px solid #3a2f1f; border-radius:14px; padding:22px; max-width:720px; width:92vw">
     <h2 id="ed-title" style="margin-top:0">Edit row</h2>
@@ -42,6 +56,23 @@ import Admin from "../../layouts/Admin.astro";
       <button class="btn ghost" type="button" id="ed-close">Close</button>
     </p>
   </dialog>
+
+  <dialog id="create" style="background:#1d1710; color:#ece5d8; border:1px solid #3a2f1f; border-radius:14px; padding:22px; max-width:420px; width:92vw">
+    <h2 style="margin-top:0">New row</h2>
+    <label for="c-sign">Sign</label>
+    <select id="c-sign"></select>
+    <label for="c-period">Period</label>
+    <select id="c-period"></select>
+    <label for="c-lang">Language</label>
+    <select id="c-lang"><option value="en">en</option><option value="hi">hi</option></select>
+    <label for="c-date">Date key (blank = rolling)</label>
+    <input id="c-date" placeholder="rolling" />
+    <p id="c-err" class="sub" hidden></p>
+    <p style="display:flex; gap:10px; margin-top:16px">
+      <button class="btn" type="button" id="c-save">Create</button>
+      <button class="btn ghost" type="button" id="c-close">Close</button>
+    </p>
+  </dialog>
 </Admin>
 
 <style is:global>
@@ -50,40 +81,85 @@ import Admin from "../../layouts/Admin.astro";
 
 <script>
   import { api, el, esc, fmtDate, renderRows, requireSession, toast, logout } from "../../scripts/admin/api";
+  import { confirmDialog } from "../../scripts/admin/confirm";
+
+  interface HRow {
+    id: string;
+    sign: string;
+    period: string;
+    date_key: string | null;
+    lang: string;
+    status: string;
+    updated_at: string | null;
+    overview?: string;
+    love?: string;
+    career?: string;
+    finance?: string;
+    health?: string;
+  }
 
   const SIGNS = ["aries","taurus","gemini","cancer","leo","virgo","libra","scorpio","sagittarius","capricorn","aquarius","pisces"];
   const PERIODS = ["yesterday","daily","tomorrow","weekly","monthly","yearly"];
-  for (const [sel, list] of [["#f-sign", SIGNS], ["#f-period", PERIODS]] as const) {
+  for (const [sel, list] of [
+    ["#f-sign", SIGNS],
+    ["#f-period", PERIODS],
+    ["#c-sign", SIGNS],
+    ["#c-period", PERIODS],
+  ] as const) {
     const s = el<HTMLSelectElement>(sel);
     if (s) for (const v of list) s.appendChild(new Option(v, v));
   }
 
-  let current: Record<string, unknown> | null = null;
+  const w = window as unknown as { __vyotishAdmin?: { capabilities: string[] } };
+  const canDelete = (): boolean =>
+    (w.__vyotishAdmin?.capabilities ?? []).includes("horoscope.delete");
 
-  const row = (h: Record<string, unknown>) => `<tr>
+  let rows: HRow[] = [];
+  let page = 1;
+  let total = 0;
+  const perPage = 25;
+  let current: HRow | null = null;
+
+  const row = (h: HRow) => `<tr>
     <td>${esc(h.sign)}</td><td>${esc(h.period)}</td><td>${esc(h.lang)}</td>
     <td>${h.status === "published" ? '<span class="pill pub">published</span>' : '<span class="pill dr">draft</span>'}</td>
     <td>${fmtDate(h.updated_at)}</td>
-    <td><button class="btn ghost" data-edit="${h.id}">Edit</button></td>
+    <td><span class="row-actions">
+      <button class="btn ghost" data-edit="${esc(h.id)}">Edit</button>
+      ${canDelete() ? `<button class="btn danger" data-del="${esc(h.id)}">Delete</button>` : ""}
+    </span></td>
   </tr>`;
 
   async function load(): Promise<void> {
-    const qs = new URLSearchParams({ per_page: "50" });
+    const qs = new URLSearchParams({ page: String(page), per_page: String(perPage) });
     const sign = el<HTMLSelectElement>("#f-sign")?.value ?? "";
     const period = el<HTMLSelectElement>("#f-period")?.value ?? "";
     const status = el<HTMLSelectElement>("#f-status")?.value ?? "";
+    const lang = el<HTMLSelectElement>("#f-lang")?.value ?? "";
     if (sign) qs.set("sign", sign);
     if (period) qs.set("period", period);
     if (status) qs.set("status", status);
-    const res = await api<{ data?: { horoscopes?: Array<Record<string, unknown>> } }>(`/api/v1/admin/horoscopes?${qs.toString()}`);
-    if (res.ok) renderRows("#rows", res.body.data?.horoscopes, row, "No rows — create one for a sign+period+lang combo.");
-    else toast(res.body.error?.message ?? "Loading failed", true);
+    if (lang) qs.set("lang", lang);
+    const res = await api<{ data?: { horoscopes?: HRow[] }; meta?: { total: number } }>(
+      `/api/v1/admin/horoscopes?${qs.toString()}`,
+    );
+    if (!res.ok) {
+      toast(res.body.error?.message ?? "Loading failed", true);
+      return;
+    }
+    rows = res.body.data?.horoscopes ?? [];
+    total = res.body.meta?.total ?? 0;
+    renderRows("#rows", rows, row, "No rows match — create one for a sign+period+lang combo.");
+    const pages = Math.max(1, Math.ceil(total / perPage));
+    el<HTMLSpanElement>("#pageinfo")!.textContent = `page ${page} of ${pages} · ${total} rows`;
+    (el<HTMLButtonElement>("#prev") as HTMLButtonElement).disabled = page <= 1;
+    (el<HTMLButtonElement>("#next") as HTMLButtonElement).disabled = page >= pages;
   }
 
-  function openEditor(h: Record<string, unknown>): void {
+  function openEditor(h: HRow): void {
     current = h;
-    el<HTMLParagraphElement>("#ed-meta")!.textContent = `${h.sign} · ${h.period} · ${h.date_key} · ${h.lang}`;
-    for (const s of ["overview", "love", "career", "finance", "health"]) {
+    el<HTMLParagraphElement>("#ed-meta")!.textContent = `${h.sign} · ${h.period} · ${h.date_key ?? ""} · ${h.lang}`;
+    for (const s of ["overview", "love", "career", "finance", "health"] as const) {
       const n = el<HTMLTextAreaElement>(`#ed-${s}`);
       if (n) n.value = typeof h[s] === "string" ? (h[s] as string) : "";
     }
@@ -92,28 +168,83 @@ import Admin from "../../layouts/Admin.astro";
     (el<HTMLDialogElement>("#editor")!).showModal();
   }
 
-  el<HTMLSelectElement>("#f-sign")?.closest("form")?.addEventListener("submit", (ev) => {
+  el<HTMLFormElement>("#filters")?.addEventListener("submit", (ev) => {
     ev.preventDefault();
+    page = 1;
     void load();
   });
-  el<HTMLButtonElement>("#new")?.addEventListener("click", () => {
-    const sign = el<HTMLSelectElement>("#f-sign")?.value || "aries";
-    const period = el<HTMLSelectElement>("#f-period")?.value || "daily";
-    void api("/api/v1/admin/horoscopes", { method: "POST", body: JSON.stringify({ sign, period, status: "draft" }) }).then(async (res) => {
-      toast(res.ok ? "Row created." : res.body.error?.message ?? "Create failed", !res.ok);
-      await load();
-    });
+  el<HTMLButtonElement>("#prev")?.addEventListener("click", () => {
+    if (page > 1) {
+      page -= 1;
+      void load();
+    }
   });
-  document.addEventListener("click", (ev) => {
-    const btn = (ev.target as HTMLElement).closest("button[data-edit]") as HTMLElement | null;
-    if (!btn) return;
-    const id = btn.dataset.edit ?? "";
-    void api<{ data?: { horoscopes?: Array<Record<string, unknown>> } }>("/api/v1/admin/horoscopes?per_page=100").then((list) => {
-      const rows = list.ok ? (list.body.data?.horoscopes ?? []) : [];
+  el<HTMLButtonElement>("#next")?.addEventListener("click", () => {
+    if (page * perPage < total) {
+      page += 1;
+      void load();
+    }
+  });
+
+  el<HTMLButtonElement>("#new")?.addEventListener("click", () => {
+    const cs = el<HTMLSelectElement>("#c-sign");
+    const cp = el<HTMLSelectElement>("#c-period");
+    if (cs) cs.value = el<HTMLSelectElement>("#f-sign")?.value || "aries";
+    if (cp) cp.value = el<HTMLSelectElement>("#f-period")?.value || "daily";
+    el<HTMLInputElement>("#c-date")!.value = "";
+    el<HTMLParagraphElement>("#c-err")!.hidden = true;
+    (el<HTMLDialogElement>("#create")!).showModal();
+  });
+  el<HTMLButtonElement>("#c-close")?.addEventListener("click", () => (el<HTMLDialogElement>("#create")!).close());
+  el<HTMLButtonElement>("#c-save")?.addEventListener("click", async () => {
+    const dateKey = el<HTMLInputElement>("#c-date")!.value.trim();
+    const body: Record<string, unknown> = {
+      sign: el<HTMLSelectElement>("#c-sign")!.value,
+      period: el<HTMLSelectElement>("#c-period")!.value,
+      lang: el<HTMLSelectElement>("#c-lang")!.value,
+      status: "draft",
+    };
+    if (dateKey) body.date_key = dateKey;
+    const res = await api("/api/v1/admin/horoscopes", { method: "POST", body: JSON.stringify(body) });
+    if (!res.ok) {
+      const err = el<HTMLParagraphElement>("#c-err")!;
+      err.hidden = false;
+      err.textContent = res.body.error?.message ?? "Create failed";
+      return;
+    }
+    (el<HTMLDialogElement>("#create")!).close();
+    toast("Row created (draft).");
+    await load();
+  });
+
+  document.addEventListener("click", async (ev) => {
+    const t = ev.target as HTMLElement;
+    const editBtn = t.closest("button[data-edit]") as HTMLElement | null;
+    if (editBtn) {
+      const id = editBtn.dataset.edit ?? "";
       const h = rows.find((r) => r.id === id);
       if (h) openEditor(h);
-    });
+      return;
+    }
+    const delBtn = t.closest("button[data-del]") as HTMLElement | null;
+    if (delBtn) {
+      const id = delBtn.dataset.del ?? "";
+      const h = rows.find((r) => r.id === id);
+      if (!h) return;
+      const ok = await confirmDialog({
+        title: "Delete horoscope row",
+        message: `Delete the ${h.lang} ${h.period} row for ${h.sign} (${h.date_key ?? "rolling"})? This removes it from the library immediately.`,
+        confirmText: "Delete",
+        danger: true,
+        requireText: h.sign,
+      });
+      if (!ok) return;
+      const res = await api(`/api/v1/admin/horoscopes/${encodeURIComponent(id)}`, { method: "DELETE" });
+      toast(res.ok ? "Row deleted." : res.body.error?.message ?? "Delete failed", !res.ok);
+      if (res.ok) await load();
+    }
   });
+
   el<HTMLButtonElement>("#ed-close")?.addEventListener("click", () => (el<HTMLDialogElement>("#editor")!).close());
   el<HTMLButtonElement>("#ed-save")?.addEventListener("click", async () => {
     if (!current) return;

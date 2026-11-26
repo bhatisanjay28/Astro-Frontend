@@ -1,0 +1,218 @@
+---
+/** /admin/subscribers — newsletter subscribers (admin phase 4, story §8).
+ * Search + status filter + pagination over GET /admin/subscribers; row
+ * actions are affordance-gated (unsubscribe/resubscribe/confirm need
+ * newsletter.write, the typed-confirm delete needs newsletter.delete) and
+ * the CSV export — which the server audits and caps at 10k rows — needs
+ * newsletter.export. The X-Export-Capped response header is surfaced as a
+ * toast so a capped file never passes for the full list. */
+import Admin from "../../layouts/Admin.astro";
+---
+
+<Admin title="Subscribers | Vyotish Admin" active="subscribers">
+  <h1>Newsletter subscribers</h1>
+  <div class="toolbar">
+    <input id="f-q" type="search" placeholder="Search email…" aria-label="Search subscribers by email" />
+    <select id="f-status" aria-label="Filter by status">
+      <option value="all">All statuses</option>
+      <option value="active">Active</option>
+      <option value="confirmed">Confirmed</option>
+      <option value="unsubscribed">Unsubscribed</option>
+    </select>
+    <button type="button" id="reload" class="btn ghost">Apply</button>
+    <span style="flex: 1"></span>
+    <button type="button" id="export" class="btn ghost" hidden>Export CSV</button>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>Email</th>
+        <th>Status</th>
+        <th>Source</th>
+        <th>Subscribed</th>
+        <th>Confirmed</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody id="rows"></tbody>
+  </table>
+  <div class="pager">
+    <button type="button" id="prev" class="btn ghost">‹ Prev</button>
+    <span id="pageinfo">page 1</span>
+    <button type="button" id="next" class="btn ghost">Next ›</button>
+  </div>
+</Admin>
+
+<style is:global>
+  .pill.ok { color: #8fc98f; border-color: #2f5a2f; }
+</style>
+
+<script>
+  import { api, el, esc, fmtDate, renderRows, requireSession, toast, logout } from "../../scripts/admin/api";
+  import { confirmDialog } from "../../scripts/admin/confirm";
+
+  interface Sub {
+    id: string;
+    email: string;
+    confirmed_at: string | null;
+    unsubscribed_at: string | null;
+    source: string | null;
+    created_at: string | null;
+  }
+
+  const w = window as unknown as { __vyotishAdmin?: { capabilities: string[] } };
+  const caps = (): string[] => w.__vyotishAdmin?.capabilities ?? [];
+  const canWrite = (): boolean => caps().includes("newsletter.write");
+  const canDelete = (): boolean => caps().includes("newsletter.delete");
+  const canExport = (): boolean => caps().includes("newsletter.export");
+
+  let rows: Sub[] = [];
+  let page = 1;
+  let total = 0;
+  const perPage = 25;
+
+  function statusOf(r: Sub): { label: string; cls: string } {
+    if (r.unsubscribed_at) return { label: "Unsubscribed", cls: "pill trash" };
+    if (r.confirmed_at) return { label: "Active", cls: "pill ok" };
+    return { label: "Pending", cls: "pill dr" };
+  }
+
+  function rowHtml(r: Sub): string {
+    const st = statusOf(r);
+    const acts: string[] = [];
+    if (canWrite()) {
+      if (r.unsubscribed_at) {
+        acts.push(`<button type="button" class="btn ghost" data-resub="${esc(r.id)}">Resubscribe</button>`);
+        if (!r.confirmed_at) acts.push(`<button type="button" class="btn ghost" data-confirm="${esc(r.id)}">Confirm</button>`);
+      } else {
+        acts.push(`<button type="button" class="btn ghost" data-unsub="${esc(r.id)}">Unsubscribe</button>`);
+      }
+    }
+    if (canDelete()) acts.push(`<button type="button" class="btn danger" data-del="${esc(r.id)}">Delete</button>`);
+    return `<tr>
+      <td>${esc(r.email)}</td>
+      <td><span class="${st.cls}">${st.label}</span></td>
+      <td>${esc(r.source ?? "—")}</td>
+      <td>${fmtDate(r.created_at)}</td>
+      <td>${r.confirmed_at ? fmtDate(r.confirmed_at) : "—"}</td>
+      <td><span class="row-actions">${acts.join("")}</span></td>
+    </tr>`;
+  }
+
+  async function load(): Promise<void> {
+    const q = el<HTMLInputElement>("#f-q")!.value.trim();
+    const status = el<HTMLSelectElement>("#f-status")!.value;
+    const params = new URLSearchParams({ page: String(page), per_page: String(perPage), status });
+    if (q) params.set("q", q);
+    const res = await api<{ data?: { subscribers: Sub[] }; meta?: { total: number } }>(
+      `/api/v1/admin/subscribers?${params.toString()}`,
+    );
+    if (!res.ok) {
+      toast(res.body.error?.message ?? "Could not load subscribers.", true);
+      return;
+    }
+    rows = res.body.data?.subscribers ?? [];
+    total = res.body.meta?.total ?? 0;
+    renderRows("#rows", rows, rowHtml, "No subscribers match — the list is empty.");
+    const pages = Math.max(1, Math.ceil(total / perPage));
+    el<HTMLSpanElement>("#pageinfo")!.textContent = `page ${page} of ${pages} · ${total} subscriber${total === 1 ? "" : "s"}`;
+    (el<HTMLButtonElement>("#prev") as HTMLButtonElement).disabled = page <= 1;
+    (el<HTMLButtonElement>("#next") as HTMLButtonElement).disabled = page >= pages;
+  }
+
+  async function patch(id: string, body: Record<string, boolean>, okMsg: string): Promise<void> {
+    const res = await api(`/api/v1/admin/subscribers/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      toast(res.body.error?.message ?? "Update failed.", true);
+      return;
+    }
+    toast(okMsg);
+    await load();
+  }
+
+  el<HTMLDivElement>("#rows")!.addEventListener("click", async (ev) => {
+    const btn = (ev.target as HTMLElement).closest("button") as HTMLElement | null;
+    if (!btn) return;
+    const ds = btn.dataset;
+    if (ds.unsub) await patch(ds.unsub, { unsubscribed: true }, "Marked unsubscribed.");
+    else if (ds.resub) await patch(ds.resub, { unsubscribed: false }, "Resubscribed.");
+    else if (ds.confirm) await patch(ds.confirm, { confirmed: true }, "Marked confirmed.");
+    else if (ds.del) {
+      const sub = rows.find((r) => r.id === ds.del);
+      if (!sub) return;
+      const ok = await confirmDialog({
+        title: "Delete subscriber",
+        message:
+          "This permanently erases the address (DPDP erase — the audit log keeps only a hash). This cannot be undone.",
+        confirmText: "Delete forever",
+        danger: true,
+        requireText: sub.email,
+      });
+      if (!ok) return;
+      const res = await api(`/api/v1/admin/subscribers/${encodeURIComponent(sub.id)}`, { method: "DELETE" });
+      if (!res.ok) {
+        toast(res.body.error?.message ?? "Delete failed.", true);
+        return;
+      }
+      toast("Subscriber deleted.");
+      await load();
+    }
+  });
+
+  el<HTMLButtonElement>("#reload")!.addEventListener("click", () => {
+    page = 1;
+    void load();
+  });
+  el<HTMLInputElement>("#f-q")!.addEventListener("keydown", (ev) => {
+    if ((ev as KeyboardEvent).key === "Enter") {
+      page = 1;
+      void load();
+    }
+  });
+  el<HTMLSelectElement>("#f-status")!.addEventListener("change", () => {
+    page = 1;
+    void load();
+  });
+  el<HTMLButtonElement>("#prev")!.addEventListener("click", () => {
+    if (page > 1) {
+      page -= 1;
+      void load();
+    }
+  });
+  el<HTMLButtonElement>("#next")!.addEventListener("click", () => {
+    if (page * perPage < total) {
+      page += 1;
+      void load();
+    }
+  });
+
+  // CSV export — fetched (not a plain link) so the X-Export-Capped header can
+  // be surfaced; every export is server-audited regardless.
+  el<HTMLButtonElement>("#export")!.addEventListener("click", async () => {
+    const res = await fetch("/api/v1/admin/newsletter/export");
+    if (!res.ok) {
+      toast("Export failed.", true);
+      return;
+    }
+    if (res.headers.get("X-Export-Capped") === "true") {
+      toast("Heads-up: the export hit the 10,000-row cap — it is NOT the complete list.", true);
+    }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `vyotish-newsletter-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast("Export downloaded.");
+  });
+
+  document.getElementById("admin-logout")?.addEventListener("click", () => logout());
+  if (await requireSession()) {
+    el<HTMLButtonElement>("#export")!.hidden = !canExport();
+    await load();
+  }
+</script>

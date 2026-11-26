@@ -1,0 +1,268 @@
+---
+/** /admin/nav — structured navigation editor (admin phase 4, story §9).
+ * Edits the public.nav_config setting as the frontend NavTab shape 1:1
+ * (data/navigation.ts is the type source and the checked-in fallback when
+ * the DB has no saved config yet). The server mirrors the same validation,
+ * rejects unknown fields, and pings the Pages deploy hook on change — the
+ * header picks edits up ~40 s after a save. Structure ops (add/remove/
+ * reorder tabs, groups, links) re-render the tree; text edits mutate the
+ * state in place via data-path attributes so typing never loses focus. */
+import Admin from "../../layouts/Admin.astro";
+---
+
+<Admin title="Navigation | Vyotish Admin" active="nav">
+  <h1>Navigation</h1>
+  <div id="banner" class="card" hidden></div>
+  <div id="err" class="card" hidden></div>
+  <div id="editor"></div>
+  <div class="bulkbar" hidden id="savebar">
+    <button type="button" class="btn" id="save">Save navigation</button>
+    <button type="button" class="btn ghost" id="reload">Discard edits</button>
+    <span class="sub" id="save-note">unsaved changes appear here</span>
+  </div>
+</Admin>
+
+<style is:global>
+  .navtab { background: var(--a-panel); border: 1px solid var(--a-border); border-radius: 10px; padding: 12px 16px 14px; margin: 0 0 14px; }
+  .navtab-head { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+  .navtab-head strong { color: var(--a-gold); }
+  .navtab-head .href { color: var(--a-dim); font-size: 12px; }
+  .navtab-head button { margin-left: 0; }
+  .navtab-head .grow { flex: 1; }
+  .grp { border: 1px dashed var(--a-border); border-radius: 8px; padding: 10px 12px; margin: 10px 0; }
+  .grp h3 { margin: 0 0 6px; font-size: 13px; color: var(--a-text); }
+  .linkrow { display: grid; grid-template-columns: 1.2fr 1.4fr 1.6fr 0.8fr auto; gap: 6px; align-items: center; margin: 6px 0; }
+  .linkrow input { min-width: 0; }
+  .minibtns { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+  .grpcols { display: flex; gap: 12px; align-items: end; }
+  .grpcols label { margin: 0; flex: 1; }
+  .grpcols label.num { flex: 0 0 90px; }
+</style>
+
+<script>
+  import { api, el, esc, requireSession, toast, logout } from "../../scripts/admin/api";
+  import { NAV_TABS } from "../../data/navigation";
+  import type { MenuGroup, MenuLink, NavTab } from "../../data/navigation";
+
+  let tabs: NavTab[] = [];
+  let savedJson = "";
+
+  function clone(v: unknown): NavTab[] {
+    return JSON.parse(JSON.stringify(v)) as NavTab[];
+  }
+
+  /** deep value write by dotted path — numeric segments index arrays */
+  function setPath(path: string, value: unknown): void {
+    const parts = path.split(".");
+    let cur = tabs as unknown as Record<string, unknown>;
+    for (let i = 0; i < parts.length - 1; i += 1) {
+      const seg = parts[i] as string;
+      const next: unknown = Array.isArray(cur) ? cur[Number(seg)] : cur[seg];
+      cur = next as Record<string, unknown>;
+    }
+    const last = parts[parts.length - 1] as string;
+    if (Array.isArray(cur)) cur[Number(last)] = value;
+    else cur[last] = value;
+  }
+
+  // --- renderers -------------------------------------------------------------
+
+  function linkRow(t: number, g: number, l: number, link: MenuLink): string {
+    return `<div class="linkrow">
+      <input data-path="${t}.menu.${g}.links.${l}.label" value="${esc(link.label ?? "")}" placeholder="Label" aria-label="Link label" />
+      <input data-path="${t}.menu.${g}.links.${l}.href" value="${esc(link.href ?? "")}" placeholder="/path" aria-label="Link href" />
+      <input data-path="${t}.menu.${g}.links.${l}.desc" value="${esc(link.desc ?? "")}" placeholder="One-line description (optional)" aria-label="Link description" />
+      <input data-path="${t}.menu.${g}.links.${l}.hi" value="${esc(link.hi ?? "")}" placeholder="हिन्दी (optional)" aria-label="Link Hindi label" />
+      <button type="button" class="btn danger" data-op="del-link" data-t="${t}" data-g="${g}" data-l="${l}" aria-label="Remove link">✕</button>
+    </div>`;
+  }
+
+  function groupCard(t: number, g: number, grp: MenuGroup): string {
+    const links = (grp.links ?? []).map((l, li) => linkRow(t, g, li, l)).join("");
+    return `<div class="grp">
+      <h3>Group ${g + 1}</h3>
+      <div class="grpcols">
+        <label>Column title <input data-path="${t}.menu.${g}.title" value="${esc(grp.title ?? "")}" placeholder="(optional)" /></label>
+        <label class="num">Columns <input type="number" min="1" max="12" data-path="${t}.menu.${g}.cols" value="${grp.cols ?? 1}" /></label>
+      </div>
+      ${links}
+      <div class="minibtns">
+        <button type="button" class="btn ghost" data-op="add-link" data-t="${t}" data-g="${g}">+ Link</button>
+        <button type="button" class="btn danger" data-op="del-group" data-t="${t}" data-g="${g}">Remove group</button>
+        <button type="button" class="btn ghost" data-op="up-group" data-t="${t}" data-g="${g}">↑</button>
+        <button type="button" class="btn ghost" data-op="down-group" data-t="${t}" data-g="${g}">↓</button>
+      </div>
+    </div>`;
+  }
+
+  function tabCard(t: number, tab: NavTab): string {
+    const menu = tab.menu ?? [];
+    const groups = menu.map((g, gi) => groupCard(t, gi, g)).join("");
+    return `<section class="navtab">
+      <div class="navtab-head">
+        <button type="button" class="btn ghost" data-op="up-tab" data-t="${t}" aria-label="Move up">↑</button>
+        <button type="button" class="btn ghost" data-op="down-tab" data-t="${t}" aria-label="Move down">↓</button>
+        <strong>${esc(tab.label)}</strong>
+        <span class="href">${esc(tab.href)}</span>
+        <span class="grow"></span>
+        <button type="button" class="btn danger" data-op="del-tab" data-t="${t}">Remove tab</button>
+      </div>
+      <div class="grid2">
+        <label>Label <input data-path="${t}.label" value="${esc(tab.label ?? "")}" /></label>
+        <label>Label (हिन्दी) <input data-path="${t}.label_hi" value="${esc(tab.label_hi ?? "")}" /></label>
+        <label>Href <input data-path="${t}.href" value="${esc(tab.href ?? "")}" placeholder="/path" /></label>
+        <label>Icon (Material Symbols name) <input data-path="${t}.icon" value="${esc(tab.icon ?? "")}" /></label>
+      </div>
+      <label>Description <input data-path="${t}.description" value="${esc(tab.description ?? "")}" /></label>
+      <div class="minibtns">
+        ${tab.menu
+          ? `<button type="button" class="btn ghost" data-op="add-group" data-t="${t}">+ Menu group</button>
+             <button type="button" class="btn danger" data-op="drop-menu" data-t="${t}">Remove mega menu</button>`
+          : `<button type="button" class="btn ghost" data-op="add-menu" data-t="${t}">+ Add mega menu</button>`}
+      </div>
+      ${tab.menu ? groups : `<p class="sub">No mega menu — this tab renders as a plain link.</p>`}
+    </section>`;
+  }
+
+  function render(): void {
+    el<HTMLDivElement>("#editor")!.innerHTML =
+      tabs.map((t, i) => tabCard(i, t)).join("") +
+      `<button type="button" class="btn ghost" id="add-tab">+ Add tab</button>`;
+    const dirty = JSON.stringify(tabs) !== savedJson;
+    el<HTMLDivElement>("#savebar")!.hidden = !dirty;
+  }
+
+  function refreshNote(): void {
+    const dirty = JSON.stringify(tabs) !== savedJson;
+    el<HTMLSpanElement>("#save-note")!.textContent = dirty
+      ? "unsaved changes — Save writes the whole tab set"
+      : "matches the saved navigation";
+  }
+
+  // --- text edits mutate state in place (no re-render, keeps focus) ----------
+  el<HTMLDivElement>("#editor")!.addEventListener("input", (ev) => {
+    const n = ev.target as HTMLInputElement;
+    const path = n.dataset.path;
+    if (!path) return;
+    let v: unknown = n.value;
+    if (n.type === "number") {
+      const num = Number(n.value);
+      if (!Number.isNaN(num)) v = Math.trunc(num);
+    }
+    setPath(path, v);
+    refreshNote();
+  });
+
+  // --- structural ops re-render ----------------------------------------------
+  el<HTMLDivElement>("#editor")!.addEventListener("click", (ev) => {
+    const btn = (ev.target as HTMLElement).closest("button[data-op]") as HTMLElement | null;
+    if (!btn) return;
+    const op = btn.dataset.op ?? "";
+    const t = Number(btn.dataset.t ?? "-1");
+    const g = Number(btn.dataset.g ?? "-1");
+    const l = Number(btn.dataset.l ?? "-1");
+    const tab = tabs[t];
+    if (!tab) return;
+    if (op === "add-menu") tab.menu = [{ title: "", links: [{ label: "", href: "/" }] }];
+    else if (op === "drop-menu") delete tab.menu;
+    else if (op === "add-group") tab.menu?.push({ title: "", links: [{ label: "", href: "/" }] });
+    else if (op === "del-group") tab.menu?.splice(g, 1);
+    else if (op === "up-group" && tab.menu && g > 0) {
+      const [x] = tab.menu.splice(g, 1);
+      tab.menu.splice(g - 1, 0, x as MenuGroup);
+    } else if (op === "down-group" && tab.menu && g < tab.menu.length - 1) {
+      const [x] = tab.menu.splice(g, 1);
+      tab.menu.splice(g + 1, 0, x as MenuGroup);
+    } else if (op === "add-link") tab.menu?.[g]?.links.push({ label: "", href: "/" });
+    else if (op === "del-link") tab.menu?.[g]?.links.splice(l, 1);
+    else if (op === "del-tab") tabs.splice(t, 1);
+    else if (op === "up-tab" && t > 0) {
+      const [x] = tabs.splice(t, 1);
+      tabs.splice(t - 1, 0, x as NavTab);
+    } else if (op === "down-tab" && t < tabs.length - 1) {
+      const [x] = tabs.splice(t, 1);
+      tabs.splice(t + 1, 0, x as NavTab);
+    }
+    render();
+    refreshNote();
+  });
+
+  el<HTMLDivElement>("#editor")!.addEventListener("click", (ev) => {
+    if ((ev.target as HTMLElement).id !== "add-tab") return;
+    tabs.push({
+      label: "New tab",
+      label_hi: "नया",
+      href: "/",
+      description: "One-line description for the drawer/megamenu",
+      icon: "star",
+    });
+    render();
+    refreshNote();
+  });
+
+  // --- save / reload -----------------------------------------------------------
+  el<HTMLButtonElement>("#save")!.addEventListener("click", async () => {
+    const res = await api("/api/v1/admin/settings/nav", {
+      method: "PUT",
+      body: JSON.stringify(tabs),
+    });
+    if (!res.ok) {
+      // api()'s envelope already narrows error.details; cast keeps astro
+      // check happy without a bespoke generic at every call site
+      const details = (res.body.error?.details ?? []) as Array<{ field: string; message: string }>;
+      const box = el<HTMLDivElement>("#err")!;
+      box.hidden = false;
+      box.innerHTML =
+        `<strong>${esc(res.body.error?.message ?? "Save failed")}</strong>` +
+        (details.length
+          ? `<ul>${details.map((d) => `<li><code>${esc(d.field)}</code> — ${esc(d.message)}</li>`).join("")}</ul>`
+          : "");
+      toast("Save failed — fix the highlighted fields.", true);
+      return;
+    }
+    savedJson = JSON.stringify(tabs);
+    el<HTMLDivElement>("#err")!.hidden = true;
+    el<HTMLDivElement>("#banner")!.hidden = true;
+    el<HTMLDivElement>("#savebar")!.hidden = true;
+    refreshNote();
+    toast("Navigation saved — site rebuild queued, the header updates in ~40 s.");
+  });
+
+  el<HTMLButtonElement>("#reload")!.addEventListener("click", () => {
+    void load();
+  });
+
+  async function load(): Promise<void> {
+    const res = await api<{ data?: { tabs: NavTab[] | null; updated_at: string | null } }>(
+      "/api/v1/admin/settings/nav",
+    );
+    if (!res.ok) {
+      el<HTMLDivElement>("#editor")!.innerHTML = "";
+      const box = el<HTMLDivElement>("#err")!;
+      box.hidden = false;
+      box.textContent =
+        res.status === 403
+          ? "Your role doesn’t have nav.write access, so this screen stays read-only."
+          : res.body.error?.message ?? "Navigation config is unavailable right now.";
+      el<HTMLDivElement>("#savebar")!.hidden = true;
+      return;
+    }
+    const saved = res.body.data?.tabs;
+    if (saved == null) {
+      tabs = clone(NAV_TABS);
+      const box = el<HTMLDivElement>("#banner")!;
+      box.hidden = false;
+      box.textContent =
+        "No navigation is saved yet — these are the checked-in defaults. Save once to take control of the header from here.";
+    } else {
+      tabs = clone(saved);
+      el<HTMLDivElement>("#banner")!.hidden = true;
+    }
+    savedJson = JSON.stringify(tabs);
+    render();
+    refreshNote();
+  }
+
+  document.getElementById("admin-logout")?.addEventListener("click", () => logout());
+  if (await requireSession()) await load();
+</script>

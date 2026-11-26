@@ -1,37 +1,101 @@
 ---
-/** /admin/catalog — astrologers + poojas CRUD (Epic 6.4). Tabbed; JSON
- * fields (expertise/languages, session_types, includes) are edited as
- * comma lists / JSON in the dialog. */
+/** /admin/catalog — astrologers + poojas (admin phase 4 rewrite). Server
+ * pagination + q/status filters, trash view (soft delete / restore / purge),
+ * up/down reorder via POST /admin/catalog/reorder, and a full edit dialog
+ * covering every whitelisted field incl. the 0018 additions (EN/HI pairs,
+ * consent stamping, dakshina-on-request). The backend remains the real gate:
+ * content_editor has no catalog capabilities at all, and purge is
+ * super_admin-only (catalog.purge). */
 import Admin from "../../layouts/Admin.astro";
 ---
 
 <Admin title="Catalogue | Vyotish Admin" active="catalog">
   <h1>Astrologers & poojas</h1>
-  <p style="display:flex; gap:8px; align-items:center">
+  <div class="toolbar">
     <button class="btn ghost" id="tab-astro" type="button">Astrologers</button>
     <button class="btn ghost" id="tab-pujas" type="button">Poojas</button>
-    <button class="btn" id="new" type="button">+ New</button>
+    <input id="f-q" placeholder="Search name…" style="max-width:200px" autocomplete="off" />
+    <select id="f-status" style="max-width:140px">
+      <option value="">All statuses</option>
+      <option value="active">Active</option>
+      <option value="inactive">Inactive</option>
+    </select>
+    <button class="btn ghost" type="button" id="reload">Filter</button>
+    <button class="btn ghost" type="button" id="trash-toggle">Trash</button>
+    <button class="btn" type="button" id="new">+ New</button>
+  </div>
+  <table id="list">
+    <thead><tr id="head-row"></tr></thead>
+    <tbody id="rows"><tr><td colspan="8" class="empty">Loading…</td></tr></tbody>
+  </table>
+  <p class="pager">
+    <button class="btn ghost" type="button" id="prev">‹ Prev</button>
+    <span id="page-info"></span>
+    <button class="btn ghost" type="button" id="next">Next ›</button>
   </p>
-  <table id="astro-table">
-    <thead><tr><th>Name</th><th>Slug</th><th>Exp</th><th>Rate/min</th><th>Active</th><th></th></tr></thead>
-    <tbody id="astro-rows"><tr><td colspan="6" class="empty">Loading…</td></tr></tbody>
-  </table>
-  <table id="puja-table" hidden>
-    <thead><tr><th>Name</th><th>Slug</th><th>Category</th><th>Price</th><th>Active</th><th></th></tr></thead>
-    <tbody id="puja-rows"><tr><td colspan="6" class="empty">Loading…</td></tr></tbody>
-  </table>
 
-  <dialog id="editor" style="background:#1d1710; color:#ece5d8; border:1px solid #3a2f1f; border-radius:14px; padding:22px; max-width:680px; width:92vw">
+  <dialog id="editor" style="background:#1d1710; color:#ece5d8; border:1px solid #3a2f1f; border-radius:14px; padding:22px; max-width:760px; width:94vw; max-height:92vh; overflow:auto">
     <h2 id="ed-title" style="margin-top:0">Edit</h2>
+    <div id="ed-errors" hidden style="color:#e08a8a; font-size:12px; margin:0 0 10px"></div>
     <div class="grid2">
       <div>
         <label for="ed-name">Name *</label>
-        <input id="ed-name" />
-        <label for="ed-slug">Slug (new only)</label>
-        <input id="ed-slug" />
+        <input id="ed-name" maxlength="120" />
+        <label for="ed-name-hi" class="hi-pair">Name / title (हिन्दी)</label>
+        <input id="ed-name-hi" maxlength="160" />
         <span class="only-astro">
           <label for="ed-title-f">Title</label>
-          <input id="ed-title-f" />
+          <input id="ed-title-f" maxlength="160" />
+          <label for="ed-title-hi">Title (हिन्दी)</label>
+          <input id="ed-title-hi" maxlength="160" />
+        </span>
+        <span class="only-puja" hidden>
+          <label for="ed-cat">Category *</label>
+          <select id="ed-cat">
+            <option value="graha_shanti">graha_shanti</option><option value="satyanarayan">satyanarayan</option>
+            <option value="griha_pravesh">griha_pravesh</option><option value="rudrabhishek">rudrabhishek</option>
+            <option value="navagraha">navagraha</option><option value="kaal_sarp">kaal_sarp</option>
+            <option value="other">other</option>
+          </select>
+          <label for="ed-purpose">Purpose (≤300)</label>
+          <input id="ed-purpose" maxlength="300" />
+          <label for="ed-dur">Duration label</label>
+          <input id="ed-dur" maxlength="80" />
+          <label>Mode</label>
+          <span style="display:flex; gap:14px; font-size:13px">
+            <label style="margin:0"><input id="ed-mode-online" type="checkbox" class="chk" /> online</label>
+            <label style="margin:0"><input id="ed-mode-home" type="checkbox" class="chk" /> home</label>
+            <label style="margin:0"><input id="ed-mode-temple" type="checkbox" class="chk" /> temple</label>
+          </span>
+          <label for="ed-price">Sample price (₹)</label>
+          <input id="ed-price" type="number" min="0" step="0.01" />
+          <label style="margin-top:4px"><input id="ed-dakshina" type="checkbox" class="chk" /> Dakshina on request (clears the price)</label>
+          <label for="ed-samagri">Samagri (comma-separated)</label>
+          <input id="ed-samagri" />
+          <label for="ed-inc">Includes (comma-separated)</label>
+          <input id="ed-inc" />
+          <label for="ed-images">Images (comma-separated URLs)</label>
+          <input id="ed-images" />
+          <button class="btn ghost" type="button" id="img-pick">Add from media library</button>
+          <label for="ed-note">Muhurat note (≤500)</label>
+          <input id="ed-note" maxlength="500" />
+        </span>
+        <label for="ed-slug">Slug (new only)</label>
+        <input id="ed-slug" />
+        <label for="ed-sort">Sort order (lower shows first)</label>
+        <input id="ed-sort" type="number" min="0" step="10" />
+        <label for="ed-accent">Accent</label>
+        <select id="ed-accent"><option value="primary">primary</option><option value="secondary">secondary</option></select>
+      </div>
+      <div>
+        <label for="ed-about" class="astro-about">About / description</label>
+        <textarea id="ed-about"></textarea>
+        <label for="ed-about-hi" class="hi-pair">About (हिन्दी)</label>
+        <textarea id="ed-about-hi"></textarea>
+        <span class="only-astro">
+          <label for="ed-photo">Photo URL</label>
+          <input id="ed-photo" />
+          <button class="btn ghost" type="button" id="photo-pick">Pick from media library</button>
           <label for="ed-exp">Expertise (comma-separated)</label>
           <input id="ed-exp" />
           <label for="ed-lang">Languages (comma-separated)</label>
@@ -40,35 +104,18 @@ import Admin from "../../layouts/Admin.astro";
           <input id="ed-years" type="number" min="0" />
           <label for="ed-rate">Price per minute (₹)</label>
           <input id="ed-rate" type="number" min="0" step="0.01" />
-          <label for="ed-st">Session types (JSON array)</label>
-          <input id="ed-st" placeholder='[{"type":"call","duration_min":15}]' />
+          <label for="ed-st">Session types (JSON array of &#123;type, duration_min&#125;)</label>
+          <textarea id="ed-st" style="min-height:70px" placeholder='[{"type":"call","duration_min":15}]'></textarea>
+          <label for="ed-avail-label">Availability label</label>
+          <input id="ed-avail-label" maxlength="80" />
+          <label style="margin-top:4px"><input id="ed-avail" type="checkbox" class="chk" /> Available now</label>
         </span>
-        <span class="only-puja" hidden>
-          <label for="ed-cat">Category</label>
-          <select id="ed-cat">
-            <option value="graha_shanti">graha_shanti</option><option value="satyanarayan">satyanarayan</option>
-            <option value="griha_pravesh">griha_pravesh</option><option value="rudrabhishek">rudrabhishek</option>
-            <option value="navagraha">navagraha</option><option value="kaal_sarp">kaal_sarp</option>
-            <option value="other">other</option>
-          </select>
-          <label for="ed-mode">Mode (comma: online, home, temple)</label>
-          <input id="ed-mode" />
-          <label for="ed-price">Sample price (₹)</label>
-          <input id="ed-price" type="number" min="0" step="0.01" />
-          <label for="ed-dur">Duration label</label>
-          <input id="ed-dur" />
-          <label for="ed-inc">Includes (comma-separated)</label>
-          <input id="ed-inc" />
-          <label for="ed-note">Muhurat note</label>
-          <input id="ed-note" />
+        <span class="only-consent" hidden>
+          <label style="margin-top:16px; color:var(--a-gold)">Listing consent (DPDP)</label>
+          <label style="margin-top:4px"><input id="ed-consent" type="checkbox" class="chk" /> Consent confirmed — may be listed publicly</label>
+          <span class="sub" id="ed-consent-date"></span>
         </span>
-      </div>
-      <div>
-        <label for="ed-about">About / description</label>
-        <textarea id="ed-about" style="min-height:150px"></textarea>
-        <label for="ed-photo">Photo URL (astrologers)</label>
-        <input id="ed-photo" />
-        <label style="margin-top:14px"><input id="ed-active" type="checkbox" style="width:auto" /> Active (visible on site)</label>
+        <label style="margin-top:14px"><input id="ed-active" type="checkbox" class="chk" /> Active (visible on site)</label>
       </div>
     </div>
     <p style="display:flex; gap:10px; margin-top:16px">
@@ -76,82 +123,309 @@ import Admin from "../../layouts/Admin.astro";
       <button class="btn ghost" type="button" id="ed-close">Close</button>
     </p>
   </dialog>
+
+  <dialog id="pick-dlg" style="background:#1d1710; color:#ece5d8; border:1px solid #3a2f1f; border-radius:14px; padding:22px; max-width:680px; width:92vw">
+    <h2 style="margin-top:0">Media library</h2>
+    <div id="pick-grid" class="pick-grid"><span class="sub">Loading media…</span></div>
+    <p style="margin-bottom:0"><button type="button" class="btn ghost" id="pick-close">Close</button></p>
+  </dialog>
 </Admin>
 
+<style is:global>
+  .only-consent label { color: var(--a-text); }
+  #ed-consent-date { display: block; margin-top: 2px; }
+</style>
+
 <script>
-  import { api, el, esc, renderRows, requireSession, toast, logout } from "../../scripts/admin/api";
+  import { api, el, esc, fmtDate, renderRows, requireSession, toast, logout } from "../../scripts/admin/api";
   import { confirmDialog } from "../../scripts/admin/confirm";
 
-  let kind: "astrologers" | "pujas" = "astrologers";
-  let current: Record<string, unknown> | null = null;
+  type Kind = "astrologers" | "pujas";
+  type Row = Record<string, unknown>;
+  type FieldErr = { field: string; message: string };
 
-  const split = (v: unknown) =>
-    Array.isArray(v) ? v.map(String).join(", ") : "";
-  const parseList = (s: string) => s.split(",").map((x) => x.trim()).filter(Boolean);
+  let kind: Kind = "astrologers";
+  let view: "live" | "trash" = "live";
+  let page = 1;
+  let total = 0;
+  let current: Row | null = null;
+  /** rows currently rendered — the editor opens from this cache */
+  let cache: Row[] = [];
+  /** consent editing is super/admin/booking_manager only (story §6 / [R12]) */
+  const w = window as unknown as { __vyotishAdmin?: { role: string; capabilities: string[] } };
+  const canConsent = (): boolean => {
+    const a = w.__vyotishAdmin;
+    return Boolean(
+      a &&
+        ["super_admin", "admin", "booking_manager"].includes(a.role) &&
+        a.capabilities.includes("catalog.write"),
+    );
+  };
+  const canPurge = (): boolean =>
+    Boolean(w.__vyotishAdmin?.capabilities.includes("catalog.purge"));
 
-  async function load(): Promise<void> {
-    const res = await api<{ data?: { astrologers?: Array<Record<string, unknown>>; pujas?: Array<Record<string, unknown>> } }>("/api/v1/admin/" + kind);
-    const data = res.ok ? res.body.data : undefined;
-    const rows = kind === "astrologers" ? data?.astrologers : data?.pujas;
-    const astroRow = (a: Record<string, unknown>) => `<tr>
-      <td>${esc(a.name)}</td><td>${esc(a.slug)}</td><td>${a.experience_years ?? "—"}</td>
-      <td>${a.price_per_minute != null ? `₹${a.price_per_minute}` : "—"}</td>
-      <td>${a.is_active ? "yes" : "no"}</td>
-      <td class="row-actions"><button class="btn ghost" data-edit="${a.id}">Edit</button>
-      <button class="btn danger" data-del="${a.id}">Delete</button></td></tr>`;
-    const pujaRow = (p: Record<string, unknown>) => `<tr>
-      <td>${esc(p.name)}</td><td>${esc(p.slug)}</td><td>${esc(p.category)}</td>
-      <td>${p.sample_price != null ? `₹${p.sample_price}` : "—"}</td>
-      <td>${p.is_active ? "yes" : "no"}</td>
-      <td class="row-actions"><button class="btn ghost" data-edit="${p.id}">Edit</button>
-      <button class="btn danger" data-del="${p.id}">Delete</button></td></tr>`;
-    renderRows(kind === "astrologers" ? "#astro-rows" : "#puja-rows", rows, kind === "astrologers" ? astroRow : pujaRow, "Nothing here yet.");
+  const split = (v: unknown): string => (Array.isArray(v) ? v.map(String).join(", ") : "");
+  const parseList = (s: string): string[] =>
+    s.split(",").map((x) => x.trim()).filter(Boolean);
+
+  /* ------------------------------- listing ------------------------------- */
+
+  function listUrl(): string {
+    const qs = new URLSearchParams({ page: String(page), per_page: "25" });
+    const q = el<HTMLInputElement>("#f-q")?.value.trim() ?? "";
+    const status = el<HTMLSelectElement>("#f-status")?.value ?? "";
+    if (q) qs.set("q", q);
+    if (status) qs.set("status", status);
+    if (view === "trash") qs.set("deleted", "true");
+    return `/api/v1/admin/${kind}?${qs.toString()}`;
   }
 
-  function setKind(k: "astrologers" | "pujas"): void {
+  const factCells = (r: Row): string =>
+    kind === "astrologers"
+      ? `<td>${r.experience_years != null ? esc(String(r.experience_years)) : "—"}y</td>
+         <td>${r.price_per_minute != null ? `₹${esc(String(r.price_per_minute))}` : "—"}</td>
+         <td>${r.is_available ? "yes" : "no"}</td>`
+      : `<td>${esc(r.category)}</td>
+         <td>${r.sample_price != null ? `₹${esc(String(r.sample_price))}` : r.dakshina_on_request ? "on request" : "—"}</td>`;
+
+  const astroHead =
+    "<th>Order</th><th>Name</th><th>Slug</th><th>Exp</th><th>Rate/min</th><th>Avail</th><th>Active</th><th></th>";
+  const pujaHead =
+    "<th>Order</th><th>Name</th><th>Slug</th><th>Category</th><th>Price</th><th>Active</th><th></th>";
+  const trashHead = "<th>Name</th><th>Slug</th><th>Deleted</th><th></th>";
+
+  function astroRow(r: Row, i: number, canReorder: boolean): string {
+    const id = esc(String(r.id));
+    const move = canReorder
+      ? `<button class="btn ghost" data-up="${i}" title="Move up" aria-label="Move ${esc(String(r.name))} up">↑</button>
+         <button class="btn ghost" data-down="${i}" title="Move down" aria-label="Move ${esc(String(r.name))} down">↓</button>`
+      : `<span class="sub">${esc(String(r.sort_order ?? ""))}</span>`;
+    const slug = esc(String(r.slug));
+    return `<tr>
+      <td>${move}</td>
+      <td>${esc(r.name)}${r.title_hi ? `<span class="sub">${esc(r.title_hi)}</span>` : ""}</td>
+      <td>${slug}</td>
+      ${factCells(r)}
+      <td>${r.is_active ? "yes" : "no"}${r.listing_consent_confirmed_at ? "" : ' <span class="sub">no consent</span>'}</td>
+      <td class="row-actions">
+        <a class="btn ghost" href="/consultations/${slug}" target="_blank" rel="noopener" title="Public page">↗</a>
+        <button class="btn ghost" data-edit="${id}">Edit</button>
+        <button class="btn danger" data-del="${id}">Delete</button>
+      </td></tr>`;
+  }
+
+  function pujaRow(r: Row, i: number, canReorder: boolean): string {
+    const id = esc(String(r.id));
+    const move = canReorder
+      ? `<button class="btn ghost" data-up="${i}" title="Move up" aria-label="Move ${esc(String(r.name))} up">↑</button>
+         <button class="btn ghost" data-down="${i}" title="Move down" aria-label="Move ${esc(String(r.name))} down">↓</button>`
+      : `<span class="sub">${esc(String(r.sort_order ?? ""))}</span>`;
+    const slug = esc(String(r.slug));
+    return `<tr>
+      <td>${move}</td>
+      <td>${esc(r.name)}${r.name_hi ? `<span class="sub">${esc(r.name_hi)}</span>` : ""}</td>
+      <td>${slug}</td>
+      ${factCells(r)}
+      <td>${r.is_active ? "yes" : "no"}</td>
+      <td class="row-actions">
+        <a class="btn ghost" href="/poojan/${slug}" target="_blank" rel="noopener" title="Public page">↗</a>
+        <button class="btn ghost" data-edit="${id}">Edit</button>
+        <button class="btn danger" data-del="${id}">Delete</button>
+      </td></tr>`;
+  }
+
+  const trashRow = (r: Row): string => {
+    const id = esc(String(r.id));
+    const slug = esc(String(r.slug));
+    return `<tr>
+      <td>${esc(r.name)} <span class="pill trash">deleted</span></td>
+      <td>${slug}</td>
+      <td>${fmtDate(r.deleted_at)}</td>
+      <td class="row-actions">
+        <button class="btn ghost" data-restore="${id}">Restore</button>
+        ${canPurge() ? `<button class="btn danger" data-purge="${id}" data-slug="${slug}">Purge forever</button>` : ""}
+      </td></tr>`;
+  };
+
+  async function load(): Promise<void> {
+    const res = await api<{
+      data?: Partial<Record<Kind, Row[]>>;
+      meta?: { page: number; total: number };
+    }>(listUrl());
+    if (!res.ok) {
+      toast(res.body.error?.message ?? "Loading failed", true);
+      return;
+    }
+    const rows = res.body.data?.[kind] ?? [];
+    cache = rows;
+    total = res.body.meta?.total ?? rows.length;
+    page = res.body.meta?.page ?? page;
+    el<HTMLTableRowElement>("#head-row")!.innerHTML =
+      view === "trash" ? trashHead : kind === "astrologers" ? astroHead : pujaHead;
+    const canReorder =
+      view === "live" &&
+      !(el<HTMLInputElement>("#f-q")?.value.trim()) &&
+      !(el<HTMLSelectElement>("#f-status")?.value);
+    if (view === "trash") {
+      renderRows("#rows", rows, trashRow, "Trash is empty.");
+    } else if (kind === "astrologers") {
+      renderRows("#rows", rows, (r) => astroRow(r, rows.indexOf(r), canReorder), "Nothing here yet.");
+    } else {
+      renderRows("#rows", rows, (r) => pujaRow(r, rows.indexOf(r), canReorder), "Nothing here yet.");
+    }
+    const pages = Math.max(1, Math.ceil(total / 25));
+    el<HTMLSpanElement>("#page-info")!.textContent = `page ${page} of ${pages} · ${total} row${total === 1 ? "" : "s"}`;
+    (el<HTMLButtonElement>("#prev")!).disabled = page <= 1;
+    (el<HTMLButtonElement>("#next")!).disabled = page >= pages;
+    (el<HTMLButtonElement>("#trash-toggle")!).textContent = view === "trash" ? "← Back to live" : "Trash";
+  }
+
+  function refresh(): void {
+    page = 1;
+    void load();
+  }
+
+  el<HTMLButtonElement>("#reload")!.addEventListener("click", refresh);
+  el<HTMLInputElement>("#f-q")!.addEventListener("keydown", (ev) => {
+    if ((ev as KeyboardEvent).key === "Enter") {
+      ev.preventDefault();
+      refresh();
+    }
+  });
+  el<HTMLButtonElement>("#prev")!.addEventListener("click", () => {
+    if (page > 1) {
+      page -= 1;
+      void load();
+    }
+  });
+  el<HTMLButtonElement>("#next")!.addEventListener("click", () => {
+    page += 1;
+    void load();
+  });
+  el<HTMLButtonElement>("#trash-toggle")!.addEventListener("click", () => {
+    view = view === "trash" ? "live" : "trash";
+    refresh();
+  });
+
+  function setKind(k: Kind): void {
     kind = k;
-    // keep ?tab= in the URL so refresh and dashboard deep links land here
+    view = "live";
     const u = new URL(location.href);
     u.searchParams.set("tab", k);
     history.replaceState(null, "", u);
-    (el<HTMLTableElement>("#astro-table")!).hidden = k !== "astrologers";
-    (el<HTMLTableElement>("#puja-table")!).hidden = k !== "pujas";
-    void load();
+    (el<HTMLButtonElement>("#tab-astro")!).classList.toggle("on", k === "astrologers");
+    (el<HTMLButtonElement>("#tab-pujas")!).classList.toggle("on", k === "pujas");
+    refresh();
   }
   el<HTMLButtonElement>("#tab-astro")!.addEventListener("click", () => setKind("astrologers"));
   el<HTMLButtonElement>("#tab-pujas")!.addEventListener("click", () => setKind("pujas"));
 
-  function openEditor(item: Record<string, unknown> | null): void {
+  /* ------------------------------- reorder ------------------------------- */
+
+  /** Reorder needs the FULL id list — the endpoint stamps sort_order by
+   * array index, so sending only the visible page would stomp global order. */
+  async function allIds(): Promise<string[] | null> {
+    const ids: string[] = [];
+    let p = 1;
+    for (;;) {
+      const res = await api<{ data?: Partial<Record<Kind, Row[]>>; meta?: { total: number } }>(
+        `/api/v1/admin/${kind}?page=${p}&per_page=100`,
+      );
+      if (!res.ok) {
+        toast(res.body.error?.message ?? "Reorder read failed", true);
+        return null;
+      }
+      const rows = res.body.data?.[kind] ?? [];
+      ids.push(...rows.map((r) => String(r.id)));
+      if (rows.length < 100 || ids.length >= (res.body.meta?.total ?? 0)) break;
+      p += 1;
+    }
+    return ids;
+  }
+
+  async function move(index: number, delta: number): Promise<void> {
+    const ids = await allIds();
+    if (!ids) return;
+    const j = index + delta;
+    if (j < 0 || j >= ids.length) return;
+    [ids[index], ids[j]] = [ids[j], ids[index]];
+    const res = await api<{ data?: { reordered: number } }>("/api/v1/admin/catalog/reorder", {
+      method: "POST",
+      body: JSON.stringify({ kind, ids }),
+    });
+    toast(res.ok ? "Order saved." : res.body.error?.message ?? "Reorder failed", !res.ok);
+    if (res.ok) await load();
+  }
+
+  /* ------------------------------- editor -------------------------------- */
+
+  function fieldErrors(errs: FieldErr[] | undefined): void {
+    const box = el<HTMLDivElement>("#ed-errors")!;
+    if (!errs || errs.length === 0) {
+      box.hidden = true;
+      box.innerHTML = "";
+      return;
+    }
+    box.hidden = false;
+    box.innerHTML = `<ul>${errs.map((e) => `<li>${esc(e.field)}: ${esc(e.message)}</li>`).join("")}</ul>`;
+  }
+
+  function openEditor(item: Row | null): void {
     current = item;
-    el<HTMLHeadingElement>("#ed-title")!.textContent = item ? `Edit ${kind === "astrologers" ? "astrologer" : "pooja"}` : `New ${kind === "astrologers" ? "astrologer" : "pooja"}`;
+    fieldErrors(undefined);
+    el<HTMLHeadingElement>("#ed-title")!.textContent = item
+      ? `Edit ${kind === "astrologers" ? "astrologer" : "pooja"}`
+      : `New ${kind === "astrologers" ? "astrologer" : "pooja"}`;
     (el<HTMLElement>(".only-astro")!).hidden = kind !== "astrologers";
     (el<HTMLElement>(".only-puja")!).hidden = kind !== "pujas";
-    const set = (sel: string, v: unknown) => {
+    (el<HTMLElement>(".only-consent")!).hidden = kind !== "astrologers" || !canConsent();
+    const set = (sel: string, v: unknown): void => {
       const n = el<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>(sel);
       if (n) n.value = typeof v === "string" ? v : v == null ? "" : String(v);
     };
+    const modes: string[] = Array.isArray(item?.mode) ? (item.mode as string[]) : [];
+    (el<HTMLInputElement>("#ed-mode-online")!).checked = modes.includes("online");
+    (el<HTMLInputElement>("#ed-mode-home")!).checked = modes.includes("home");
+    (el<HTMLInputElement>("#ed-mode-temple")!).checked = modes.includes("temple");
+    const slugInput = el<HTMLInputElement>("#ed-slug")!;
+    slugInput.disabled = Boolean(item);
     set("#ed-name", item?.name);
-    set("#ed-slug", item?.slug ?? "");
-    (el<HTMLInputElement>("#ed-slug")!).disabled = Boolean(item);
+    set("#ed-name-hi", item?.name_hi ?? item?.title_hi);
+    set("#ed-sort", item?.sort_order ?? "");
+    set("#ed-accent", item?.accent ?? "primary");
     (el<HTMLInputElement>("#ed-active")!).checked = item ? Boolean(item.is_active) : true;
+    (el<HTMLInputElement>("#ed-dakshina")!).checked = item?.dakshina_on_request === true;
     if (kind === "astrologers") {
       set("#ed-title-f", item?.title);
+      set("#ed-title-hi", item?.title_hi);
       set("#ed-exp", split(item?.expertise));
       set("#ed-lang", split(item?.languages));
-      set("#ed-years", item?.experience_years);
-      set("#ed-rate", item?.price_per_minute);
-      set("#ed-st", typeof item?.session_types === "string" ? item.session_types : JSON.stringify(item?.session_types ?? "[]").replace(/^/, ""));
+      set("#ed-years", item?.experience_years ?? "");
+      set("#ed-rate", item?.price_per_minute ?? "");
+      set("#ed-st", item?.session_types == null ? "" : JSON.stringify(item.session_types, null, 1));
       set("#ed-photo", item?.photo_url);
+      set("#ed-avail-label", item?.availability_label);
+      (el<HTMLInputElement>("#ed-avail")!).checked = item?.is_available !== false;
       set("#ed-about", item?.about);
+      set("#ed-about-hi", item?.about_hi);
+      // consent ([R12]): row only rendered for the allowed roles — checked
+      // reflects the existing stamp; saving sends true/false, never a fake date
+      const consentAt = typeof item?.listing_consent_confirmed_at === "string" ? item.listing_consent_confirmed_at : "";
+      (el<HTMLInputElement>("#ed-consent")!).checked = Boolean(consentAt);
+      el<HTMLSpanElement>("#ed-consent-date")!.textContent = consentAt
+        ? `confirmed ${fmtDate(consentAt)} — untick to unlist`
+        : "not confirmed — this profile stays off the public directory";
     } else {
       set("#ed-cat", item?.category ?? "graha_shanti");
-      set("#ed-mode", split(item?.mode));
-      set("#ed-price", item?.sample_price);
+      set("#ed-purpose", item?.purpose);
       set("#ed-dur", item?.duration);
-      set("#ed-inc", Array.isArray(item?.includes) ? (item.includes as unknown[]).map(String).join(", ") : "");
+      set("#ed-price", item?.sample_price ?? "");
+      set("#ed-samagri", split(item?.samagri));
+      set("#ed-inc", split(item?.includes));
+      set("#ed-images", split(item?.images));
       set("#ed-note", item?.muhurat_note);
       set("#ed-about", item?.description);
-      set("#ed-photo", "");
+      set("#ed-about-hi", item?.description_hi);
     }
     (el<HTMLDialogElement>("#editor")!).showModal();
   }
@@ -159,72 +433,198 @@ import Admin from "../../layouts/Admin.astro";
   el<HTMLButtonElement>("#new")!.addEventListener("click", () => openEditor(null));
   el<HTMLButtonElement>("#ed-close")!.addEventListener("click", () => (el<HTMLDialogElement>("#editor")!).close());
 
+  const val = (sel: string): string =>
+    el<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>(sel)?.value.trim() ?? "";
+
   el<HTMLButtonElement>("#ed-save")!.addEventListener("click", async () => {
-    const val = (sel: string) => el<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>(sel)?.value.trim() ?? "";
-    const body: Record<string, unknown> = {
+    const body: Row = {
       name: val("#ed-name"),
       is_active: (el<HTMLInputElement>("#ed-active")!).checked,
-      about: val("#ed-about") || undefined,
     };
+    if (!current && val("#ed-slug")) body.slug = val("#ed-slug");
+    if (val("#ed-name-hi")) body[kind === "astrologers" ? "title_hi" : "name_hi"] = val("#ed-name-hi");
+    if (val("#ed-about-hi")) body[kind === "astrologers" ? "about_hi" : "description_hi"] = val("#ed-about-hi");
+    if (val("#ed-sort")) body.sort_order = Number(val("#ed-sort"));
+    body.accent = val("#ed-accent") || "primary";
     if (kind === "astrologers") {
       body.title = val("#ed-title-f");
+      body.about = val("#ed-about") || null;
       body.expertise = parseList(val("#ed-exp"));
       body.languages = parseList(val("#ed-lang"));
-      if (val("#ed-years")) body.experience_years = Number(val("#ed-years"));
-      if (val("#ed-rate")) body.price_per_minute = Number(val("#ed-rate"));
-      if (val("#ed-st")) { try { body.session_types = JSON.parse(val("#ed-st")); } catch { toast("Session types: invalid JSON", true); return; } }
-      if (val("#ed-photo")) body.photo_url = val("#ed-photo");
-      body.accent = "primary";
+      body.experience_years = val("#ed-years") ? Number(val("#ed-years")) : null;
+      body.price_per_minute = val("#ed-rate") ? Number(val("#ed-rate")) : null;
+      if (val("#ed-st")) {
+        try {
+          body.session_types = JSON.parse(val("#ed-st"));
+        } catch {
+          toast("Session types: invalid JSON", true);
+          return;
+        }
+      } else {
+        body.session_types = null;
+      }
+      body.photo_url = val("#ed-photo") || null;
+      body.is_available = (el<HTMLInputElement>("#ed-avail")!).checked;
+      body.availability_label = val("#ed-avail-label") || null;
+      if (canConsent()) {
+        // true stamps a fresh now() server-side; an existing ISO is re-sent
+        // as-is so re-saving an unchanged consent doesn't move the date
+        const existing =
+          typeof current?.listing_consent_confirmed_at === "string"
+            ? current.listing_consent_confirmed_at
+            : "";
+        body.listing_consent_confirmed_at =
+          (el<HTMLInputElement>("#ed-consent")!).checked ? existing || true : false;
+      }
     } else {
       body.category = val("#ed-cat");
-      body.mode = parseList(val("#ed-mode"));
-      if (val("#ed-price")) body.sample_price = Number(val("#ed-price"));
-      if (val("#ed-dur")) body.duration = val("#ed-dur");
+      body.purpose = val("#ed-purpose") || null;
+      body.description = val("#ed-about") || null;
+      body.mode = [
+        (el<HTMLInputElement>("#ed-mode-online")!).checked && "online",
+        (el<HTMLInputElement>("#ed-mode-home")!).checked && "home",
+        (el<HTMLInputElement>("#ed-mode-temple")!).checked && "temple",
+      ].filter(Boolean);
+      body.duration = val("#ed-dur") || null;
+      body.muhurat_note = val("#ed-note") || null;
+      body.samagri = parseList(val("#ed-samagri"));
       body.includes = parseList(val("#ed-inc"));
-      if (val("#ed-note")) body.muhurat_note = val("#ed-note");
-      body.description = val("#ed-about") || undefined;
-      body.accent = "primary";
+      body.images = parseList(val("#ed-images"));
+      // dakshina wins over price (server rule: dakshina=true nulls sample_price)
+      if ((el<HTMLInputElement>("#ed-dakshina")!).checked) {
+        body.dakshina_on_request = true;
+        body.sample_price = null;
+      } else {
+        body.dakshina_on_request = false;
+        body.sample_price = val("#ed-price") ? Number(val("#ed-price")) : null;
+      }
     }
-    if (!current && val("#ed-slug")) body.slug = val("#ed-slug");
-    const res = await api(`/api/v1/admin/${kind}${current ? `/${current.id}` : ""}`, {
-      method: current ? "PATCH" : "POST",
-      body: JSON.stringify(body),
-    });
-    toast(res.ok ? "Saved." : res.body.error?.message ?? "Save failed", !res.ok);
-    if (res.ok) {
-      (el<HTMLDialogElement>("#editor")!).close();
-      await load();
+    const res = await api<{ error?: { details?: FieldErr[] } }>(
+      `/api/v1/admin/${kind}${current ? `/${current.id}` : ""}`,
+      { method: current ? "PATCH" : "POST", body: JSON.stringify(body) },
+    );
+    if (!res.ok) {
+      const details = (res.body as { error?: { details?: FieldErr[] } }).error?.details;
+      fieldErrors(details);
+      toast(res.body.error?.message ?? "Save failed", true);
+      return;
     }
+    toast("Saved.");
+    (el<HTMLDialogElement>("#editor")!).close();
+    await load();
   });
+
+  /* --------------------------- media library picker ---------------------- */
+
+  let pickLoaded = false;
+  let pickTarget: "photo" | "images" = "photo";
+  el<HTMLButtonElement>("#photo-pick")?.addEventListener("click", () => openPicker("photo"));
+  el<HTMLButtonElement>("#img-pick")?.addEventListener("click", () => openPicker("images"));
+
+  function openPicker(target: "photo" | "images"): void {
+    pickTarget = target;
+    (el<HTMLDialogElement>("#pick-dlg")!).showModal();
+    if (pickLoaded) return;
+    void api<{ data?: { media?: Array<{ url: string; path: string; alt?: string }> } }>(
+      "/api/v1/admin/media?per_page=100",
+    ).then((res) => {
+      const grid = el<HTMLDivElement>("#pick-grid")!;
+      const media = res.ok ? res.body.data?.media ?? [] : [];
+      if (media.length === 0) {
+        grid.innerHTML = `<span class="sub">${res.ok ? "No media yet — upload some first." : esc(res.body.error?.message ?? "Loading failed")}</span>`;
+        pickLoaded = res.ok; // a real empty library won't change; errors retry
+        return;
+      }
+      grid.innerHTML = media
+        .map(
+          (m) => `<button type="button" class="pick-item" data-url="${esc(m.url)}">
+            <img src="${esc(m.url)}" alt="" loading="lazy" />
+            <span class="pick-path">${esc(m.path)}</span>
+          </button>`,
+        )
+        .join("");
+      pickLoaded = true;
+    });
+  }
+
+  el<HTMLDivElement>("#pick-grid")!.addEventListener("click", (ev) => {
+    const item = (ev.target as HTMLElement).closest("button.pick-item") as HTMLElement | null;
+    if (!item) return;
+    const url = item.dataset.url ?? "";
+    if (pickTarget === "photo") el<HTMLInputElement>("#ed-photo")!.value = url;
+    else {
+      const box = el<HTMLInputElement>("#ed-images")!;
+      box.value = box.value.trim() ? `${box.value.trim().replace(/,$/, "")}, ${url}` : url;
+    }
+    (el<HTMLDialogElement>("#pick-dlg")!).close();
+  });
+  el<HTMLButtonElement>("#pick-close")!.addEventListener("click", () =>
+    (el<HTMLDialogElement>("#pick-dlg")!).close(),
+  );
+
+  /* ------------------------- row actions (event bus) --------------------- */
 
   document.addEventListener("click", async (ev) => {
     const t = ev.target as HTMLElement;
     const edit = t.closest("button[data-edit]") as HTMLElement | null;
     const del = t.closest("button[data-del]") as HTMLElement | null;
+    const restore = t.closest("button[data-restore]") as HTMLElement | null;
+    const purge = t.closest("button[data-purge]") as HTMLElement | null;
+    const up = t.closest("button[data-up]") as HTMLElement | null;
+    const down = t.closest("button[data-down]") as HTMLElement | null;
+
     if (edit) {
-      const rows = await api<{ data?: { astrologers?: Array<Record<string, unknown>>; pujas?: Array<Record<string, unknown>> } }>("/api/v1/admin/" + kind);
-      const list = (rows.ok ? (kind === "astrologers" ? rows.body.data?.astrologers : rows.body.data?.pujas) : undefined);
-      const item = list?.find((r) => r.id === edit.dataset.edit);
-      if (item) openEditor(item);
+      // the edit dialog fills from the row cache first, then refreshes from
+      // GET /:id so concurrent edits by someone else aren't silently lost
+      const cached = cache.find((r) => String(r.id) === edit.dataset.edit) ?? null;
+      const res = await api<{ data?: Row }>(`/api/v1/admin/${kind}/${edit.dataset.edit}`);
+      openEditor(res.ok ? res.body.data ?? cached : cached);
+      if (!res.ok) toast(res.body.error?.message ?? "Refresh failed — editing the cached copy", true);
+    } else if (up || down) {
+      const idx = Number((up ?? down)!.dataset.up ?? (down as HTMLElement).dataset.down);
+      await move(idx, up ? -1 : 1);
     } else if (del) {
       const okGo = await confirmDialog({
         title: kind === "astrologers" ? "Delete astrologer" : "Delete pooja",
         message:
-          "The entry is hidden from the site (soft delete — site history keeps consultation links via NULL).",
+          "The entry is hidden from the site right away (soft delete). It stays in the Trash until restored or purged — nothing is erased yet.",
         confirmText: "Delete",
         danger: true,
       });
       if (!okGo) return;
       const res = await api(`/api/v1/admin/${kind}/${del.dataset.del}`, { method: "DELETE" });
-      toast(res.ok ? "Deleted." : res.body.error?.message ?? "Delete failed", !res.ok);
+      toast(res.ok ? "Moved to trash." : res.body.error?.message ?? "Delete failed", !res.ok);
+      await load();
+    } else if (restore) {
+      const res = await api(`/api/v1/admin/${kind}/${restore.dataset.restore}/restore`, {
+        method: "POST",
+      });
+      toast(res.ok ? "Restored." : res.body.error?.message ?? "Restore failed", !res.ok);
+      await load();
+    } else if (purge) {
+      const slug = purge.dataset.slug ?? "";
+      const okGo = await confirmDialog({
+        title: "Purge forever",
+        message:
+          "This hard-deletes the row and its history. Past bookings keep working (their ids are cleared), but the catalogue entry cannot be recovered. Type the slug to confirm.",
+        confirmText: "Purge forever",
+        danger: true,
+        requireText: slug,
+      });
+      if (!okGo) return;
+      const res = await api(`/api/v1/admin/${kind}/${purge.dataset.purge}?purge=true`, {
+        method: "DELETE",
+      });
+      toast(res.ok ? "Purged." : res.body.error?.message ?? "Purge failed", !res.ok);
       await load();
     }
   });
+
   document.getElementById("admin-logout")?.addEventListener("click", () => logout());
   if (await requireSession()) {
     // dashboard stat cards deep-link the right tab (?tab=astrologers | poojas)
     const t = new URLSearchParams(location.search).get("tab");
     if (t === "astrologers" || t === "pujas") setKind(t);
-    else await load();
+    else setKind("astrologers");
   }
 </script>

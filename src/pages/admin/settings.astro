@@ -1,91 +1,243 @@
 ---
-/** /admin/settings — site settings key/values + newsletter export (Epic 6.4).
- * GEMSTONES_SITE_URL and friends live in Supabase site_settings; the public
- * /api/v1/settings endpoint reads its allowlisted subset. */
+/** /admin/settings — registry-driven site settings (admin phase 4). The
+ * backend GET returns the key registry + current values; this page renders
+ * group cards straight from it (no hardcoded key lists — D12), picks a
+ * type-appropriate input per key, and affordance-gates writes by the same
+ * capabilities the server enforces per key. Engine keys stay read-only
+ * without `settings.engine` (the [P0] fix's UI half — the API 403s anyway).
+ * Newsletter export moved to /admin/subscribers. */
 import Admin from "../../layouts/Admin.astro";
 ---
 
 <Admin title="Settings | Vyotish Admin" active="settings">
   <h1>Settings</h1>
-  <form id="up" class="card">
-    <div class="grid2">
-      <div>
-        <label for="key">Key (e.g. gemstones_site_url, contact_whatsapp)</label>
-        <input id="key" pattern="[a-z0-9_.-]{1,80}" required />
-      </div>
-      <div>
-        <label for="value">Value (JSON — a plain string needs quotes)</label>
-        <input id="value" required />
-      </div>
-    </div>
-    <p><button type="submit" class="btn">Save setting</button></p>
-  </form>
-  <table style="margin-top:14px">
-    <thead><tr><th>Key</th><th>Value</th><th>Updated</th></tr></thead>
-    <tbody id="rows"><tr><td colspan="3" class="empty">Loading…</td></tr></tbody>
-  </table>
-  <h2>Newsletter</h2>
-  <p><a class="btn ghost" id="export" href="/api/v1/admin/newsletter/export">Download subscriber CSV</a></p>
+  <div id="err" class="card" hidden></div>
+  <div id="groups"></div>
 </Admin>
 
+<style is:global>
+  .set-card { background: var(--a-panel); border: 1px solid var(--a-border); border-radius: 10px; padding: 6px 16px 14px; margin: 0 0 16px; }
+  .set-card h2 { margin: 14px 0 4px; }
+  .set-row { padding: 12px 0; border-bottom: 1px solid rgba(58, 47, 31, 0.55); }
+  .set-row:last-child { border-bottom: 0; }
+  .set-row label { margin: 0 0 2px; font-size: 13px; color: var(--a-text); }
+  .set-desc { display: block; font-size: 12px; color: var(--a-dim); }
+  .set-meta { display: flex; gap: 10px; align-items: center; margin-top: 6px; font-size: 12px; color: var(--a-dim); }
+  .set-row input[type="text"], .set-row input[type="url"], .set-row input[type="email"],
+  .set-row input[type="date"], .set-row select, .set-row textarea { max-width: 520px; }
+  .set-row textarea { min-height: 90px; }
+  .set-row .chk { width: auto; }
+  .lock { color: var(--a-gold); font-size: 12px; }
+  .set-row input:disabled, .set-row select:disabled, .set-row textarea:disabled { opacity: 0.55; cursor: not-allowed; }
+  #nav-link a { color: var(--a-gold); }
+</style>
+
 <script>
-  import { API_BASE, api, el, esc, fmtDate, renderRows, requireSession, toast, logout } from "../../scripts/admin/api";
+  import { api, el, esc, fmtDate, requireSession, toast, logout } from "../../scripts/admin/api";
 
-  const row = (s: Record<string, unknown>) => `<tr>
-    <td>${esc(s.key)}</td>
-    <td style="max-width:340px; word-break:break-all">${esc(typeof s.value === "string" ? s.value : JSON.stringify(s.value))}</td>
-    <td>${fmtDate(s.updated_at)}</td>
-  </tr>`;
-
-  async function load(): Promise<void> {
-    const res = await api<{ data?: { settings?: Array<Record<string, unknown>> } }>("/api/v1/admin/settings");
-    if (res.ok) renderRows("#rows", res.body.data?.settings, row, "No settings yet.");
-    else toast(res.body.error?.message ?? "Loading failed", true);
+  interface SettingDef {
+    group: string;
+    label: string;
+    description_en: string;
+    type: "string" | "url" | "email" | "date" | "boolean" | "enum" | "json";
+    allowed?: readonly string[];
+    capability: "settings.write" | "settings.engine" | "nav.write";
+    public: boolean;
+  }
+  interface SettingsPayload {
+    registry: Record<string, SettingDef>;
+    groups: string[];
+    values: Record<string, unknown>;
+    last_changed: Record<string, string>;
   }
 
-  el<HTMLFormElement>("#up")!.addEventListener("submit", async (ev) => {
-    ev.preventDefault();
-    const key = el<HTMLInputElement>("#key")!.value.trim();
-    const raw = el<HTMLInputElement>("#value")!.value.trim();
-    let value: unknown;
-    try {
-      value = JSON.parse(raw);
-    } catch {
-      toast("Value must be valid JSON — wrap plain text in quotes.", true);
-      return;
+  const w = window as unknown as { __vyotishAdmin?: { capabilities: string[] } };
+  const caps = (): string[] => w.__vyotishAdmin?.capabilities ?? [];
+  const mayWrite = (def: SettingDef): boolean => caps().includes(def.capability);
+
+  /** input elements by key, filled at render time */
+  const inputs = new Map<string, HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>();
+  const loaded = new Map<string, unknown>();
+  let registry: Record<string, SettingDef> = {};
+
+  function inputHtml(key: string, def: SettingDef, value: unknown, locked: boolean): string {
+    const ro = locked ? " disabled" : "";
+    if (def.type === "boolean") {
+      const on = value === true || value === "true";
+      return `<label><input type="checkbox" class="chk" id="set-${esc(key)}" data-key="${esc(key)}"${on ? " checked" : ""}${ro} /> enabled</label>`;
     }
-    const res = await api(`/api/v1/admin/settings/${encodeURIComponent(key)}`, {
-      method: "PUT",
-      body: JSON.stringify({ value }),
-    });
-    toast(res.ok ? "Saved." : res.body.error?.message ?? "Save failed", !res.ok);
-    if (res.ok) {
-      el<HTMLInputElement>("#key")!.value = "";
-      el<HTMLInputElement>("#value")!.value = "";
-      await load();
+    if (def.type === "enum" && def.allowed) {
+      return `<select id="set-${esc(key)}" data-key="${esc(key)}"${ro}>${def.allowed
+        .map((o) => `<option value="${esc(o)}"${value === o ? " selected" : ""}>${esc(o)}</option>`)
+        .join("")}</select>`;
     }
+    if (def.type === "json") {
+      const text = value == null ? "" : JSON.stringify(value, null, 1);
+      return `<textarea id="set-${esc(key)}" data-key="${esc(key)}" spellcheck="false"${ro}>${esc(text)}</textarea>`;
+    }
+    const t = def.type === "date" ? "date" : def.type === "url" ? "url" : def.type === "email" ? "email" : "text";
+    return `<input type="${t}" id="set-${esc(key)}" data-key="${esc(key)}" value="${esc(value == null ? "" : String(value))}" spellcheck="false"${ro} />`;
+  }
+
+  function keyRow(key: string, def: SettingDef, payload: SettingsPayload): string {
+    const value = payload.values[key];
+    loaded.set(key, value);
+    const locked = !mayWrite(def);
+    const lockNote = locked
+      ? `<span class="lock" role="img" aria-label="locked">🔒 read-only — your role can’t change this</span>`
+      : "";
+    const navLink =
+      key === "public.nav_config"
+        ? `<span id="nav-link">Structured editing lives on the <a href="/admin/nav">Navigation screen</a> — edit the raw JSON here only for emergencies.</span>`
+        : "";
+    const changed = payload.last_changed[key] ? `last changed ${fmtDate(payload.last_changed[key])}` : "never changed here";
+    return `<div class="set-row">
+      <label for="set-${esc(key)}">${esc(def.label)} <span class="sub">${esc(key)}</span></label>
+      <span class="set-desc">${esc(def.description_en)}</span>
+      ${inputHtml(key, def, value, locked)}
+      ${navLink}
+      <span class="set-meta">${lockNote}<span>${changed}</span>
+        ${locked ? "" : `<button type="button" class="btn ghost" data-revert="${esc(key)}">Revert</button>`}
+      </span>
+    </div>`;
+  }
+
+  function render(payload: SettingsPayload): void {
+    const root = el<HTMLDivElement>("#groups")!;
+    inputs.clear();
+    root.innerHTML = payload.groups
+      .map((g) => {
+        const keys = Object.entries(payload.registry)
+          .filter(([, d]) => d.group === g)
+          .map(([k, d]) => keyRow(k, d, payload));
+        return `<section class="set-card"><h2>${esc(g)}</h2>${keys.join("")}</section>`;
+      })
+      .join("");
+    for (const n of root.querySelectorAll<HTMLElement>("[data-key]")) {
+      const key = n.dataset.key ?? "";
+      inputs.set(key, n as HTMLInputElement);
+    }
+  }
+
+  function inputValue(key: string): unknown {
+    const n = inputs.get(key);
+    if (!n) return undefined;
+    if (n instanceof HTMLInputElement && n.type === "checkbox") return n.checked;
+    const def = registry[key];
+    const raw = n.value;
+    if (def?.type === "json") {
+      if (!raw.trim()) return null;
+      return JSON.parse(raw); // caller catches
+    }
+    if ((def?.type === "boolean") && n instanceof HTMLSelectElement) return raw === "true";
+    return raw;
+  }
+
+  function restore(key: string): void {
+    const n = inputs.get(key);
+    if (!n) return;
+    const v = loaded.get(key);
+    if (n instanceof HTMLInputElement && n.type === "checkbox") n.checked = v === true || v === "true";
+    else if (n instanceof HTMLTextAreaElement || n instanceof HTMLSelectElement || n instanceof HTMLInputElement)
+      n.value = v == null ? "" : typeof v === "string" ? v : JSON.stringify(v, null, 1);
+  }
+
+  el<HTMLDivElement>("#groups")!.addEventListener("click", async (ev) => {
+    const btn = (ev.target as HTMLElement).closest("button[data-revert]") as HTMLElement | null;
+    if (!btn) return;
+    restore(btn.dataset.revert ?? "");
+    toast("Edit reverted to the saved value.");
   });
 
-  el<HTMLAnchorElement>("#export")!.addEventListener("click", (ev) => {
-    // the download needs the auth header, so fetch as a blob instead of a link
-    ev.preventDefault();
-    void (async () => {
-      const token = sessionStorage.getItem("vyotish.admin.token");
-      const res = await fetch(`${API_BASE}/api/v1/admin/newsletter/export`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) {
-        toast("Export failed", true);
+  // one Save bar for the whole page — sticky, like the posts bulk bar
+  const bar = document.createElement("div");
+  bar.className = "bulkbar";
+  bar.innerHTML = `<button type="button" class="btn" id="save-all">Save changes</button>
+    <span class="sub" id="dirty-note">nothing changed yet</span>`;
+  el<HTMLDivElement>("#err")!.after(bar);
+
+  function dirtyKeys(): string[] {
+    const dirty: string[] = [];
+    for (const [key, n] of inputs) {
+      const v = loaded.get(key);
+      const cur =
+        n instanceof HTMLInputElement && n.type === "checkbox"
+          ? n.checked
+          : n.value;
+      const base =
+        n instanceof HTMLInputElement && n.type === "checkbox"
+          ? v === true || v === "true"
+          : v == null
+            ? ""
+            : typeof v === "string"
+              ? v
+              : JSON.stringify(v, null, 1);
+      if (String(cur) !== String(base)) dirty.push(key);
+    }
+    return dirty;
+  }
+
+  function refreshNote(): void {
+    const d = dirtyKeys();
+    el<HTMLSpanElement>("#dirty-note")!.textContent =
+      d.length === 0 ? "nothing changed yet" : `${d.length} setting${d.length === 1 ? "" : "s"} changed`;
+  }
+  document.body.addEventListener("input", () => refreshNote());
+  document.body.addEventListener("change", () => refreshNote());
+
+  el<HTMLButtonElement>("#save-all")!.addEventListener("click", async () => {
+    const dirty = dirtyKeys();
+    if (dirty.length === 0) {
+      toast("Nothing to save.");
+      return;
+    }
+    let saved = 0;
+    for (const key of dirty) {
+      const def = registry[key];
+      if (!def) continue;
+      let value: unknown;
+      try {
+        value = inputValue(key);
+      } catch {
+        toast(`${def.label}: value must be valid JSON.`, true);
         return;
       }
-      const blob = await res.blob();
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
-      a.download = "vyotish-newsletter.csv";
-      a.click();
-      URL.revokeObjectURL(a.href);
-    })();
+      const res = await api(`/api/v1/admin/settings/${encodeURIComponent(key)}`, {
+        method: "PUT",
+        body: JSON.stringify({ value }),
+      });
+      if (!res.ok) {
+        toast(`${def.label}: ${res.body.error?.message ?? "save failed"}`, true);
+        return;
+      }
+      saved += 1;
+      loaded.set(key, value);
+    }
+    toast(`Saved ${saved} setting${saved === 1 ? "" : "s"}.`);
+    refreshNote();
   });
+
+  async function load(): Promise<void> {
+    const res = await api<{ data?: SettingsPayload }>("/api/v1/admin/settings");
+    if (!res.ok) {
+      const box = el<HTMLDivElement>("#err")!;
+      box.hidden = false;
+      box.textContent =
+        res.status === 403
+          ? "Your role doesn’t have settings access."
+          : res.body.error?.message ?? "Settings are unavailable right now.";
+      return;
+    }
+    if (!res.body.data) {
+      el<HTMLDivElement>("#err")!.hidden = false;
+      el<HTMLDivElement>("#err")!.textContent = "Settings payload missing.";
+      return;
+    }
+    registry = res.body.data.registry;
+    render(res.body.data);
+    refreshNote();
+  }
+
   document.getElementById("admin-logout")?.addEventListener("click", () => logout());
   if (await requireSession()) await load();
 </script>
