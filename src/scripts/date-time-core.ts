@@ -73,6 +73,21 @@ const MONTHS = [
   "November",
   "December",
 ];
+/* S24 — Hindi month names for the impossible-date message */
+const MONTHS_HI = [
+  "जनवरी",
+  "फ़रवरी",
+  "मार्च",
+  "अप्रैल",
+  "मई",
+  "जून",
+  "जुलाई",
+  "अगस्त",
+  "सितंबर",
+  "अक्टूबर",
+  "नवंबर",
+  "दिसंबर",
+];
 
 function isoFrom(dd: string, mm: string, yyyy: string): string {
   return `${yyyy}-${mm}-${dd}`;
@@ -86,8 +101,15 @@ function pad(n: number): string {
  * Validate DD/MM/YYYY entry.
  * - `today` is injected (local midnight) so tests are deterministic.
  * - `minYear`/`maxYear` only apply to the birth preset; free has none.
+ * - `lang` (S24): message language; default "en" keeps pure-function tests
+ *   deterministic — the picker passes the page language.
  */
-export function checkDate(parts: DateParts, preset: DatePreset, today: Date): DateCheck {
+export function checkDate(
+  parts: DateParts,
+  preset: DatePreset,
+  today: Date,
+  lang: "en" | "hi" = "en",
+): DateCheck {
   const dd = parts.dd.replace(/\D/g, "");
   const mm = parts.mm.replace(/\D/g, "");
   const yyyy = parts.yyyy.replace(/\D/g, "");
@@ -99,12 +121,14 @@ export function checkDate(parts: DateParts, preset: DatePreset, today: Date): Da
   const y = Number(yyyy);
   const yMin = preset === "birth" ? today.getFullYear() - 100 : 1;
   const yMax = preset === "birth" ? today.getFullYear() : 9999;
+  const hi = lang === "hi";
+  const M = (idx: number) => (hi ? MONTHS_HI[idx] : MONTHS[idx]);
 
   if (m < 1 || m > 12) {
     return {
       ok: false,
       code: "impossible",
-      message: `Month must be 1–12.`,
+      message: hi ? `महीना 1–12 होना चाहिए।` : `Month must be 1–12.`,
       iso: "",
     };
   }
@@ -112,7 +136,7 @@ export function checkDate(parts: DateParts, preset: DatePreset, today: Date): Da
     return {
       ok: false,
       code: "impossible",
-      message: `Day must be 1–31.`,
+      message: hi ? `दिन 1–31 होना चाहिए।` : `Day must be 1–31.`,
       iso: "",
     };
   }
@@ -121,7 +145,9 @@ export function checkDate(parts: DateParts, preset: DatePreset, today: Date): Da
     return {
       ok: false,
       code: "impossible",
-      message: `${d} ${MONTHS[m - 1]} ${y} doesn't exist — ${MONTHS[m - 1]} ${y} has ${dim} days.`,
+      message: hi
+        ? `${d} ${M(m - 1)} ${y} मौजूद नहीं है — ${M(m - 1)} ${y} में ${dim} दिन हैं।`
+        : `${d} ${M(m - 1)} ${y} doesn't exist — ${M(m - 1)} ${y} has ${dim} days.`,
       iso: "",
     };
   }
@@ -133,7 +159,7 @@ export function checkDate(parts: DateParts, preset: DatePreset, today: Date): Da
       return {
         ok: false,
         code: "future",
-        message: "The birth date can't be in the future.",
+        message: hi ? "जन्म तिथि भविष्य में नहीं हो सकती।" : "The birth date can't be in the future.",
         iso: "",
       };
     }
@@ -141,7 +167,9 @@ export function checkDate(parts: DateParts, preset: DatePreset, today: Date): Da
       return {
         ok: false,
         code: "too-old",
-        message: `Please enter a year within the last 100 years (${yMin}–${yMax}).`,
+        message: hi
+          ? `कृपया पिछले 100 वर्षों (${yMin}–${yMax}) के भीतर का वर्ष दर्ज करें।`
+          : `Please enter a year within the last 100 years (${yMin}–${yMax}).`,
         iso: "",
       };
     }
@@ -180,7 +208,8 @@ export interface TimeCheck {
   value: string;
 }
 
-export function checkTime(parts: TimeParts, hour12: boolean): TimeCheck {
+/** `lang` (S24): message language; default "en" keeps pure-function tests deterministic. */
+export function checkTime(parts: TimeParts, hour12: boolean, lang: "en" | "hi" = "en"): TimeCheck {
   const hh = parts.hh.replace(/\D/g, "");
   const mm = parts.mm.replace(/\D/g, "");
   if (hh.length < 2 || mm.length < 2) {
@@ -190,21 +219,32 @@ export function checkTime(parts: TimeParts, hour12: boolean): TimeCheck {
   const m = Number(mm);
   const hMax = hour12 ? 12 : 23;
   const hMin = hour12 ? 1 : 0;
+  const hi = lang === "hi";
   if (h < hMin || h > hMax) {
     return {
       ok: false,
       code: "hour",
-      message: `Hour must be ${hMin}–${hMax}.`,
+      message: hi ? `घंटा ${hMin}–${hMax} होना चाहिए।` : `Hour must be ${hMin}–${hMax}.`,
       value: "",
     };
   }
   if (m < 0 || m > 59) {
-    return { ok: false, code: "minute", message: "Minutes must be 00–59.", value: "" };
+    return {
+      ok: false,
+      code: "minute",
+      message: hi ? "मिनट 00–59 होने चाहिए।" : "Minutes must be 00–59.",
+      value: "",
+    };
   }
   // a complete hh:mm WITHOUT a meridiem is still incomplete — assuming AM
   // silently composed 10:30 PM as 10:30 AM, a wrong result (S18 owner find)
   if (hour12 && parts.ampm !== "am" && parts.ampm !== "pm") {
-    return { ok: false, code: "ampm", message: "Select AM or PM.", value: "" };
+    return {
+      ok: false,
+      code: "ampm",
+      message: hi ? "AM या PM चुनें।" : "Select AM or PM.",
+      value: "",
+    };
   }
   let h24 = h;
   if (hour12) {

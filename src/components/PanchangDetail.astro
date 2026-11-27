@@ -1,7 +1,10 @@
 ---
+import { langFromPath } from "../lib/i18n";
 /**
  * Panchang detail component (Epic 3.2) — client island rendering the full
  * day from the LIVE /api/v1/panchang for a fixed city + date (?date= or today).
+ * S24: chrome follows the page language; limb VALUES come from the API
+ * (name_hi already surfaces as the sub line where the engine provides it).
  */
 import DateField from "./DateField.astro";
 
@@ -14,54 +17,115 @@ interface Props {
   tz: string;
 }
 const { apiBase, citySlug, cityName, lat, lng, tz } = Astro.props;
+const hi = langFromPath(Astro.url.pathname) === "hi";
+const T = hi
+  ? {
+      ariaLabel: `${cityName} का पंचांग`,
+      date: "तिथि",
+      quickAria: "त्वरित तिथि चयन",
+      today: "आज",
+      tomorrow: "कल",
+      monthly: "मासिक दृश्य",
+      err: "पंचांग लोड नहीं हो सका — कृपया थोड़ी देर बाद फिर कोशिश करें।",
+      loading: "लोड हो रहा है…",
+      festH: "त्योहार और व्रत",
+      festHint: "— चयनित दिन के लिए (त्योहार तालिका से)",
+      festEmpty: "इस दिन के लिए अभी कोई त्योहार या व्रत दर्ज नहीं है।",
+      limbsH: "पंचांग के पाँच अंग",
+      limbsHint: "— आरंभ/अंत समय सहित (वैदिक दिन सूर्योदय → सूर्योदय)",
+      segH: "दिन के खंड",
+      howSummary: "यह पंचांग कैसे गणित होता है",
+      howP: "ग्रह स्थितियाँ astronomy-engine लाइब्रेरी की प्रकाशित खगोलीय पद्धतियों से आती हैं, और लहरी अयनांश (≈24°, प्रकाशित तालिकाओं से सत्यापित) से निरयण राशि मंडल में बदली जाती हैं। समय-क्षेत्र IANA डेटाबेस से आते हैं, इसलिए ऐतिहासिक DST सही निपटे जाते हैं। वैदिक दिन सूर्योदय पर शुरू होता है (ऊपरी लिम्ब + वायु-अपवर्तन, छपे पंचांगों से मेल)। राहु काल और ऐसे खंड पारंपरिक 1/8-दिन अनुपात से बनते हैं — इन तालिकाओं पर ज्योतिषी-समीक्षा लंबित ध्वज है।",
+      /* script-side cell labels */
+      tithi: "तिथि",
+      nakshatra: "नक्षत्र",
+      yoga: "योग",
+      karana: "करण",
+      sunrise: "सूर्योदय",
+      sunset: "सूर्यास्त",
+      moonrise: "चंद्रोदय",
+      moonset: "चंद्रास्त",
+      hinduMonth: "हिन्दू माह",
+      adhika: " (अधिक)",
+      samvat: "संवत",
+      vikram: "विक्रम",
+      shaka: "शक",
+      dayEnd: " (दिन-अंत)",
+      provisional: "⚠ अनंतिम समय",
+    }
+  : {
+      ariaLabel: `Panchang for ${cityName}`,
+      date: "Date",
+      quickAria: "Quick date picks",
+      today: "Today",
+      tomorrow: "Tomorrow",
+      monthly: "Monthly view",
+      err: "Could not load Panchang — please try again shortly.",
+      loading: "Loading…",
+      festH: "Festivals & vrats",
+      festHint: "— for the selected day (from the festivals table)",
+      festEmpty: "No festivals or vrats recorded for this day yet.",
+      limbsH: "Five limbs",
+      limbsHint: "— with start/end times (Vedic day runs sunrise → sunrise)",
+      segH: "Day segments",
+      howSummary: "How this Panchang is calculated",
+      howP: "Planetary positions come from published astronomical methods via the astronomy-engine library, converted to the sidereal zodiac with the Lahiri ayanamsha (≈24° for current years, validated against published tables). Timezones use the IANA database, so historical DST is handled correctly. The Vedic day begins at sunrise (upper limb + refraction, matching printed almanacs). Rahu Kaal and similar segments use the traditional proportional 1/8-day method — these tables carry a pending Jyotishi-review flag.",
+      tithi: "Tithi",
+      nakshatra: "Nakshatra",
+      yoga: "Yoga",
+      karana: "Karana",
+      sunrise: "Sunrise",
+      sunset: "Sunset",
+      moonrise: "Moonrise",
+      moonset: "Moonset",
+      hinduMonth: "Hindu month",
+      adhika: " (adhika)",
+      samvat: "Samvat",
+      vikram: "Vikram",
+      shaka: "Shaka",
+      dayEnd: " (day end)",
+      provisional: "⚠ provisional timings",
+    };
 ---
 
-<section class="pd" aria-label={`Panchang for ${cityName}`} data-api-base={apiBase} data-city-slug={citySlug} data-city-tz={tz}>
+<section class="pd" aria-label={T.ariaLabel} data-api-base={apiBase} data-city-slug={citySlug} data-city-tz={tz}>
   <div class="pd-toolbar">
     <div class="dp-date">
-      <DateField id="pd-date" label="Date" preset="free" attrs={{ "data-pd-date": "" }} />
+      <DateField id="pd-date" label={T.date} preset="free" attrs={{ "data-pd-date": "" }} />
     </div>
-    <div class="quick" role="group" aria-label="Quick date picks">
-      <button type="button" class="quick-btn" data-pd-quick="today">Today</button>
-      <button type="button" class="quick-btn" data-pd-quick="tomorrow">Tomorrow</button>
+    <div class="quick" role="group" aria-label={T.quickAria}>
+      <button type="button" class="quick-btn" data-pd-quick="today">{T.today}</button>
+      <button type="button" class="quick-btn" data-pd-quick="tomorrow">{T.tomorrow}</button>
     </div>
-    <button type="button" class="monthly" data-pd-monthly>Monthly view</button>
+    <button type="button" class="monthly" data-pd-monthly>{T.monthly}</button>
   </div>
 
-  <div class="pd-error" data-pd-error hidden>Could not load Panchang — please try again shortly.</div>
+  <div class="pd-error" data-pd-error hidden>{T.err}</div>
 
   <div class="pd-grid" data-pd-grid>
-    <div class="cell skeleton">Loading…</div>
+    <div class="cell skeleton">{T.loading}</div>
   </div>
 
   <div class="pd-cal" data-pd-calendar hidden></div>
 
-  <h3>Festivals &amp; vrats <span class="hint">— for the selected day (from the festivals table)</span></h3>
+  <h3>{T.festH} <span class="hint">{T.festHint}</span></h3>
   <div class="festivals" data-pd-festivals>
     <p class="fest-empty">—</p>
   </div>
 
-  <h3>Five limbs <span class="hint">— with start/end times (Vedic day runs sunrise → sunrise)</span></h3>
+  <h3>{T.limbsH} <span class="hint">{T.limbsHint}</span></h3>
   <div class="limbs" data-pd-limbs></div>
 
-  <h3>Day segments</h3>
+  <h3>{T.segH}</h3>
   <div class="segments" data-pd-segments></div>
 
   <details class="accuracy">
-    <summary>How this Panchang is calculated</summary>
-    <p>
-      Planetary positions come from published astronomical methods via the
-      astronomy-engine library, converted to the sidereal zodiac with the Lahiri
-      ayanamsha (≈24° for current years, validated against published tables).
-      Timezones use the IANA database, so historical DST is handled correctly.
-      The Vedic day begins at sunrise (upper limb + refraction, matching printed
-      almanacs). Rahu Kaal and similar segments use the traditional proportional
-      1/8-day method — these tables carry a pending Jyotishi-review flag.
-    </p>
+    <summary>{T.howSummary}</summary>
+    <p>{T.howP}</p>
   </details>
 </section>
 
-<script is:inline define:vars={{ apiBase, citySlug, cityName, lat, lng, tz }}>
+<script is:inline define:vars={{ apiBase, citySlug, cityName, lat, lng, tz, T }}>
   (function () {
     var grid = document.querySelector("[data-pd-grid]");
     var limbsEl = document.querySelector("[data-pd-limbs]");
@@ -85,13 +149,13 @@ const { apiBase, citySlug, cityName, lat, lng, tz } = Astro.props;
     }
     function limbRows(limb) {
       return limb.map(function (w) {
-        return '<div class="limb-row"><span class="ln">' + w.name + '</span><span class="lt">' + fmt(w.start, tz) + " – " + fmt(w.end, tz) + (w.end_kind === "day_end" ? " (day end)" : "") + "</span></div>";
+        return '<div class="limb-row"><span class="ln">' + w.name + '</span><span class="lt">' + fmt(w.start, tz) + " – " + fmt(w.end, tz) + (w.end_kind === "day_end" ? T.dayEnd : "") + "</span></div>";
       }).join("");
     }
 
     function load(dateISO) {
       errEl.setAttribute("hidden", "");
-      grid.innerHTML = '<div class="cell skeleton">Loading…</div>';
+      grid.innerHTML = '<div class="cell skeleton">' + T.loading + "</div>";
       limbsEl.innerHTML = "";
       segsEl.innerHTML = "";
       var festEl = document.querySelector("[data-pd-festivals]");
@@ -102,21 +166,26 @@ const { apiBase, citySlug, cityName, lat, lng, tz } = Astro.props;
           if (!jf || !festEl) return;
           var list = jf.data && jf.data.festivals ? jf.data.festivals : [];
           if (list.length === 0) {
-            festEl.innerHTML = '<p class="fest-empty">No festivals or vrats recorded for this day yet.</p>';
+            festEl.innerHTML = '<p class="fest-empty">' + T.festEmpty + "</p>";
           } else {
             festEl.innerHTML = list.map(function (f) {
-              return '<div class="fest"><span class="fn">' + f.name + (f.name_hi ? ' <span class="fh">' + f.name_hi + "</span>" : "") + '</span><span class="fd">' + (f.description || "") + "</span></div>";
+              // hi pages lead with the Hindi name (EN shown by .fh)
+              var mainName = document.documentElement.lang === "hi" && f.name_hi ? f.name_hi : f.name;
+              var secondName = document.documentElement.lang === "hi" && f.name_hi ? f.name : f.name_hi;
+              return '<div class="fest"><span class="fn">' + mainName + (secondName ? ' <span class="fh">' + secondName + "</span>" : "") + '</span><span class="fd">' + (f.description || "") + "</span></div>";
             }).join("");
           }
         })
         .catch(function () { /* festivals are optional; panchang still renders */ });
       // City mode first — the backend caches per (city, date) and the daily
       // cron pre-warms today, so most reads are cache hits. Coordinates are
-      // the fallback for a city that has since been removed.
-      fetch(apiBase + "/api/v1/panchang?city=" + encodeURIComponent(citySlug) + "&date=" + dateISO)
+      // the fallback for a city that has since been removed. lang=hi asks the
+      // backend to localize names (cache stays language-neutral).
+      var langQ = document.documentElement.lang === "hi" ? "&lang=hi" : "";
+      fetch(apiBase + "/api/v1/panchang?city=" + encodeURIComponent(citySlug) + "&date=" + dateISO + langQ)
         .then(function (r) { if (!r.ok) throw new Error("bad"); return r.json(); })
         .catch(function () {
-          return fetch(apiBase + "/api/v1/panchang?lat=" + lat + "&lng=" + lng + "&tz=" + encodeURIComponent(tz) + "&date=" + dateISO)
+          return fetch(apiBase + "/api/v1/panchang?lat=" + lat + "&lng=" + lng + "&tz=" + encodeURIComponent(tz) + "&date=" + dateISO + langQ)
             .then(function (r) { if (!r.ok) throw new Error("bad"); return r.json(); });
         })
         .then(function (j) {
@@ -125,24 +194,24 @@ const { apiBase, citySlug, cityName, lat, lng, tz } = Astro.props;
           var prim = hm.primary || hm.purnimanta || {};
           var sv = p.samvat || {};
           grid.innerHTML =
-            cell("Tithi", p.tithi[0] ? p.tithi[0].name : "—") +
-            cell("Nakshatra", p.nakshatra[0] ? p.nakshatra[0].name : "—", p.nakshatra[0] ? p.nakshatra[0].name_hi : "") +
-            cell("Yoga", p.yoga[0] ? p.yoga[0].name : "—") +
-            cell("Karana", p.karana[0] ? p.karana[0].name : "—") +
-            cell("Sunrise", fmt(p.vedic_day.sunrise, p.timezone)) +
-            cell("Sunset", fmt(p.vedic_day.sunset, p.timezone)) +
-            cell("Moonrise", p.moonrise ? fmt(p.moonrise, p.timezone) : "—") +
-            cell("Moonset", p.moonset ? fmt(p.moonset, p.timezone) : "—") +
-            cell("Hindu month", prim.name ? prim.name + (hm.adhika ? " (adhika)" : "") : "—", prim.name_hi || "") +
-            cell("Samvat", sv.vikram ? "Vikram " + sv.vikram + " · Shaka " + sv.shaka : "—");
+            cell(T.tithi, p.tithi[0] ? p.tithi[0].name : "—") +
+            cell(T.nakshatra, p.nakshatra[0] ? p.nakshatra[0].name : "—", p.nakshatra[0] && p.nakshatra[0].name_hi !== p.nakshatra[0].name ? p.nakshatra[0].name_hi : "") +
+            cell(T.yoga, p.yoga[0] ? p.yoga[0].name : "—") +
+            cell(T.karana, p.karana[0] ? p.karana[0].name : "—") +
+            cell(T.sunrise, fmt(p.vedic_day.sunrise, p.timezone)) +
+            cell(T.sunset, fmt(p.vedic_day.sunset, p.timezone)) +
+            cell(T.moonrise, p.moonrise ? fmt(p.moonrise, p.timezone) : "—") +
+            cell(T.moonset, p.moonset ? fmt(p.moonset, p.timezone) : "—") +
+            cell(T.hinduMonth, prim.name ? prim.name + (hm.adhika ? T.adhika : "") : "—", prim.name_hi && prim.name_hi !== prim.name ? prim.name_hi : "") +
+            cell(T.samvat, sv.vikram ? T.vikram + " " + sv.vikram + " · " + T.shaka + " " + sv.shaka : "—");
           limbsEl.innerHTML =
-            '<div class="limb-block"><h4>Tithi</h4>' + limbRows(p.tithi) + "</div>" +
-            '<div class="limb-block"><h4>Nakshatra</h4>' + limbRows(p.nakshatra) + "</div>" +
-            '<div class="limb-block"><h4>Yoga</h4>' + limbRows(p.yoga) + "</div>" +
-            '<div class="limb-block"><h4>Karana</h4>' + limbRows(p.karana) + "</div>";
+            '<div class="limb-block"><h4>' + T.tithi + "</h4>" + limbRows(p.tithi) + "</div>" +
+            '<div class="limb-block"><h4>' + T.nakshatra + "</h4>" + limbRows(p.nakshatra) + "</div>" +
+            '<div class="limb-block"><h4>' + T.yoga + "</h4>" + limbRows(p.yoga) + "</div>" +
+            '<div class="limb-block"><h4>' + T.karana + "</h4>" + limbRows(p.karana) + "</div>";
           var segs = [p.rahu_kaal, p.yamaganda, p.gulika, p.abhijit, p.brahma_muhurta];
           segsEl.innerHTML = segs.map(function (s) {
-            return '<div class="seg ' + (s.verified ? "verified" : "unverified") + '"><div class="sn">' + s.name + '</div><div class="st">' + fmt(s.start, tz) + " – " + fmt(s.end, tz) + '</div><div class="ss">' + (s.verified ? "" : "⚠ provisional timings") + "</div></div>";
+            return '<div class="seg ' + (s.verified ? "verified" : "unverified") + '"><div class="sn">' + s.name + '</div><div class="st">' + fmt(s.start, tz) + " – " + fmt(s.end, tz) + '</div><div class="ss">' + (s.verified ? "" : T.provisional) + "</div></div>";
           }).join("");
         })
         .catch(function () {

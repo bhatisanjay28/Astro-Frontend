@@ -2,13 +2,17 @@
 /**
  * S18 shared required-fields note (owner: "Add a small note at the top of
  * each form: Fields marked * are required."). Rendered atop every form that
- * carries required fields; `lang` follows the page (HI ready for Hindi forms).
+ * carries required fields; language follows the page path (S24) — an explicit
+ * `lang` prop still wins.
  */
+import { langFromPath } from "../../lib/i18n";
+
 interface Props {
   lang?: "en" | "hi";
   class?: string;
 }
-const { lang = "en", class: className } = Astro.props;
+const { lang: langProp, class: className } = Astro.props;
+const lang = langProp ?? langFromPath(Astro.url.pathname);
 ---
 <p class={`req-note${className ? " " + className : ""}`}>
   {

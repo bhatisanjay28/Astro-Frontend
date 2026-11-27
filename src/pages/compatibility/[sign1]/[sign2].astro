@@ -2,9 +2,13 @@
 /** /compatibility/{sign1}/{sign2}/ — 78 canonical sun-sign pair pages (Epic ZC
  * S-ZC-3). Results come from the backend API (D12 thin renderer); scores are
  * never recomputed or invented here. Mirrored sign orders 404 — canonical
- * wheel-order pages are the only URLs. */
+ * wheel-order pages are the only URLs.
+ * S24: chrome + picker strings from the dict; /hi twin renders Hindi chrome
+ * (the API reading stays EN until the backend lang pass). */
 import Base from "../../../layouts/Base.astro";
-import { canonicalPairs, type ZodiacSignMeta } from "../../../lib/zodiac-signs";
+import { langFromPath, withLang } from "../../../lib/i18n";
+import { ZC_PAIR } from "../../../lib/i18n/compatibility";
+import { canonicalPairs, ZODIAC_SIGNS, type ZodiacSignMeta } from "../../../lib/zodiac-signs";
 
 export function getStaticPaths() {
   return canonicalPairs().map(({ sign1, sign2 }) => ({
@@ -15,106 +19,78 @@ export function getStaticPaths() {
 
 const { sign1, sign2 } = Astro.props as { sign1: ZodiacSignMeta; sign2: ZodiacSignMeta };
 const apiBase = import.meta.env.PUBLIC_API_BASE_URL ?? "https://astro-backend.vyotish.workers.dev";
-const pairLabel = `${sign1.en} & ${sign2.en}`;
+const lang = langFromPath(Astro.url.pathname);
+const t = ZC_PAIR[lang];
+const hi = lang === "hi";
+const here = Astro.url.pathname;
+const n1 = hi ? sign1.hi : sign1.en;
+const n2 = hi ? sign2.hi : sign2.en;
+const pairLabel = t.pairLabel(n1, n2);
 const sameSign = sign1.slug === sign2.slug;
+const optLabel = (s: ZodiacSignMeta) => (hi ? `${s.hi} (${s.en})` : s.en);
 ---
 
-<Base
-  title={`${pairLabel} Compatibility — Sun Sign Match Score & Tips | Vyotish`}
-  description={`Read the ${sign1.en}–${sign2.en} sun-sign match: love, sexual, friendship, communication, trust and emotional compatibility with an overall score and original relationship tips.`}
->
+<Base title={t.title(n1, n2)} description={t.description(n1, n2)}>
   <nav class="zc-crumbs" aria-label="Breadcrumb">
-    <a href="/astrology">Astrology</a> <span aria-hidden="true">/</span>
-    <a href="/compatibility">Zodiac Compatibility</a> <span aria-hidden="true">/</span>
+    <a href={withLang("/astrology", here)}>{t.crumbsRoot}</a> <span aria-hidden="true">/</span>
+    <a href={withLang("/compatibility", here)}>{t.crumbsHub}</a> <span aria-hidden="true">/</span>
     <span aria-current="page">{pairLabel}</span>
   </nav>
 
   <section class="zc-page" data-zc-sign1={sign1.slug} data-zc-sign2={sign2.slug}>
     <header class="zc-head">
-      <h1>
-        {pairLabel} Compatibility
+      <h1 class={hi ? "hi-text" : ""}>
+        {t.h1(n1, n2)}
         <span class="zc-symbols" aria-hidden="true">{sign1.symbol}{sameSign ? "" : sign2.symbol}</span>
       </h1>
       <p class="zc-lede">
-        {sameSign
-          ? `Two ${sign1.en} partners — how the same sign pairs with itself, and where the similarities help or pinch.`
-          : `How ${sign1.en} and ${sign2.en} get along, scored honestly across six aspects of a relationship — with original tips for the friction points.`}
+        {sameSign ? t.ledeSame(n1) : t.ledeDiff(n1, n2)}
       </p>
     </header>
 
     <div class="zc-result-shell" data-zc-result aria-live="polite" aria-busy="true">
       <div class="zc-state zc-loading">
-        <p>Reading the charts…</p>
+        <p>{t.loading}</p>
       </div>
     </div>
 
-    <section class="zc-picker" aria-label="Check another pair">
-      <h2>Check another pairing</h2>
+    <section class="zc-picker" aria-label={t.pickerAria}>
+      <h2>{t.pickerH}</h2>
       <form data-zc-picker>
         <div class="zc-fields">
           <label>
-            <span>Your sign</span>
+            <span>{t.yourSign}</span>
             <select name="sign1" required>
-              {(
-                [
-                  ["aries", "Aries"],
-                  ["taurus", "Taurus"],
-                  ["gemini", "Gemini"],
-                  ["cancer", "Cancer"],
-                  ["leo", "Leo"],
-                  ["virgo", "Virgo"],
-                  ["libra", "Libra"],
-                  ["scorpio", "Scorpio"],
-                  ["sagittarius", "Sagittarius"],
-                  ["capricorn", "Capricorn"],
-                  ["aquarius", "Aquarius"],
-                  ["pisces", "Pisces"],
-                ] as Array<[string, string]>
-              ).map(([slug, name]) => (
-                <option value={slug} selected={slug === sign1.slug}>
-                  {name}
+              {ZODIAC_SIGNS.map((s) => (
+                <option value={s.slug} selected={s.slug === sign1.slug}>
+                  {optLabel(s)}
                 </option>
               ))}
             </select>
           </label>
-          <button type="button" class="zc-swap" data-zc-swap aria-label="Swap the two signs">
+          <button type="button" class="zc-swap" data-zc-swap aria-label={t.swapAria}>
             ⇄
           </button>
           <label>
-            <span>Partner's sign</span>
+            <span>{t.partnerSign}</span>
             <select name="sign2" required>
-              {(
-                [
-                  ["aries", "Aries"],
-                  ["taurus", "Taurus"],
-                  ["gemini", "Gemini"],
-                  ["cancer", "Cancer"],
-                  ["leo", "Leo"],
-                  ["virgo", "Virgo"],
-                  ["libra", "Libra"],
-                  ["scorpio", "Scorpio"],
-                  ["sagittarius", "Sagittarius"],
-                  ["capricorn", "Capricorn"],
-                  ["aquarius", "Aquarius"],
-                  ["pisces", "Pisces"],
-                ] as Array<[string, string]>
-              ).map(([slug, name]) => (
-                <option value={slug} selected={slug === sign2.slug}>
-                  {name}
+              {ZODIAC_SIGNS.map((s) => (
+                <option value={s.slug} selected={s.slug === sign2.slug}>
+                  {optLabel(s)}
                 </option>
               ))}
             </select>
           </label>
         </div>
-        <button type="submit" class="zc-check">Check Compatibility</button>
-        <p class="zc-hint">Choosing the same sign twice is allowed.</p>
+        <button type="submit" class="zc-check">{t.check}</button>
+        <p class="zc-hint">{t.hint}</p>
       </form>
     </section>
 
-    <section class="zc-more" aria-label="Related readings">
-      <a href="/matching">Vedic Kundli Matching →</a>
-      <a href={`/horoscope/${sign1.slug}/daily`}>{sign1.en} horoscope →</a>
-      <a href={`/horoscope/${sign2.slug}/daily`}>{sign2.en} horoscope →</a>
+    <section class="zc-more" aria-label={t.moreAria}>
+      <a href={withLang("/matching", here)}>{t.matchingLink}</a>
+      <a href={withLang(`/horoscope/${sign1.slug}/daily`, here)}>{t.horoLink(hi ? sign1.hi : sign1.en)}</a>
+      <a href={withLang(`/horoscope/${sign2.slug}/daily`, here)}>{t.horoLink(hi ? sign2.hi : sign2.en)}</a>
     </section>
   </section>
 </Base>
@@ -122,6 +98,10 @@ const sameSign = sign1.slug === sign2.slug;
 <script>
   import { esc, renderPairResult, type ZcPairPayload } from "../../../scripts/compatibility-render";
   import { canonicalPairSlug } from "../../../lib/zodiac-signs";
+  import { ZC_PAIR } from "../../../lib/i18n/compatibility";
+
+  // S24 — chrome language follows the served page (Base sets <html lang>).
+  const T = ZC_PAIR[document.documentElement.lang === "hi" ? "hi" : "en"];
 
   const region = document.querySelector<HTMLElement>("[data-zc-result]");
   const form = document.querySelector<HTMLFormElement>("[data-zc-picker]");
@@ -141,7 +121,7 @@ const sameSign = sign1.slug === sign2.slug;
     setState(
       `<div class="zc-state zc-error"><p>${esc(message)}</p>${
         retry
-          ? `<button type="button" class="zc-check zc-retry">Try again</button>`
+          ? `<button type="button" class="zc-check zc-retry">${esc(T.retry)}</button>`
           : ""
       }</div>`,
       false,
@@ -151,7 +131,7 @@ const sameSign = sign1.slug === sign2.slug;
 
   async function load(): Promise<void> {
     if (!region || !sign1 || !sign2) return;
-    setState(`<div class="zc-state zc-loading"><p>Reading the charts…</p></div>`, true);
+    setState(`<div class="zc-state zc-loading"><p>${esc(T.loading)}</p></div>`, true);
     try {
       const res = await fetch(
         `${apiBase}/api/v1/compatibility/signs/pair?sign1=${encodeURIComponent(sign1)}&sign2=${encodeURIComponent(sign2)}`,
@@ -165,15 +145,12 @@ const sameSign = sign1.slug === sign2.slug;
         const w = window as unknown as { vyTrack?: (event: string, props: unknown) => void };
         w.vyTrack?.("compatibility_checked", { pair: json.j.data.pair });
       } else if (res.status === 503 || json.j.error?.code === "content_unavailable") {
-        failState(
-          "This pairing's reading isn't published yet — it should appear shortly. Meanwhile, every pairing is available from the Zodiac Compatibility hub.",
-          false,
-        );
+        failState(T.errUnavailable, false);
       } else {
-        failState("Couldn't load this reading right now. Please try again in a moment.", true);
+        failState(T.errGeneric, true);
       }
     } catch {
-      failState("Couldn't reach the astrology engine. Check your connection and try again.", true);
+      failState(T.errNetwork, true);
     }
   }
 
@@ -186,7 +163,8 @@ const sameSign = sign1.slug === sign2.slug;
     const key = canonicalPairSlug(s1, s2);
     if (!key) return; // fail closed — never navigate on a non-canonical pair
     const [a, b] = key.split("-");
-    window.location.assign(`/compatibility/${a}/${b}/`);
+    const prefix = document.documentElement.lang === "hi" ? "/hi" : "";
+    window.location.assign(`${prefix}/compatibility/${a}/${b}/`);
   }
 
   document.querySelector<HTMLButtonElement>("[data-zc-swap]")?.addEventListener("click", () => {

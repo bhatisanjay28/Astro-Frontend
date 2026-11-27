@@ -16,6 +16,10 @@ export interface ExtraField {
   preset?: "birth" | "free";
   /** time extra fields — 12-hour AM/PM (default) or 24-hour (e.g. the UTC field) */
   hour12?: boolean;
+  /** S24 Hindi overrides — values (option values) stay EN for the backend */
+  label_hi?: string;
+  placeholder_hi?: string;
+  options_hi?: Record<string, string>;
 }
 interface Props {
   endpoint: string;
@@ -24,12 +28,22 @@ interface Props {
   note?: string;
 }
 
+import { type Lang, langFromPath } from "../../lib/i18n";
+import { CALC_TOOL } from "../../lib/i18n/calculators";
 import DateField from "../DateField.astro";
 import FieldLabel from "../forms/FieldLabel.astro";
 import RequiredNote from "../forms/RequiredNote.astro";
 import PlaceField from "../PlaceField.astro";
 
 const { endpoint, submitLabel = "Calculate", extraFields = [], note } = Astro.props;
+const lang: Lang = langFromPath(Astro.url.pathname);
+const t = CALC_TOOL[lang];
+const hi = lang === "hi";
+/* S24 — per-field Hindi overrides; option VALUES stay EN (backend contract) */
+const fLabel = (f: ExtraField) => (hi ? (f.label_hi ?? f.label) : f.label);
+const fPlaceholder = (f: ExtraField) =>
+  hi ? (f.placeholder_hi ?? f.placeholder ?? "") : (f.placeholder ?? "");
+const fOptLabel = (f: ExtraField, opt: string) => (hi ? (f.options_hi?.[opt] ?? opt) : opt);
 const inputClass =
   "w-full px-3 py-2 min-h-[44px] rounded bg-light-surface dark:bg-dark-surface border border-light-outline-variant dark:border-dark-outline-variant text-light-on-surface dark:text-dark-on-surface font-body text-body-sm";
 const labelClass =
@@ -48,28 +62,28 @@ const labelClass =
   {/* dt fields span the full row at base — the picker needs ~230px and a
       half-width 360px cell overflows it (S18 responsive check) */}
   <div class="col-span-2 sm:col-span-1">
-    <DateField id="bf-date" name="date" label="Birth date" labelClass={labelClass} required />
+    <DateField id="bf-date" name="date" label={t.birthDate} labelClass={labelClass} required />
   </div>
   <div class="col-span-2 sm:col-span-1">
     {/* birth charts need the instant — lagna/houses/moon move with the clock
         (S18: time required, same as date and place) */}
-    <DateField mode="time" id="bf-time" name="time" label="Birth time" labelClass={labelClass} required />
+    <DateField mode="time" id="bf-time" name="time" label={t.birthTime} labelClass={labelClass} required />
   </div>
   {/* full row: the PlaceField's live-status line sits below its input, so
       confining it to one grid cell broke the items-end bottom alignment */}
   <div class="col-span-2 sm:col-span-3">
-    <PlaceField variant="separate" inputId="bf-place" label="Place of birth" />
+    <PlaceField variant="separate" inputId="bf-place" label={t.placeBirth} />
   </div>
   {
     extraFields.map((f) => (
       <div class={f.type === "date" || f.type === "time" ? "col-span-2 sm:col-span-1" : ""}>
         {f.options ? (
           <div>
-            <FieldLabel forId={`bf-${f.name}`} label={f.label} required={f.required === true} optional={f.required !== true} class={labelClass} />
+            <FieldLabel forId={`bf-${f.name}`} label={fLabel(f)} required={f.required === true} optional={f.required !== true} optionalText={t.optionalSuffix} class={labelClass} />
             <select class={inputClass} id={`bf-${f.name}`} name={f.name} required={f.required === true}>
               {f.required !== true && <option value="">—</option>}
               {f.options.map((opt) => (
-                <option value={opt}>{opt}</option>
+                <option value={opt}>{fOptLabel(f, opt)}</option>
               ))}
             </select>
           </div>
@@ -77,7 +91,7 @@ const labelClass =
           <DateField
             id={`bf-${f.name}`}
             name={f.name}
-            label={`${f.label}${f.required ? "" : " (optional)"}`}
+            label={`${fLabel(f)}${f.required ? "" : t.optionalSuffix}`}
             labelClass={labelClass}
             required={f.required === true}
             preset={f.preset ?? "free"}
@@ -87,20 +101,20 @@ const labelClass =
             mode="time"
             id={`bf-${f.name}`}
             name={f.name}
-            label={`${f.label}${f.required ? "" : " (optional)"}`}
+            label={`${fLabel(f)}${f.required ? "" : t.optionalSuffix}`}
             labelClass={labelClass}
             required={f.required === true}
             hour12={f.hour12 !== false}
           />
         ) : (
           <div>
-            <FieldLabel forId={`bf-${f.name}`} label={f.label} required={f.required === true} optional={f.required !== true} class={labelClass} />
+            <FieldLabel forId={`bf-${f.name}`} label={fLabel(f)} required={f.required === true} optional={f.required !== true} optionalText={t.optionalSuffix} class={labelClass} />
             <input
               class={inputClass}
               id={`bf-${f.name}`}
               name={f.name}
               type={f.type}
-              placeholder={f.placeholder ?? ""}
+              placeholder={fPlaceholder(f)}
               required={f.required === true}
             />
           </div>

@@ -1,4 +1,7 @@
 ---
+import type { Lang } from "../../lib/i18n";
+import { withLang } from "../../lib/i18n";
+import { HOME } from "../../lib/i18n/home";
 import DateField from "../DateField.astro";
 import RequiredNote from "../forms/RequiredNote.astro";
 /**
@@ -8,31 +11,20 @@ import RequiredNote from "../forms/RequiredNote.astro";
  * autocomplete (owner directive) — worldwide cities from the backend
  * /places proxy, no baked city data. Includes the design's right-column
  * "what's included" list and the 36-point callout.
+ * S24: lang prop — every label, option, note and JS-injected error comes
+ * from the HOME dict for the page language.
  */
 import PlaceField from "../PlaceField.astro";
 
-const INCLUDES = [
-  {
-    strong: "Lagna & Navamsha Charts:",
-    text: " D-1 and D-9 divisional charts rendered as clean responsive SVG diagrams.",
-  },
-  {
-    strong: "Planetary Degrees:",
-    text: " Exact degrees, Nakshatra padas, retrograde status, and combustion for 9 grahas.",
-  },
-  {
-    strong: "Vimshottari Dasha:",
-    text: " Complete Mahadasha, Antardasha and Pratyantardasha timeline up to 120 years.",
-  },
-  {
-    strong: "Major Dosha Analysis:",
-    text: " Unbiased mathematical check for Manglik Dosha, Kaal Sarp, and Shani Sade Sati.",
-  },
-  {
-    strong: "Ashtakoota Matching:",
-    text: " 36-point Guna Milan tool for compatibility without mandatory registration.",
-  },
-];
+interface Props {
+  lang?: Lang;
+}
+const { lang = "en" } = Astro.props;
+const t = HOME[lang];
+const hi = lang === "hi";
+const apiBase = import.meta.env.PUBLIC_API_BASE_URL ?? "https://astro-backend.vyotish.workers.dev";
+const lp = (href: string) => withLang(href, Astro.url.pathname);
+const INCLUDES = t.hkIncludes;
 ---
 
 <section id="kundli-section" class="py-12 px-4 sm:px-8 border-b border-light-outline-variant/40 dark:border-dark-outline-variant/30 bg-light-surface dark:bg-dark-surface">
@@ -40,42 +32,42 @@ const INCLUDES = [
     <!-- Left: Form -->
     <div class="lg:col-span-7 bg-light-surface-variant dark:bg-dark-surface-variant border border-light-outline-variant dark:border-dark-outline-variant rounded-xl p-6 md:p-8">
       <div class="flex items-center gap-2 mb-2">
-        <span class="font-label text-label-sm font-semibold uppercase tracking-wider text-saffron dark:text-dark-primary">Free Vedic Tool</span>
-        <span class="font-label text-label-sm bg-light-primary-container text-light-primary dark:bg-dark-primary-container dark:text-dark-primary px-2 py-0.5 rounded font-medium">No Signup Required</span>
+        <span class={`font-label text-label-sm font-semibold uppercase tracking-wider text-saffron dark:text-dark-primary ${hi ? "hi-text" : ""}`}>{t.hkKicker}</span>
+        <span class={`font-label text-label-sm bg-light-primary-container text-light-primary dark:bg-dark-primary-container dark:text-dark-primary px-2 py-0.5 rounded font-medium ${hi ? "hi-text" : ""}`}>{t.hkNoSignup}</span>
       </div>
-      <h2 class="font-headline text-headline-md font-bold text-light-on-surface dark:text-dark-on-surface">
-        Generate Free Janam Kundli
+      <h2 class={`font-headline text-headline-md font-bold text-light-on-surface dark:text-dark-on-surface ${hi ? "hi-text" : ""}`}>
+        {t.hkH2}
       </h2>
-      <p class="font-body text-body-sm text-light-outline dark:text-dark-outline mt-1 mb-6">
-        Enter exact date, time and location of birth. Your chart is computed with the open-source astronomy-engine library, using Lahiri Ayanamsha.
+      <p class={`font-body text-body-sm text-light-outline dark:text-dark-outline mt-1 mb-6 ${hi ? "hi-text" : ""}`}>
+        {t.hkSub}
       </p>
 
       <form class="space-y-4" data-kundli-form>
-        <RequiredNote />
+        <RequiredNote lang={lang} />
         <!-- Full Name — never sent to the API (payload is date/time/place), so
              it is optional per the S18 marker rule -->
         <label class="flex flex-col gap-1.5">
-          <span class="font-label text-label-md font-medium text-light-on-surface dark:text-dark-on-surface">Full Name (पूरा नाम) (optional)</span>
-          <input type="text" placeholder="e.g. Ramesh Kumar" class="w-full px-3.5 py-2.5 rounded bg-light-surface dark:bg-dark-surface border border-light-outline-variant dark:border-dark-outline-variant text-light-on-surface dark:text-dark-on-surface focus-visible:ring-2 focus-visible:ring-light-primary font-body text-body-md" />
+          <span class={`font-label text-label-md font-medium text-light-on-surface dark:text-dark-on-surface ${hi ? "hi-text" : ""}`}>{t.hkName} {t.optional}</span>
+          <input type="text" placeholder={t.hkNamePlaceholder} class={`w-full px-3.5 py-2.5 rounded bg-light-surface dark:bg-dark-surface border border-light-outline-variant dark:border-dark-outline-variant text-light-on-surface dark:text-dark-on-surface focus-visible:ring-2 focus-visible:ring-light-primary font-body text-body-md ${hi ? "hi-text" : ""}`} />
         </label>
 
         <!-- Gender & Chart Style Toggle -->
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <label class="flex flex-col gap-1.5">
-            <span class="font-label text-label-md font-medium text-light-on-surface dark:text-dark-on-surface">Gender (लिंग)</span>
-            <select data-gender class="w-full px-3.5 py-2.5 rounded bg-light-surface dark:bg-dark-surface border border-light-outline-variant dark:border-dark-outline-variant text-light-on-surface dark:text-dark-on-surface focus-visible:ring-2 focus-visible:ring-light-primary font-body text-body-md">
-              <option value="male">Male (पुरुष)</option>
-              <option value="female">Female (महिला)</option>
-              <option value="other">Other</option>
+            <span class={`font-label text-label-md font-medium text-light-on-surface dark:text-dark-on-surface ${hi ? "hi-text" : ""}`}>{t.hkGender}</span>
+            <select data-gender class={`w-full px-3.5 py-2.5 rounded bg-light-surface dark:bg-dark-surface border border-light-outline-variant dark:border-dark-outline-variant text-light-on-surface dark:text-dark-on-surface focus-visible:ring-2 focus-visible:ring-light-primary font-body text-body-md ${hi ? "hi-text" : ""}`}>
+              <option value="male">{t.gender.male}</option>
+              <option value="female">{t.gender.female}</option>
+              <option value="other">{t.gender.other}</option>
             </select>
           </label>
 
           <label class="flex flex-col gap-1.5">
-            <span class="font-label text-label-md font-medium text-light-on-surface dark:text-dark-on-surface">Chart Style (शैली)</span>
-            <select data-chart-style class="w-full px-3.5 py-2.5 rounded bg-light-surface dark:bg-dark-surface border border-light-outline-variant dark:border-dark-outline-variant text-light-on-surface dark:text-dark-on-surface focus-visible:ring-2 focus-visible:ring-light-primary font-body text-body-md">
-              <option value="north" selected>North Indian (उत्तरी)</option>
-              <option value="south">South Indian (दक्षिणी)</option>
-              <option value="east">East Indian (पूर्वी)</option>
+            <span class={`font-label text-label-md font-medium text-light-on-surface dark:text-dark-on-surface ${hi ? "hi-text" : ""}`}>{t.hkStyle}</span>
+            <select data-chart-style class={`w-full px-3.5 py-2.5 rounded bg-light-surface dark:bg-dark-surface border border-light-outline-variant dark:border-dark-outline-variant text-light-on-surface dark:text-dark-on-surface focus-visible:ring-2 focus-visible:ring-light-primary font-body text-body-md ${hi ? "hi-text" : ""}`}>
+              <option value="north" selected>{t.styles.north}</option>
+              <option value="south">{t.styles.south}</option>
+              <option value="east">{t.styles.east}</option>
             </select>
           </label>
         </div>
@@ -85,8 +77,8 @@ const INCLUDES = [
           <div class="flex flex-col gap-1.5">
             <DateField
               id="hk-dob"
-              label="Date of Birth (जन्म तिथि)"
-              labelClass="font-label text-label-md font-medium text-light-on-surface dark:text-dark-on-surface"
+              label={t.hkDob}
+              labelClass={`font-label text-label-md font-medium text-light-on-surface dark:text-dark-on-surface ${hi ? "hi-text" : ""}`}
               required
               attrs={{ "data-dob": "" }}
             />
@@ -96,8 +88,8 @@ const INCLUDES = [
             <DateField
               mode="time"
               id="hk-tob"
-              label="Time of Birth (जन्म समय)"
-              labelClass="font-label text-label-md font-medium text-light-on-surface dark:text-dark-on-surface"
+              label={t.hkTob}
+              labelClass={`font-label text-label-md font-medium text-light-on-surface dark:text-dark-on-surface ${hi ? "hi-text" : ""}`}
               required
               attrs={{ "data-tob": "" }}
             />
@@ -109,50 +101,50 @@ const INCLUDES = [
           <PlaceField
             variant="combined"
             inputId="hk-place"
-            label="Place of Birth (जन्म स्थान)"
+            label={t.hkPlace}
             names={{ combined: "hk-city" }}
           />
-          <span class="font-body text-body-sm text-light-outline dark:text-dark-outline">Auto-resolves latitude, longitude, and historical IANA time zone</span>
+          <span class={`font-body text-body-sm text-light-outline dark:text-dark-outline ${hi ? "hi-text" : ""}`}>{t.hkPlaceNote}</span>
         </div>
 
         <!-- Submit Button -->
         <div class="pt-2">
           <button type="submit" class="w-full py-3.5 px-6 rounded bg-light-primary text-light-on-primary dark:bg-dark-primary dark:text-dark-on-primary font-label text-label-lg font-semibold hover:opacity-95 shadow-sm transition-opacity flex items-center justify-center gap-2 disabled:opacity-60" data-kundli-submit>
             <span class="material-symbols-outlined text-headline-sm">auto_graph</span>
-            <span>Calculate Janam Kundli Now</span>
+            <span class={hi ? "hi-text" : ""}>{t.hkSubmit}</span>
           </button>
         </div>
 
         <!-- Privacy Guarantee (Section 15) -->
-        <p class="text-center font-body text-body-sm text-light-outline dark:text-dark-outline pt-2">
-          🔒 Your birth details are used strictly for calculation. We never sell data, send spam, or ask for OTPs.
+        <p class={`text-center font-body text-body-sm text-light-outline dark:text-dark-outline pt-2 ${hi ? "hi-text" : ""}`}>
+          🔒 {t.hkPrivacy}
         </p>
       </form>
 
       <!-- Live result panel (design-equivalent quick data + chart) -->
       <div class="hidden mt-6 rounded-lg border border-light-outline-variant dark:border-dark-outline-variant bg-light-surface dark:bg-dark-surface p-4" data-kundli-result>
         <div class="flex items-center justify-between mb-3">
-          <span class="font-headline font-semibold text-headline-sm text-light-on-surface dark:text-dark-on-surface">Your Kundli</span>
-          <span class="font-data text-label-sm text-light-primary dark:text-dark-primary bg-light-primary-container dark:bg-dark-primary-container dark:text-dark-primary px-2 py-0.5 rounded font-medium" data-chart-label>North Indian</span>
+          <span class={`font-headline font-semibold text-headline-sm text-light-on-surface dark:text-dark-on-surface ${hi ? "hi-text" : ""}`}>{t.hkResultTitle}</span>
+          <span class={`font-data text-label-sm text-light-primary dark:text-dark-primary bg-light-primary-container dark:bg-dark-primary-container dark:text-dark-primary px-2 py-0.5 rounded font-medium ${hi ? "hi-text" : ""}`} data-chart-label>{t.styleLabels.north}</span>
         </div>
         <div class="aspect-square w-full max-w-[320px] mx-auto rounded-lg p-2 border border-light-outline-variant/40 dark:border-dark-outline-variant/30" data-chart-box></div>
         <div class="mt-3 grid grid-cols-3 gap-2 text-center">
           <div class="p-2 rounded bg-light-surface-variant dark:bg-dark-surface-variant/70">
-            <span class="block font-body text-light-outline dark:text-dark-outline text-label-sm">Lagna (Asc)</span>
+            <span class={`block font-body text-light-outline dark:text-dark-outline text-label-sm ${hi ? "hi-text" : ""}`}>{t.hkLagna}</span>
             <span class="font-data font-semibold text-data-mono text-light-primary dark:text-dark-primary" data-lagna>—</span>
           </div>
           <div class="p-2 rounded bg-light-surface-variant dark:bg-dark-surface-variant/70">
-            <span class="block font-body text-light-outline dark:text-dark-outline text-label-sm">Moon Sign</span>
+            <span class={`block font-body text-light-outline dark:text-dark-outline text-label-sm ${hi ? "hi-text" : ""}`}>{t.hkMoon}</span>
             <span class="font-data font-semibold text-data-mono text-light-primary dark:text-dark-primary" data-moon>—</span>
           </div>
           <div class="p-2 rounded bg-light-surface-variant dark:bg-dark-surface-variant/70">
-            <span class="block font-body text-light-outline dark:text-dark-outline text-label-sm">Current Dasha</span>
+            <span class={`block font-body text-light-outline dark:text-dark-outline text-label-sm ${hi ? "hi-text" : ""}`}>{t.hkDasha}</span>
             <span class="font-data font-semibold text-data-mono text-light-primary dark:text-dark-primary" data-dasha>—</span>
           </div>
         </div>
         <p class="mt-3 text-center">
-          <a href={`/kundli`} class="font-label text-label-sm font-semibold text-light-primary dark:text-dark-primary hover:underline inline-flex items-center gap-1">
-            Open the full Kundli report →
+          <a href={lp("/kundli")} class={`font-label text-label-sm font-semibold text-light-primary dark:text-dark-primary hover:underline inline-flex items-center gap-1 ${hi ? "hi-text" : ""}`}>
+            {t.hkFullReport}
           </a>
         </p>
       </div>
@@ -162,8 +154,8 @@ const INCLUDES = [
     <!-- Right: Kundli Output Preview & Features -->
     <div class="lg:col-span-5 flex flex-col gap-6">
       <div class="bg-light-surface-variant dark:bg-dark-surface-variant rounded-xl p-6 border border-light-outline-variant/60 dark:border-dark-outline-variant/40">
-        <h3 class="font-headline text-headline-sm font-semibold mb-3 text-light-on-surface dark:text-dark-on-surface">What Your Free Kundli Includes:</h3>
-        <ul class="flex flex-col gap-3 font-body text-body-sm text-light-on-surface-variant dark:text-dark-on-surface-variant">
+        <h3 class={`font-headline text-headline-sm font-semibold mb-3 text-light-on-surface dark:text-dark-on-surface ${hi ? "hi-text" : ""}`}>{t.hkIncludesH}</h3>
+        <ul class={`flex flex-col gap-3 font-body text-body-sm text-light-on-surface-variant dark:text-dark-on-surface-variant ${hi ? "hi-text" : ""}`}>
           {
             INCLUDES.map((i) => (
               <li class="flex items-start gap-2.5">
@@ -181,21 +173,21 @@ const INCLUDES = [
       <!-- Matching Card Callout -->
       <div class="p-5 rounded-xl border border-light-outline-variant dark:border-dark-outline-variant bg-light-surface dark:bg-dark-surface">
         <div class="flex items-center justify-between mb-2">
-          <span class="font-title text-title-md font-semibold text-light-on-surface dark:text-dark-on-surface">Kundli Matching (गुण मिलान)</span>
-          <span class="font-label text-label-sm font-semibold px-2 py-0.5 rounded bg-light-primary-container text-light-primary dark:bg-dark-primary-container dark:text-dark-primary">36 Points</span>
+          <span class={`font-title text-title-md font-semibold text-light-on-surface dark:text-dark-on-surface ${hi ? "hi-text" : ""}`}>{t.hkMatchTitle}</span>
+          <span class={`font-label text-label-sm font-semibold px-2 py-0.5 rounded bg-light-primary-container text-light-primary dark:bg-dark-primary-container dark:text-dark-primary ${hi ? "hi-text" : ""}`}>{t.hkMatchPoints}</span>
         </div>
-        <p class="font-body text-body-sm text-light-outline dark:text-dark-outline mb-3">
-          Match boy and girl birth charts with authentic Ashtakoota methodology (Varna, Vashya, Tara, Yoni, Graha Maitri, Gana, Bhakoot, Nadi).
+        <p class={`font-body text-body-sm text-light-outline dark:text-dark-outline mb-3 ${hi ? "hi-text" : ""}`}>
+          {t.hkMatchSub}
         </p>
-        <a href="/kundli#matching" class="font-label text-label-sm font-semibold text-light-primary dark:text-dark-primary hover:underline inline-flex items-center gap-1">
-          Open Kundli Matching Tool →
+        <a href={lp("/kundli#matching")} class={`font-label text-label-sm font-semibold text-light-primary dark:text-dark-primary hover:underline inline-flex items-center gap-1 ${hi ? "hi-text" : ""}`}>
+          {t.hkMatchCta}
         </a>
       </div>
     </div>
   </div>
 </section>
 
-<script define:vars={{ apiBase: import.meta.env.PUBLIC_API_BASE_URL ?? "https://astro-backend.vyotish.workers.dev" }}>
+<script define:vars={{ apiBase, errPlace: t.hkErrPlace, errCalc: t.hkErrCalc, styleLabels: t.styleLabels, lang }}>
   (function () {
     var API = apiBase;
     var root = document.querySelector("#kundli-section");
@@ -282,7 +274,7 @@ const INCLUDES = [
       var svg = style === "south" ? southChartSVG(houses) : style === "east" ? eastChartSVG(houses) : northChartSVG(houses.map(function (h, i) { return i === lagnaSignIdx ? h + " ▲" : h; }));
       box.innerHTML = svg;
       var label = root.querySelector("[data-chart-label]");
-      if (label) label.textContent = style === "south" ? "South Indian" : style === "east" ? "East Indian" : "North Indian";
+      if (label) label.textContent = styleLabels[style] || styleLabels.north;
     }
 
     if (form) {
@@ -293,7 +285,7 @@ const INCLUDES = [
         var placeRaw = (root.querySelector('[data-place-role="combined"]') || {}).value || "";
         var parts = placeRaw.split(",");
         if (parts.length !== 3 || !parts[0] || !parts[1] || !parts[2]) {
-          if (errEl) { errEl.textContent = "Please pick your birth place from the suggestions list."; errEl.classList.remove("hidden"); }
+          if (errEl) { errEl.textContent = errPlace; errEl.classList.remove("hidden"); }
           return;
         }
         var body = {
@@ -305,7 +297,7 @@ const INCLUDES = [
         };
         var style = (root.querySelector("[data-chart-style]") || {}).value || "north";
         if (submit) submit.disabled = true;
-        fetch(API + "/api/v1/kundli", {
+        fetch(API + "/api/v1/kundli" + (lang === "hi" ? "?lang=hi" : ""), {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify(body),
@@ -326,7 +318,7 @@ const INCLUDES = [
             renderChart(style, lag.signIndex != null ? lag.signIndex : 0, planetSigns);
           })
           .catch(function () {
-            if (errEl) { errEl.textContent = "Could not calculate right now — please try again."; errEl.classList.remove("hidden"); }
+            if (errEl) { errEl.textContent = errCalc; errEl.classList.remove("hidden"); }
           })
           .then(function () { if (submit) submit.disabled = false; });
       });

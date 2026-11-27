@@ -4,42 +4,45 @@ import PlaceField from "../../components/PlaceField.astro";
  * cities (build-time from the backend API; panchang city pages exist for
  * these); the place field searches ALL ~70k worldwide places and opens the
  * matching city page. When the backend is unreachable at build, an honest
- * empty state renders — never a mirrored baked list. */
+ * empty state renders — never a mirrored baked list.
+ * S24: the /hi twin renders this same body via the page path; city names
+ * prefer their Hindi names (name_hi) on Hindi pages. */
 import Base from "../../layouts/Base.astro";
 import { fetchPanchangCities } from "../../lib/content";
+import { langFromPath, withLang } from "../../lib/i18n";
+import { PANCHANG_HUB } from "../../lib/i18n/hubs";
+
+const lang = langFromPath(Astro.url.pathname);
+const hi = lang === "hi";
+const t = PANCHANG_HUB[lang];
+const lp = (href: string) => withLang(href, Astro.url.pathname);
 
 const cities = await fetchPanchangCities();
 ---
 
-<Base
-  title="Panchang by City | Vyotish"
-  description="Daily Vedic Panchang for your city — five limbs with start/end times, sunrise-based day, Rahu Kaal and more."
->
+<Base title={t.title} description={t.description}>
   <section class="pl">
-    <h1>Panchang</h1>
-    <p class="lede">Choose a city — every city has its own page, computed in its own timezone.</p>
+    <h1 class={hi ? "hi-text" : ""}>{t.h1}</h1>
+    <p class={`lede ${hi ? "hi-text" : ""}`}>{t.lede}</p>
     <div class="pp-wrap">
       <PlaceField
         variant="combined"
         inputId="pl-place"
-        label="Search any city worldwide"
+        label={t.searchLabel}
         required={false}
-        placeholder="Start typing your city…"
+        placeholder={t.searchPh}
         names={{ combined: "pl-city" }}
       />
     </div>
     <div class="grid">
       {
         cities.length === 0 ? (
-          <p class="lede">
-            City pages are temporarily unavailable — the backend city service could
-            not be reached at build time. Please try again later.
-          </p>
+          <p class={`lede ${hi ? "hi-text" : ""}`}>{t.empty}</p>
         ) : (
           cities.map((c) => (
-            <a class="card" href={`/panchang/${c.slug}`}>
-              <span class="name">{c.name}</span>
-              {c.name_hi && <span class="hi hi-text">{c.name_hi}</span>}
+            <a class={`card ${hi ? "hi-text" : ""}`} href={lp(`/panchang/${c.slug}`)}>
+              <span class="name">{hi && c.name_hi ? c.name_hi : c.name}</span>
+              {!hi && c.name_hi && <span class="hi hi-text">{c.name_hi}</span>}
             </a>
           ))
         )
@@ -53,6 +56,8 @@ const cities = await fetchPanchangCities();
   // picks carry a slug in the event detail). Dedicated pages exist for the
   // biggest 150 cities; other picks are still fully supported — any city
   // page's place field switches to them via coordinates — so point there.
+  // S24: on Hindi pages the twin /hi/panchang/{slug} opens instead.
+  import { withLang } from "../../lib/i18n";
   document.querySelector("#pl-place")?.closest("[data-place-field]")?.addEventListener(
     "place:selected",
     (e) => {
@@ -60,13 +65,18 @@ const cities = await fetchPanchangCities();
       const status = document.querySelector("#pl-place")
         ?.closest("[data-place-field]")
         ?.querySelector("[data-place-status]");
-      if (detail?.slug && document.querySelector(`a[href="/panchang/${detail.slug}"]`)) {
-        window.location.href = `/panchang/${detail.slug}`;
+      const hi = document.documentElement.lang === "hi";
+      const target = detail?.slug
+        ? withLang(`/panchang/${detail.slug}`, hi ? "/hi/panchang/" : "/panchang/")
+        : null;
+      if (target && document.querySelector(`a[href="${target}"]`)) {
+        window.location.href = target;
         return;
       }
       if (detail?.slug && status) {
-        status.textContent =
-          "This town has no dedicated page yet — open a nearby city below and switch its place field to it (or use the Panchang page's own place field).";
+        status.textContent = hi
+          ? "इस कस्बे का अभी कोई समर्पित पेज नहीं है — नीचे कोई नज़दीकी शहर खोलें और उसके प्लेस फ़ील्ड में अपना स्थान चुनें (या पंचांग पेज का अपना प्लेस फ़ील्ड इस्तेमाल करें)।"
+          : "This town has no dedicated page yet — open a nearby city below and switch its place field to it (or use the Panchang page's own place field).";
       }
     },
   );

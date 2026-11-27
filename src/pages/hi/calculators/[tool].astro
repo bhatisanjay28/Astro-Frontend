@@ -1,0 +1,13 @@
+---
+/** Hindi twin (S24) — same page body; language derives from the /hi path.
+ * Dynamic route: getStaticPaths is re-exported and props are forwarded. */
+export { getStaticPaths } from "../../calculators/[tool].astro";
+
+import Page from "../../calculators/[tool].astro";
+
+// Twin proxy: build-time props flow from the re-exported getStaticPaths; the
+// child declares stricter Props than Astro.props carries here, so the call
+// is loosened to a bare renderer. Route params remain fully typed.
+const Twin = Page as unknown as (props: unknown) => unknown;
+---
+<Twin {...Astro.props} />

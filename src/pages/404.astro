@@ -1,5 +1,7 @@
 ---
 import Base from "../layouts/Base.astro";
+/** S24: the 404 serves BOTH languages (one static error page for every miss)
+ * — EN primary with the honest Hindi line pointing at the Hindi home. */
 ---
 
 <Base title="404 — Page not found | Vyotish" description="The page you were looking for does not exist.">
@@ -7,8 +9,10 @@ import Base from "../layouts/Base.astro";
     <div class="glyph" aria-hidden="true">✧</div>
     <h1>Lost among the stars</h1>
     <p>The page you were looking for does not exist — but your path home is clear.</p>
+    <p lang="hi" class="hi-line hi-text">आप जो पृष्ठ खोज रहे हैं, वह उपलब्ध नहीं है — कृपया मुखपृष्ठ से आगे बढ़ें।</p>
     <div class="links">
       <a class="primary" href="/">Back to home</a>
+      <a lang="hi" class="secondary hi-text" href="/hi/">हिन्दी मुखपृष्ठ</a>
       <a class="secondary" href="/panchang">Today's Panchang</a>
       <a class="secondary" href="/calculators">Free calculators</a>
     </div>
@@ -34,6 +38,7 @@ import Base from "../layouts/Base.astro";
     margin-top: var(--space-4);
   }
   p { color: var(--text-muted); margin-top: var(--space-3); font-size: 15px; }
+  .hi-line { margin-top: var(--space-1); font-size: 14px; }
   .links { display: flex; gap: var(--space-3); flex-wrap: wrap; justify-content: center; margin-top: var(--space-6); }
   .links a {
     min-height: var(--target-min);

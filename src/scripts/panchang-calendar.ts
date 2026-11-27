@@ -12,6 +12,10 @@ interface DayPayload {
   nakshatra?: Array<{ name?: string }>;
 }
 
+/* S24 — calendar chrome follows the page language (tithi/nakshatra names
+   come from the API; P5 adds ?lang=hi to the panchang engine) */
+const isHi = (): boolean => (document.documentElement.lang || "en").toLowerCase().startsWith("hi");
+
 const MONTHS = [
   "January",
   "February",
@@ -26,7 +30,22 @@ const MONTHS = [
   "November",
   "December",
 ];
+const MONTHS_HI = [
+  "जनवरी",
+  "फ़रवरी",
+  "मार्च",
+  "अप्रैल",
+  "मई",
+  "जून",
+  "जुलाई",
+  "अगस्त",
+  "सितंबर",
+  "अक्टूबर",
+  "नवंबर",
+  "दिसंबर",
+];
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const WEEKDAYS_HI = ["रवि", "सोम", "मंगल", "बुध", "गुरु", "शुक्र", "शनि"];
 
 function esc(s: string): string {
   return s.replace(
@@ -60,8 +79,10 @@ async function fetchDay(
   dateISO: string,
 ): Promise<DayPayload | null> {
   try {
+    // S24 — hi pages get localized tithi/nakshatra names (cache is lang-neutral)
+    const langQ = isHi() ? "&lang=hi" : "";
     const res = await fetch(
-      `${apiBase}/api/v1/panchang?city=${encodeURIComponent(citySlug)}&date=${dateISO}`,
+      `${apiBase}/api/v1/panchang?city=${encodeURIComponent(citySlug)}&date=${dateISO}${langQ}`,
     );
     if (!res.ok) return null;
     const body = (await res.json()) as { data?: DayPayload };
@@ -96,13 +117,16 @@ function setup(): void {
   const render = async (y: number, m0: number): Promise<void> => {
     const days = new Date(y, m0 + 1, 0).getDate();
     const today = todayISO();
+    const hi = isHi();
+    const MONTH_L = hi ? MONTHS_HI : MONTHS;
+    const WEEK_L = hi ? WEEKDAYS_HI : WEEKDAYS;
     let html =
       `<div class="cal-nav">` +
-      `<button type="button" data-cal-prev aria-label="Previous month">‹ Prev</button>` +
-      `<span class="cal-title">${MONTHS[m0] ?? ""} ${y}</span>` +
-      `<button type="button" data-cal-next aria-label="Next month">Next ›</button>` +
+      `<button type="button" data-cal-prev aria-label="${hi ? "पिछला महीना" : "Previous month"}">‹ ${hi ? "पिछला" : "Prev"}</button>` +
+      `<span class="cal-title">${MONTH_L[m0] ?? ""} ${y}</span>` +
+      `<button type="button" data-cal-next aria-label="${hi ? "अगला महीना" : "Next month"}">${hi ? "अगला" : "Next"} ›</button>` +
       `</div><div class="cal-grid">`;
-    for (const w of WEEKDAYS) html += `<div class="cal-head">${w}</div>`;
+    for (const w of WEEK_L) html += `<div class="cal-head">${w}</div>`;
     const firstDow = new Date(y, m0, 1).getDay();
     for (let i = 0; i < firstDow; i += 1) html += `<div class="cal-day" aria-hidden="true"></div>`;
     for (let d = 1; d <= days; d += 1) {
@@ -148,7 +172,7 @@ function setup(): void {
     cur = [y, m0];
     section.classList.add("cal-mode");
     calEl.removeAttribute("hidden");
-    link.textContent = "Day view";
+    link.textContent = isHi() ? "दैनिक दृश्य" : "Day view";
     setUrl("calendar", y, m0);
     void render(y, m0);
   };
@@ -156,7 +180,7 @@ function setup(): void {
   const exitCalendar = (): void => {
     section.classList.remove("cal-mode");
     calEl.setAttribute("hidden", "");
-    link.textContent = "Monthly view";
+    link.textContent = isHi() ? "मासिक दृश्य" : "Monthly view";
     setUrl("day");
     // the inline day script owns the day fetch; ask it to (re)load
     section.dispatchEvent(new CustomEvent("pd:show-day"));

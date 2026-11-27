@@ -1,8 +1,12 @@
 ---
+import { langFromPath } from "../lib/i18n";
+import { BOOKING_FORM } from "../lib/i18n/booking-form";
 /**
  * Shared booking-request form (Epic 5.2/5.3). `kind: consultation|puja`
  * selects the endpoint + extra fields. Posts to the backend API (D12) and
  * renders the honest result — never a fake success.
+ * S24: lang prop (defaults from the page path when omitted) — labels,
+ * subject lists and JS-injected result lines follow the page language.
  */
 import DateField from "./DateField.astro";
 import FieldLabel from "./forms/FieldLabel.astro";
@@ -14,39 +18,22 @@ interface Props {
   slug?: string;
   subjectLabel?: string;
   submitLabel?: string;
+  /** S24 — page language; derived from the URL path when omitted. */
+  lang?: "en" | "hi";
 }
-const {
-  kind,
-  slug = "",
-  subjectLabel = kind === "puja" ? "Puja" : "Topic",
-  submitLabel = "Send Request",
-} = Astro.props;
+const { kind, slug = "", subjectLabel, submitLabel, lang } = Astro.props;
+const pageLang = lang ?? langFromPath(Astro.url.pathname);
+const hi = pageLang === "hi";
+const t = BOOKING_FORM[pageLang];
+const effSubjectLabel = subjectLabel ?? (kind === "puja" ? t.subjectLabelFallback : undefined);
+const effSubmitLabel = submitLabel ?? t.submitFallback;
 const endpoint = kind === "puja" ? "/api/v1/requests/puja" : "/api/v1/requests/consultation";
 const turnstileSitekey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY ?? "";
 const inputClass =
   "w-full px-3 py-2 min-h-[44px] rounded bg-light-surface dark:bg-dark-surface border border-light-outline-variant dark:border-dark-outline-variant text-light-on-surface dark:text-dark-on-surface font-body text-body-sm";
 const labelClass =
   "block font-label text-label-sm font-semibold text-light-on-surface-variant dark:text-dark-on-surface-variant mb-1";
-const subjects =
-  kind === "puja"
-    ? [
-        "Graha Shanti",
-        "Satyanarayan Katha",
-        "Griha Pravesh",
-        "Rudrabhishek",
-        "Navagraha",
-        "Kaal Sarp Shanti",
-        "Other",
-      ]
-    : [
-        "Vedic Kundli Reading",
-        "Career & Business",
-        "Marriage Matching",
-        "Muhurat Selection",
-        "Health & Wellbeing",
-        "Vastu Guidance",
-        "Other",
-      ];
+const subjects = t.subjects[kind];
 ---
 
 <form
@@ -58,25 +45,25 @@ const subjects =
   autocomplete="off"
 >
   <div class="sm:col-span-2">
-    <RequiredNote />
+    <RequiredNote lang={pageLang} />
   </div>
   <div>
-    <FieldLabel forId="bk-name" label="Your name" required class={labelClass} />
+    <FieldLabel forId="bk-name" label={t.yourName} required class={labelClass} />
     <input class={inputClass} id="bk-name" name="name" type="text" required minlength="2" maxlength="120" />
   </div>
   <div>
-    <FieldLabel forId="bk-phone" label="Phone (WhatsApp preferred)" required class={labelClass} />
+    <FieldLabel forId="bk-phone" label={t.phone} required class={labelClass} />
     <input class={inputClass} id="bk-phone" name="phone" type="tel" required placeholder="+91 98765 43210" />
   </div>
   <div>
-    <label class={labelClass} for="bk-email">Email (optional)</label>
+    <label class={labelClass} for="bk-email">{t.emailOptional}</label>
     <input class={inputClass} id="bk-email" name="email" type="email" />
   </div>
   <div>
-    <label class={labelClass} for="bk-subject">{subjectLabel}</label>
+    <label class={labelClass} for="bk-subject">{effSubjectLabel}</label>
     {
       kind === "puja" ? (
-        <input class={inputClass} id="bk-subject" name="puja_name" type="text" placeholder="Which puja?" />
+        <input class={inputClass} id="bk-subject" name="puja_name" type="text" placeholder={t.pujaPlaceholder} />
       ) : (
         <select class={inputClass} id="bk-subject" name="topic">
           {subjects.map((s) => (
@@ -90,21 +77,21 @@ const subjects =
     kind === "puja" ? (
       <>
         <div>
-          <label class={labelClass} for="bk-gotra">Gotra (optional)</label>
+          <label class={labelClass} for="bk-gotra">{t.gotra}</label>
           <input class={inputClass} id="bk-gotra" name="gotra" type="text" />
         </div>
         <div>
           <DateField
             id="bk-date"
             name="date"
-            label="Preferred date (optional)"
+            label={t.prefDate}
             labelClass={labelClass}
             preset="free"
           />
         </div>
         <div>
-          <label class={labelClass} for="bk-location">Mode / place (optional)</label>
-          <input class={inputClass} id="bk-location" name="location" type="text" placeholder="Online / Home / Temple + city" />
+          <label class={labelClass} for="bk-location">{t.modePlace}</label>
+          <input class={inputClass} id="bk-location" name="location" type="text" placeholder={t.modePlacePh} />
         </div>
       </>
     ) : (
@@ -113,44 +100,45 @@ const subjects =
           <DateField
             id="bk-date"
             name="preferred_date"
-            label="Preferred date (optional)"
+            label={t.prefDate}
             labelClass={labelClass}
             preset="free"
           />
         </div>
         <div>
-          <label class={labelClass} for="bk-time">Preferred time (optional)</label>
-          <input class={inputClass} id="bk-time" name="preferred_time" type="text" placeholder="e.g. morning / 6 pm IST" />
+          <label class={labelClass} for="bk-time">{t.prefTime}</label>
+          <input class={inputClass} id="bk-time" name="preferred_time" type="text" placeholder={t.prefTimePh} />
         </div>
       </>
     )
   }
   <div class="sm:col-span-2">
-    <label class={labelClass} for="bk-message">Message (optional)</label>
+    <label class={labelClass} for="bk-message">{t.message}</label>
     <textarea class={inputClass} id="bk-message" name="message" rows="3"></textarea>
   </div>
   <div class="sm:col-span-2" data-turnstile-slot data-turnstile-sitekey={turnstileSitekey}></div>
   <div class="sm:col-span-2">
     <button
       type="submit"
-      class="px-5 py-2.5 min-h-[44px] rounded bg-light-primary text-light-on-primary dark:bg-dark-primary dark:text-dark-on-primary font-label text-label-md font-semibold hover:opacity-95 transition-opacity"
+      class={`px-5 py-2.5 min-h-[44px] rounded bg-light-primary text-light-on-primary dark:bg-dark-primary dark:text-dark-on-primary font-label text-label-md font-semibold hover:opacity-95 transition-opacity ${hi ? "hi-text" : ""}`}
     >
-      {submitLabel}
+      {effSubmitLabel}
     </button>
-    <p class="font-body text-body-sm text-light-outline dark:text-dark-outline mt-2">
-      Saved securely — used only to contact you about this request. Birth details are
-      never stored without explicit consent.
+    <p class={`font-body text-body-sm text-light-outline dark:text-dark-outline mt-2 ${hi ? "hi-text" : ""}`}>
+      {t.savedNote}
     </p>
   </div>
 </form>
-<section class="mt-4 rounded bg-light-surface-variant dark:bg-dark-surface-variant border border-light-outline-variant dark:border-dark-outline-variant p-4" data-booking-result aria-live="polite">
+<section class={`mt-4 rounded bg-light-surface-variant dark:bg-dark-surface-variant border border-light-outline-variant dark:border-dark-outline-variant p-4 ${hi ? "hi-text" : ""}`} data-booking-result aria-live="polite">
   <p class="font-body text-body-sm text-light-outline dark:text-dark-outline">
-    Submitting sends a real request to the Vyotish team — no payment is taken on this page.
+    {t.submitNote}
   </p>
 </section>
 
 <script>
   import { installFormValidation } from "../scripts/form-validation";
+  import { langFromPath } from "../lib/i18n";
+  import { BOOKING_FORM } from "../lib/i18n/booking-form";
 
   type VyotishTurnstile = { ensure(c: ParentNode): void; getToken(c: ParentNode): Promise<string> };
   const ts = () => (window as unknown as { VyotishTurnstile?: VyotishTurnstile }).VyotishTurnstile;
@@ -159,12 +147,15 @@ const subjects =
     const form = document.querySelector<HTMLFormElement>("form[data-booking-endpoint]");
     const box = document.querySelector<HTMLElement>("[data-booking-result]");
     if (!form || !box) return;
+    // S24 — page language from the html element Base sets; JS-injected
+    // copy (sending/fail/success) follows it.
+    const t = BOOKING_FORM[langFromPath(document.documentElement.lang === "hi" ? "/hi" : "/")];
     // S18 — shared validation gate: name + phone required (backend enforces
     // 2–120 chars / valid phone); email stays optional, the rest carry defaults
     installFormValidation(form, {
       text: [
-        { el: form.querySelector<HTMLInputElement>("#bk-name")!, required: true, message: "Please enter your name." },
-        { el: form.querySelector<HTMLInputElement>("#bk-phone")!, required: true, message: "Please enter your phone number." },
+        { el: form.querySelector<HTMLInputElement>("#bk-name")!, required: true, message: t.errName },
+        { el: form.querySelector<HTMLInputElement>("#bk-phone")!, required: true, message: t.errPhone },
       ],
     });
     ts()?.ensure(form);
@@ -196,8 +187,7 @@ const subjects =
         payload.preferred_date = get("preferred_date") || undefined;
         payload.preferred_time = get("preferred_time") || undefined;
       }
-      box.innerHTML =
-        '<p class="font-body text-body-sm text-light-outline dark:text-dark-outline">Sending your request…</p>';
+      box.innerHTML = `<p class="font-body text-body-sm text-light-outline dark:text-dark-outline">${t.sending}</p>`;
       try {
         const res = await fetch(`${apiBase}${form.getAttribute("data-booking-endpoint")}`, {
           method: "POST",
@@ -212,17 +202,16 @@ const subjects =
           const msg =
             json.error?.details?.join(" · ") ??
             json.error?.message ??
-            "Could not send the request — please try again.";
-          box.innerHTML = `<p class="font-body text-body-sm text-error">Request not sent: ${msg}</p>`;
+            t.fail;
+          box.innerHTML = `<p class="font-body text-body-sm text-error">${t.failPrefix}${msg}</p>`;
           return;
         }
-        box.innerHTML = `<p class="font-body text-body-sm text-success">✓ Request received — ${json.data?.note ?? "the Vyotish team will contact you."}</p>`;
+        box.innerHTML = `<p class="font-body text-body-sm text-success">${t.successPrefix}${json.data?.note ?? t.successFallback}</p>`;
         form.reset();
         // Epic 7.4 — consent-gated analytics; no-op unless GA4 is loaded
         window.vyTrack?.("booking_request_sent", { kind });
       } catch {
-        box.innerHTML =
-          '<p class="font-body text-body-sm text-error">The booking service could not be reached — please refresh and try again.</p>';
+        box.innerHTML = `<p class="font-body text-body-sm text-error">${t.unreachable}</p>`;
       }
     });
   }

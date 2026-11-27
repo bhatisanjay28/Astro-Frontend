@@ -11,8 +11,12 @@ import PlaceField from "../../components/PlaceField.astro";
  * Computation always happens in the backend (D12); results render through the
  * shared block renderer (scripts/calculator-renderer.ts, spec classes styled
  * by the is:global block below — JS-injected nodes never match scoped CSS).
+ * S24: /hi twin re-exports this page; language derives from the path and the
+ * registry carries per-tool Hindi copy as *_hi fields.
  */
 import Base from "../../layouts/Base.astro";
+import { langFromPath, withLang } from "../../lib/i18n";
+import { CALC_TOOL } from "../../lib/i18n/calculators";
 
 type ToolKind =
   | "birth"
@@ -30,14 +34,18 @@ interface Tool {
   title: string;
   hi: string;
   description: string;
+  /** S24 Hindi description (falls back to EN) */
+  description_hi?: string;
   kind: ToolKind;
   endpoint: string;
   submitLabel?: string;
+  submitLabel_hi?: string;
   extraFields?: ExtraField[];
   /** inline-form date preset — "birth" (default: no future, 100y window) or "free" for any-date tools */
   dateMode?: "birth" | "free";
   forFun?: boolean;
   note?: string;
+  note_hi?: string;
 }
 
 // NOTE: the registry lives INSIDE getStaticPaths below — Astro's worker build
@@ -52,6 +60,7 @@ export function getStaticPaths() {
       hi: "चंद्र राशि",
       description:
         "Find your exact Moon sign (Rashi) for your birth moment — the anchor of your Vedic horoscope.",
+      description_hi: "अपने जन्म क्षण की सटीक चंद्र राशि (Rashi) जानें — आपके वैदिक राशिफल की धुरी।",
       kind: "birth",
       endpoint: "/api/v1/calculators/rashi",
     },
@@ -61,6 +70,7 @@ export function getStaticPaths() {
       hi: "नक्षत्र",
       description:
         "Your birth Nakshatra, pada and its planetary lord — the anchor of your Vimshottari dasha timeline.",
+      description_hi: "आपका जन्म नक्षत्र, उसका पद और ग्रह-स्वामी — विंशोत्तरी दशा-गाथा की धुरी।",
       kind: "birth",
       endpoint: "/api/v1/calculators/nakshatra",
     },
@@ -70,6 +80,7 @@ export function getStaticPaths() {
       hi: "लग्न",
       description:
         "The sign rising on the eastern horizon at your birth moment — your ascendant, its lord and nakshatra.",
+      description_hi: "जन्म क्षण पर पूर्व क्षितिज पर उदित राशि — आपका लग्न, उसका स्वामी और नक्षत्र।",
       kind: "birth",
       endpoint: "/api/v1/calculators/lagna",
     },
@@ -79,6 +90,8 @@ export function getStaticPaths() {
       hi: "विंशोत्तरी दशा",
       description:
         "Your full 120-year mahadasha timeline, the period running now, and every antardasha inside it.",
+      description_hi:
+        "आपकी पूरी 120-वर्षीय महादशा-गाथा, इस समय चल रही दशा, और उसके भीतर की हर अंतर्दशा।",
       kind: "birth",
       endpoint: "/api/v1/calculators/vimshottari-dasha",
     },
@@ -88,9 +101,13 @@ export function getStaticPaths() {
       hi: "साढ़े साती",
       description:
         "Saturn's 7.5-year transit relative to your Moon sign — current phase, window start/end, dhaiya and next window.",
+      description_hi:
+        "आपकी चंद्र राशि के सापेक्ष शनि का 7.5-वर्षीय गोचर — वर्तमान चरण, अवधि का आरंभ/अंत, ढैया और अगली अवधि।",
       kind: "birth",
       endpoint: "/api/v1/calculators/sade-sati",
-      extraFields: [{ name: "as_of", label: "Check as of date", type: "date" }],
+      extraFields: [
+        { name: "as_of", label: "Check as of date", label_hi: "इस तिथि तक जाँचें", type: "date" },
+      ],
     },
     {
       slug: "mangal-dosha",
@@ -98,15 +115,20 @@ export function getStaticPaths() {
       hi: "मंगल दोष",
       description:
         "Mars placement in houses 1, 2, 4, 7, 8, 12 from Lagna, Moon and Venus — with classical cancellations.",
+      description_hi:
+        "लग्न, चंद्र और शुक्र से भाव 1, 2, 4, 7, 8, 12 में मंगल की स्थिति — शास्त्रीय निवारण (cancellation) सहित।",
       kind: "birth",
       endpoint: "/api/v1/calculators/mangal-dosha",
       submitLabel: "Evaluate Mars",
+      submitLabel_hi: "मंगल का आकलन करें",
       extraFields: [
         {
           name: "gender",
           label: "Gender",
+          label_hi: "लिंग",
           type: "text",
           options: ["male", "female", "other"],
+          options_hi: { male: "पुरुष", female: "महिला", other: "अन्य" },
         },
       ],
     },
@@ -116,9 +138,11 @@ export function getStaticPaths() {
       hi: "काल सर्प योग",
       description:
         "Whether all seven grahas are hemmed within one Rahu–Ketu axis, and the classical type by Rahu's house.",
+      description_hi: "क्या सातों ग्रह एक ही राहु–केतु अक्ष में बंद हैं, और राहु के भाव से शास्त्रीय प्रकार क्या है।",
       kind: "birth",
       endpoint: "/api/v1/calculators/kaal-sarp",
       submitLabel: "Check Kaal Sarp",
+      submitLabel_hi: "काल सर्प जाँचें",
     },
     {
       slug: "karakas",
@@ -126,6 +150,7 @@ export function getStaticPaths() {
       hi: "आत्मकारक",
       description:
         "Your seven soul-significators ranked by in-sign degree — Atmakaraka, Amatyakaraka … Darakaraka.",
+      description_hi: "राशि-अंशांश के क्रम में आपके सात आत्म-सूचक — आत्मकारक, अमात्यकारक … दाराकारक।",
       kind: "birth",
       endpoint: "/api/v1/calculators/karakas",
     },
@@ -135,6 +160,8 @@ export function getStaticPaths() {
       hi: "इष्ट देवता",
       description:
         "Atmakaraka and its Navamsha sign — the classical anchor for personal worship. Individual traditions vary — treat the table as guidance.",
+      description_hi:
+        "आत्मकारक और उसकी नवांश राशि — व्यक्तिगत उपासना का शास्त्रीय आधार। परंपराएँ भिन्न हो सकती हैं — तालिका को मार्गदर्शन मानें।",
       kind: "birth",
       endpoint: "/api/v1/calculators/ishta-devata",
     },
@@ -143,9 +170,11 @@ export function getStaticPaths() {
       title: "Current Transit Chart",
       hi: "गोचर",
       description: "Where the nine grahas are right now, computed for your coordinates.",
+      description_hi: "नौ ग्रह इस क्षण कहाँ हैं — आपके निर्देशांकों के लिए गणित।",
       kind: "transits",
       endpoint: "/api/v1/calculators/transits",
       submitLabel: "Fetch Current Positions",
+      submitLabel_hi: "वर्तमान स्थितियाँ लाएँ",
     },
     {
       slug: "moon-phase",
@@ -153,11 +182,15 @@ export function getStaticPaths() {
       hi: "चंद्र कला",
       description:
         "The Moon's phase for any date — illumination, lunar age, and the next new & full moon.",
+      description_hi: "किसी भी तिथि पर चंद्र की कला — प्रकाशांश, चंद्र आयु, और अगली अमावस्या व पूर्णिमा।",
       kind: "date",
       endpoint: "/api/v1/calculators/moon-phase",
       dateMode: "free", // any historical date, not a birth date
-      extraFields: [{ name: "time", label: "Time (UTC)", type: "time", hour12: false }],
+      extraFields: [
+        { name: "time", label: "Time (UTC)", label_hi: "समय (UTC)", type: "time", hour12: false },
+      ],
       note: "Date and the optional time are interpreted in UTC; without a time, 12:00 UTC is used.",
+      note_hi: "तिथि और वैकल्पिक समय UTC में पढ़े जाते हैं; समय न दें तो 12:00 UTC माना जाता है।",
     },
     {
       slug: "sun-sign",
@@ -165,9 +198,13 @@ export function getStaticPaths() {
       hi: "सूर्य राशि",
       description:
         "Your Western sun sign AND your Vedic Surya Rashi — with the Sun's nakshatra, pada and planetary lord.",
+      description_hi:
+        "आपकी पाश्चात्य सूर्य राशि और वैदिक सूर्य राशि दोनों — सूर्य के नक्षत्र, पद और ग्रह-स्वामी सहित।",
       kind: "date-place",
       endpoint: "/api/v1/calculators/sun-sign",
       note: "Without a time and place the sign is computed for 12:00 UTC; add both for an exact instant (cusp-day births may differ).",
+      note_hi:
+        "समय और स्थान न दें तो राशि 12:00 UTC के लिए गणित होती है; सटीक क्षण के लिए दोनों दें (संधि-दिन जन्मों में भिन्न हो सकता है)।",
     },
     // Tier 2 (§5.7 "build next")
     {
@@ -176,9 +213,19 @@ export function getStaticPaths() {
       hi: "अंक ज्योतिष",
       description:
         "Mulank (birth number), Bhagyank (destiny number) and Namank (name number) via Chaldean values.",
+      description_hi: "मूलांक (जन्म अंक), भाग्यांक (नियति अंक) और नामांक — कैल्डियन मानों से।",
       kind: "date-name",
       endpoint: "/api/v1/calculators/numerology",
-      extraFields: [{ name: "name", label: "Full name", type: "text", placeholder: "Your name" }],
+      extraFields: [
+        {
+          name: "name",
+          label: "Full name",
+          label_hi: "पूरा नाम",
+          type: "text",
+          placeholder: "Your name",
+          placeholder_hi: "आपका नाम",
+        },
+      ],
     },
     {
       slug: "destiny-number",
@@ -186,6 +233,7 @@ export function getStaticPaths() {
       hi: "भाग्यांक",
       description:
         "Bhagyank from your full date of birth, with Mulank (psychic number) and both planetary lords.",
+      description_hi: "पूर्ण जन्म-तिथि से भाग्यांक, मूलांक (मानसिक अंक) और दोनों के ग्रह-स्वामी सहित।",
       kind: "date",
       endpoint: "/api/v1/calculators/destiny-number",
     },
@@ -195,6 +243,7 @@ export function getStaticPaths() {
       hi: "लो शु ग्रिड",
       description:
         "Your birth-date digits on the classical 3×3 Lo Shu map — missing and repeated numbers.",
+      description_hi: "आपकी जन्म-तिथि के अंक शास्त्रीय 3×3 लो शु मानचित्र पर — अनुपस्थित और दोहराए अंक।",
       kind: "date",
       endpoint: "/api/v1/calculators/lo-shu",
     },
@@ -204,6 +253,8 @@ export function getStaticPaths() {
       hi: "वाहन अंक",
       description:
         "Is a registration plate lucky for you? Two numerology schools read the plate against your birth numbers.",
+      description_hi:
+        "क्या कोई रजिस्ट्रेशन प्लेट आपके लिए शुभ है? दो अंक-ज्योतिष परंपराएँ आपके जन्म-अंकों के साथ प्लेट पढ़ती हैं।",
       kind: "date",
       endpoint: "/api/v1/calculators/vehicle-plate",
       dateMode: "free", // registration/purchase date, not a birth date
@@ -211,31 +262,39 @@ export function getStaticPaths() {
         {
           name: "plate",
           label: "Registration plate",
+          label_hi: "रजिस्ट्रेशन प्लेट",
           type: "text",
           placeholder: "e.g. DL 8C AF 1234",
+          placeholder_hi: "जैसे DL 8C AF 1234",
           required: true,
         },
       ],
       note: "Enter a standard Indian plate (state + RTO + series + number). The owner date personalises the verdict.",
+      note_hi:
+        "मानक भारतीय प्लेट दर्ज करें (राज्य + RTO + सीरीज़ + नंबर)। मालिक की तिथि निर्णय को व्यक्तिगत बनाती है।",
     },
     {
       slug: "name-numerology",
       title: "Lucky Name Numerology",
       hi: "नाम अंक",
       description: "Chaldean value of your name with its planetary lord and per-word subtotals.",
+      description_hi: "आपके नाम का कैल्डियन मान, उसका ग्रह-स्वामी और प्रति-शब्द उप-योग।",
       kind: "name",
       endpoint: "/api/v1/calculators/name-numerology",
       extraFields: [
         {
           name: "name",
           label: "Full name",
+          label_hi: "पूरा नाम",
           type: "text",
           placeholder: "Your name",
+          placeholder_hi: "आपका नाम",
           required: true,
         },
         {
           name: "date",
           label: "Your birth date",
+          label_hi: "आपकी जन्म तिथि",
           type: "date",
         },
       ],
@@ -245,14 +304,17 @@ export function getStaticPaths() {
       title: "Mobile Number Numerology",
       hi: "मोबाइल अंक",
       description: "Digit-sum reading of your phone number (for entertainment).",
+      description_hi: "आपके फ़ोन नंबर का अंक-योग वाचन (मनोरंजन हेतु)।",
       kind: "mobile",
       endpoint: "/api/v1/calculators/mobile-numerology",
       extraFields: [
         {
           name: "digits",
           label: "Mobile number",
+          label_hi: "मोबाइल नंबर",
           type: "text",
           placeholder: "10 digits (or +91 …)",
+          placeholder_hi: "10 अंक (या +91 …)",
           required: true,
         },
       ],
@@ -264,24 +326,29 @@ export function getStaticPaths() {
       hi: "आयु गणना",
       description:
         "Exact calendar age — years, months, days, total weeks and hours, and your next birthday.",
+      description_hi: "सटीक कैलेंडर आयु — वर्ष, मास, दिन, कुल सप्ताह और घंटे, और आपका अगला जन्मदिन।",
       kind: "age",
       endpoint: "/api/v1/calculators/age",
-      extraFields: [{ name: "now", label: "Age at date", type: "date" }],
+      extraFields: [{ name: "now", label: "Age at date", label_hi: "आयु तिथि", type: "date" }],
       note: "Leave “Age at date” empty for your age today.",
+      note_hi: "आज की आयु के लिए “आयु तिथि” खाली छोड़ें।",
     },
     {
       slug: "name-compatibility",
       title: "Name Compatibility",
       hi: "नाम मिलान",
       description: "Combined Chaldean name roots with a harmony band.",
+      description_hi: "दो नामों के संयुक्त कैल्डियन मूल और एक सामंजस्य-श्रेणी।",
       kind: "names",
       endpoint: "/api/v1/calculators/name-compatibility",
       extraFields: [
         {
           name: "b",
           label: "Second name",
+          label_hi: "दूसरा नाम",
           type: "text",
           placeholder: "Other name",
+          placeholder_hi: "दूसरे का नाम",
           required: true,
         },
       ],
@@ -292,14 +359,17 @@ export function getStaticPaths() {
       title: "Love Compatibility (fun)",
       hi: "प्रेम मिलान",
       description: "Playful name-numerology love score.",
+      description_hi: "खेल-खेल में नाम-अंकज्योतिष प्रेम स्कोर।",
       kind: "names",
       endpoint: "/api/v1/calculators/love",
       extraFields: [
         {
           name: "b",
           label: "Second name",
+          label_hi: "दूसरा नाम",
           type: "text",
           placeholder: "Other name",
+          placeholder_hi: "दूसरे का नाम",
           required: true,
         },
       ],
@@ -310,14 +380,17 @@ export function getStaticPaths() {
       title: "Friendship Compatibility (fun)",
       hi: "मित्रता मिलान",
       description: "Playful name-numerology friendship score.",
+      description_hi: "खेल-खेल में नाम-अंकज्योतिष मित्रता स्कोर।",
       kind: "names",
       endpoint: "/api/v1/calculators/friendship",
       extraFields: [
         {
           name: "b",
           label: "Second name",
+          label_hi: "दूसरा नाम",
           type: "text",
           placeholder: "Other name",
+          placeholder_hi: "दूसरे का नाम",
           required: true,
         },
       ],
@@ -328,14 +401,17 @@ export function getStaticPaths() {
       title: "FLAMES (fun)",
       hi: "फ्लेम्स",
       description: "The classic letter game — labelled strictly for fun.",
+      description_hi: "क्लासिक FLAMES खेल — सख़्ती से केवल मनोरंजन के लिए।",
       kind: "names",
       endpoint: "/api/v1/calculators/flames",
       extraFields: [
         {
           name: "b",
           label: "Second name",
+          label_hi: "दूसरा नाम",
           type: "text",
           placeholder: "Other name",
+          placeholder_hi: "दूसरे का नाम",
           required: true,
         },
       ],
@@ -346,25 +422,41 @@ export function getStaticPaths() {
 }
 
 const { tool } = Astro.props as { tool: Tool };
-const API_NOTE = "Free · instant · computed live — nothing is stored.";
+const lang = langFromPath(Astro.url.pathname);
+const t = CALC_TOOL[lang];
+const hi = lang === "hi";
+/* per-language display copy — option values and endpoints stay EN */
+const fLabel = (f: ExtraField) => (hi ? (f.label_hi ?? f.label) : f.label);
+const fPlaceholder = (f: ExtraField) =>
+  hi ? (f.placeholder_hi ?? f.placeholder ?? "") : (f.placeholder ?? "");
+const fOptLabel = (f: ExtraField, opt: string) => (hi ? (f.options_hi?.[opt] ?? opt) : opt);
+const toolDesc = hi ? (tool.description_hi ?? tool.description) : tool.description;
+const toolNote = hi ? (tool.note_hi ?? tool.note) : tool.note;
+const toolSubmit = hi
+  ? (tool.submitLabel_hi ?? t.submitDefault)
+  : (tool.submitLabel ?? t.submitDefault);
+const here = Astro.url.pathname;
 ---
 
 <Base
-  title={`${tool.title} — Free Vedic Calculator | Vyotish`}
-  description={`${tool.description} Free, instant, no login — computed live by the Vyotish engine.`}
+  title={`${hi ? tool.hi : tool.title}${t.titleSuffix}`}
+  description={`${toolDesc}${t.descSuffix}`}
 >
   <section class="calc">
     <nav class="crumbs" aria-label="Breadcrumb">
-      <a href="/calculators/">Calculators</a>
+      <a href={withLang("/calculators/", here)}>{t.crumbsRoot}</a>
       <span>/</span>
-      <span>{tool.title}</span>
+      <span>{hi ? tool.hi : tool.title}</span>
     </nav>
 
-    <h1>{tool.title} {tool.hi && <span class="hi-text">({tool.hi})</span>}</h1>
-    <p class="lede">{tool.description}</p>
+    <h1>
+      {hi ? `${tool.hi} ` : `${tool.title} `}
+      <span class="hi-text">({hi ? tool.title : tool.hi})</span>
+    </h1>
+    <p class={hi ? "lede hi-text" : "lede"}>{toolDesc}</p>
     <div class="flags">
-      {tool.forFun && <span class="flag fun">For fun — not an astrological verdict</span>}
-      <span class="flag">{API_NOTE}</span>
+      {tool.forFun && <span class="flag fun">{t.funFlag}</span>}
+      <span class="flag">{t.apiNote}</span>
     </div>
 
     <div class="panel">
@@ -372,17 +464,17 @@ const API_NOTE = "Free · instant · computed live — nothing is stored.";
         tool.kind === "birth" ? (
           <BirthForm
             endpoint={tool.endpoint}
-            submitLabel={tool.submitLabel ?? "Calculate"}
-            note={tool.note}
+            submitLabel={toolSubmit}
+            note={toolNote}
             extraFields={tool.extraFields}
           />
         ) : tool.kind === "transits" ? (
           <form class="grid grid-cols-2 sm:grid-cols-3 gap-3 items-end" data-calc-endpoint={tool.endpoint} data-place-required="true" autocomplete="off">
             <div class="col-span-2 sm:col-span-3"><RequiredNote /></div>
             <div class="col-span-2 sm:col-span-3">
-              <PlaceField variant="separate" inputId="bf-place" label="Place" />
+              <PlaceField variant="separate" inputId="bf-place" label={t.place} />
             </div>
-            <button type="submit" class="btn">{tool.submitLabel ?? "Calculate"}</button>
+            <button type="submit" class="btn">{toolSubmit}</button>
           </form>
         ) : (
           <form
@@ -399,7 +491,7 @@ const API_NOTE = "Free · instant · computed live — nothing is stored.";
                 mode="time"
                 id="bf-time"
                 name="time"
-                label="Time of birth"
+                label={t.timeOfBirth}
                 optional
                 class="col-span-2 sm:col-span-1"
               />
@@ -408,7 +500,7 @@ const API_NOTE = "Free · instant · computed live — nothing is stored.";
               <DateField
                 id="bf-date"
                 name="date"
-                label={tool.kind === "age" ? "Date of birth" : "Date"}
+                label={tool.kind === "age" ? t.dateOfBirth : t.date}
                 required
                 preset={tool.dateMode ?? "birth"}
                 class="col-span-2 sm:col-span-1"
@@ -421,23 +513,24 @@ const API_NOTE = "Free · instant · computed live — nothing is stored.";
                     optional there, so no native required */}
                 <FieldLabel
                   forId="bf-name"
-                  label={tool.kind === "names" ? "First name" : "Name"}
+                  label={tool.kind === "names" ? t.firstName : t.nameLbl}
                   required={tool.kind !== "date-name"}
                   optional={tool.kind === "date-name"}
+                  optionalText={t.optionalSuffix}
                   class="lbl"
                 />
-                <input class="inp" id="bf-name" name={tool.kind === "names" ? "a" : "name"} type="text" placeholder={tool.kind === "names" ? "First name" : "Your name"} required={tool.kind !== "date-name"} />
+                <input class="inp" id="bf-name" name={tool.kind === "names" ? "a" : "name"} type="text" placeholder={tool.kind === "names" ? t.firstName : t.yourName} required={tool.kind !== "date-name"} />
               </div>
             )}
             {tool.extraFields?.filter((f) => f.name !== "name").map((f) => (
               <div class={f.type === "date" || f.type === "time" ? "col-span-2 sm:col-span-1" : ""}>
                 {f.options ? (
                   <div>
-                    <FieldLabel forId={`bf-${f.name}`} label={f.label} required={f.required === true} optional={f.required !== true} class="lbl" />
+                    <FieldLabel forId={`bf-${f.name}`} label={fLabel(f)} required={f.required === true} optional={f.required !== true} optionalText={t.optionalSuffix} class="lbl" />
                     <select class="inp" id={`bf-${f.name}`} name={f.name} required={f.required === true}>
                       {f.required !== true && <option value="">—</option>}
                       {f.options.map((opt) => (
-                        <option value={opt}>{opt}</option>
+                        <option value={opt}>{fOptLabel(f, opt)}</option>
                       ))}
                     </select>
                   </div>
@@ -445,7 +538,7 @@ const API_NOTE = "Free · instant · computed live — nothing is stored.";
                   <DateField
                     id={`bf-${f.name}`}
                     name={f.name}
-                    label={`${f.label}${f.required ? "" : " (optional)"}`}
+                    label={`${fLabel(f)}${f.required ? "" : t.optionalSuffix}`}
                     required={f.required === true}
                     preset={f.preset ?? "free"}
                   />
@@ -454,14 +547,14 @@ const API_NOTE = "Free · instant · computed live — nothing is stored.";
                     mode="time"
                     id={`bf-${f.name}`}
                     name={f.name}
-                    label={`${f.label}${f.required ? "" : " (optional)"}`}
+                    label={`${fLabel(f)}${f.required ? "" : t.optionalSuffix}`}
                     required={f.required === true}
                     hour12={f.hour12 !== false}
                   />
                 ) : (
                   <div>
-                    <FieldLabel forId={`bf-${f.name}`} label={f.label} required={f.required === true} optional={f.required !== true} class="lbl" />
-                    <input class="inp" id={`bf-${f.name}`} name={f.name} type={f.type} placeholder={f.placeholder ?? ""} required={f.required === true} />
+                    <FieldLabel forId={`bf-${f.name}`} label={fLabel(f)} required={f.required === true} optional={f.required !== true} optionalText={t.optionalSuffix} class="lbl" />
+                    <input class="inp" id={`bf-${f.name}`} name={f.name} type={f.type} placeholder={fPlaceholder(f)} required={f.required === true} />
                   </div>
                 )}
               </div>
@@ -471,24 +564,21 @@ const API_NOTE = "Free · instant · computed live — nothing is stored.";
                 {/* required={false}: sun-sign works without a place — the page
                     note explains the 12:00 UTC default; the picker only gates
                     it when a birth time is given */}
-                <PlaceField variant="separate" inputId="bf-place" label="Place of birth" required={false} optional />
+                <PlaceField variant="separate" inputId="bf-place" label={t.placeBirth} required={false} optional />
               </div>
             )}
-            <button type="submit" class="btn">{tool.submitLabel ?? "Calculate"}</button>
+            <button type="submit" class="btn">{toolSubmit}</button>
           </form>
         )
       }
 
-      {tool.note && tool.kind !== "birth" && <p class="tool-note">{tool.note}</p>}
+      {toolNote && tool.kind !== "birth" && <p class={hi ? "tool-note hi-text" : "tool-note"}>{toolNote}</p>}
       <section class="result" data-calc-result aria-live="polite">
-        <p class="hint">Your result will appear here — instant, and nothing is stored.</p>
+        <p class="hint">{t.resultHint}</p>
       </section>
     </div>
 
-    <p class="more">
-      <a href="/calculators/">← All calculators</a> · Kundli with charts &amp; Dasha on the
-      <a href="/kundli">Free Kundli page</a> · Matching on the <a href="/matching">Match page</a>
-    </p>
+    <p class="more"><a href={withLang("/calculators/", here)}>{t.allCalc}</a> · {t.kundliPre}<a href={withLang("/kundli", here)}>{t.kundliLink}</a>{t.kundliPost}{t.matchPre}<a href={withLang("/matching", here)}>{t.matchLink}</a>{t.matchPost}</p>
   </section>
 </Base>
 
@@ -498,6 +588,7 @@ const API_NOTE = "Free · instant · computed live — nothing is stored.";
   // querystring plumbing and the four states (empty/loading/error/results).
   import { esc, renderCalculatorResult } from "../../scripts/calculator-renderer";
   import { installFormValidation } from "../../scripts/form-validation";
+  import { CALC_TOOL } from "../../lib/i18n/calculators";
 
   const apiBase =
     import.meta.env.PUBLIC_API_BASE_URL ?? "https://astro-backend.vyotish.workers.dev";
@@ -506,6 +597,8 @@ const API_NOTE = "Free · instant · computed live — nothing is stored.";
   if (form && box) {
     const toolSlug = location.pathname.split("/").pop() ?? "";
     const placeRequired = form.getAttribute("data-place-required") === "true";
+    // S24 — UI strings follow the page language; option values/endpoints stay EN
+    const T = CALC_TOOL[document.documentElement.lang === "hi" ? "hi" : "en"];
 
     // S18 — shared validation gate: dt + required-place come from markup; text
     // rules derive from the native required attrs (first/second name, plate,
@@ -516,7 +609,7 @@ const API_NOTE = "Free · instant · computed live — nothing is stored.";
         .map((el) => ({
           el,
           required: true,
-          message: el.id === "bf-name" ? "Please enter your name." : undefined,
+          message: el.id === "bf-name" ? T.nameMsg : undefined,
         })),
     });
 
@@ -530,7 +623,7 @@ const API_NOTE = "Free · instant · computed live — nothing is stored.";
       const placeInput = form.querySelector<HTMLInputElement>("[data-place-input]");
       if (placeInput && placeInput.value.trim() && latField && !latField.value) {
         const st = form.querySelector<HTMLElement>("[data-place-status]");
-        if (st) st.textContent = "Please select a city from the list.";
+        if (st) st.textContent = T.selectCity;
         placeInput.setAttribute("aria-invalid", "true");
         return;
       }
@@ -541,9 +634,7 @@ const API_NOTE = "Free · instant · computed live — nothing is stored.";
         const st = form.querySelector<HTMLElement>("[data-place-status]");
         const input = form.querySelector<HTMLInputElement>("[data-place-input]");
         if (st) {
-          st.textContent = placeRequired
-            ? "Please select your place of birth from the suggestions."
-            : "Add your place of birth to use the birth time — or clear the time field.";
+          st.textContent = placeRequired ? T.selectBirthPlace : T.needPlaceTime;
         }
         if (input) input.setAttribute("aria-invalid", "true");
         return;
@@ -562,18 +653,20 @@ const API_NOTE = "Free · instant · computed live — nothing is stored.";
       }
 
       const base = form.getAttribute("data-calc-endpoint") ?? "";
-      const url = apiBase + base + (base.indexOf("?") >= 0 ? "&" : "?") + qs.toString();
+      // S24 — hi pages ask the backend for Hindi values + interpretations
+      const qsFull = new URLSearchParams(qs);
+      if (document.documentElement.lang === "hi") qsFull.set("lang", "hi");
+      const url =
+        apiBase + base + (base.indexOf("?") >= 0 ? "&" : "?") + qsFull.toString();
       box.setAttribute("aria-busy", "true");
-      box.innerHTML = '<p class="hint">Calculating…</p>';
+      box.innerHTML = `<p class="hint">${esc(T.calculating)}</p>`;
       fetch(url)
         .then((r) => r.json().then((j) => ({ ok: r.ok, j })))
         .then(({ ok, j }) => {
           box.removeAttribute("aria-busy");
           if (!ok || j.error) {
-            const msg =
-              (j && j.error && j.error.message) ||
-              "The calculation failed — please check the inputs and try again.";
-            box.innerHTML = `<p class="hint err">${esc(msg)}${ok ? "" : " Please check the inputs."}</p>`;
+            const msg = (j && j.error && j.error.message) || T.errFallback;
+            box.innerHTML = `<p class="hint err">${esc(msg)}${ok ? "" : esc(T.checkInputs)}</p>`;
             return;
           }
           renderCalculatorResult(base, j.data ?? {}, j.meta ?? null, box);
@@ -583,8 +676,7 @@ const API_NOTE = "Free · instant · computed live — nothing is stored.";
         })
         .catch(() => {
           box.removeAttribute("aria-busy");
-          box.innerHTML =
-            '<p class="hint err">The backend could not be reached — please refresh and try again.</p>';
+          box.innerHTML = `<p class="hint err">${esc(T.netErr)}</p>`;
         });
     });
   }

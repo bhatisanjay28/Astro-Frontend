@@ -2,9 +2,12 @@
 import PanchangDetail from "../../components/PanchangDetail.astro";
 /** /panchang/{city} — SEO per-city page (Epic 3.2). D12: static paths are
  * generated at BUILD time from the backend city API (Supabase `cities`
- * table) — no mirrored dataset. The day view fetches the LIVE API client-side. */
+ * table) — no mirrored dataset. The day view fetches the LIVE API client-side.
+ * S24: dict-driven chrome; /hi twin leads with the city's Hindi name. */
 import Base from "../../layouts/Base.astro";
 import { type ApiCity, fetchPanchangCities } from "../../lib/content";
+import { langFromPath, withLang } from "../../lib/i18n";
+import { PANCHANG_CITY } from "../../lib/i18n/panchang-city";
 
 export async function getStaticPaths() {
   const cities = await fetchPanchangCities();
@@ -12,20 +15,27 @@ export async function getStaticPaths() {
 }
 
 const { info } = Astro.props as { info: ApiCity };
+const lang = langFromPath(Astro.url.pathname);
+const t = PANCHANG_CITY[lang];
+const hi = lang === "hi";
+const here = Astro.url.pathname;
+const leadName = hi && info.name_hi ? info.name_hi : info.name;
+const glossName = hi && info.name_hi ? info.name : info.name_hi;
+const lat = info.lat.toFixed(4);
+const lng = info.lng.toFixed(4);
 ---
 
-<Base
-  title={`Panchang for ${info.name} — Today | Vyotish`}
-  description={`Today's Vedic Panchang for ${info.name}: Tithi, Nakshatra, Yoga, Karana with start/end times, sunrise/sunset, Rahu Kaal and more — in ${info.tz}.`}
->
+<Base title={t.title(leadName)} description={t.description(leadName, info.tz)}>
   <section class="ph">
-    <h1>Panchang — {info.name} {info.name_hi && <span class="hi-text">({info.name_hi})</span>}</h1>
+    <h1>
+      {t.h1Label} — {leadName}
+      {glossName && <span class="hi-text">({glossName})</span>}
+    </h1>
     <p class="lede">
-      Coordinates {info.lat.toFixed(4)}°, {info.lng.toFixed(4)}° · Timezone {info.tz} ·
-      Vedic day runs sunrise → sunrise. See also <a href="/panchang/">other cities</a>.
+      {t.lede(lat, lng, info.tz)}<a href={withLang("/panchang/", here)}>{t.citiesLink}</a>{t.citiesPost}
     </p>
   </section>
-  <PanchangDetail apiBase={import.meta.env.PUBLIC_API_BASE_URL ?? "https://astro-backend.vyotish.workers.dev"} citySlug={info.slug} cityName={info.name} lat={info.lat} lng={info.lng} tz={info.tz} />
+  <PanchangDetail apiBase={import.meta.env.PUBLIC_API_BASE_URL ?? "https://astro-backend.vyotish.workers.dev"} citySlug={info.slug} cityName={leadName} lat={info.lat} lng={info.lng} tz={info.tz} />
 </Base>
 
 <style>

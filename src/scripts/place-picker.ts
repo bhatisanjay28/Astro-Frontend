@@ -26,6 +26,10 @@
 
 const API_BASE = import.meta.env.PUBLIC_API_BASE_URL ?? "https://astro-backend.vyotish.workers.dev";
 
+/* S24 — status/error strings follow the page language */
+const isHi = (): boolean => (document.documentElement.lang || "en").toLowerCase().startsWith("hi");
+const PP = (en: string, hi: string): string => (isHi() ? hi : en);
+
 /** fresh Google Places billing session — per field, reset on clear/edit-after-pick */
 function makeSession(): string {
   return typeof crypto !== "undefined" && "randomUUID" in crypto
@@ -150,7 +154,7 @@ function setupField(field: HTMLElement): void {
     items = [];
     session = makeSession();
     clearError();
-    status.textContent = announce ? "City cleared." : "";
+    status.textContent = announce ? PP("City cleared.", "शहर साफ़ कर दिया गया।") : "";
     close();
     syncClear();
     input.focus();
@@ -179,7 +183,7 @@ function setupField(field: HTMLElement): void {
     const s = items[idx];
     if (!s) return;
     input.value = s.label;
-    say("Resolving coordinates…");
+    say(PP("Resolving coordinates…", "निर्देशांक हल किए जा रहे हैं…"));
     close();
     fetch(`${API_BASE}/api/v1/places/resolve?place_id=${encodeURIComponent(s.place_id)}`)
       .then((r) => r.json().then((j) => ({ ok: r.ok, j })))
@@ -188,7 +192,12 @@ function setupField(field: HTMLElement): void {
           // fail closed: the previous selection (if any) must not linger
           clearRoles();
           syncClear();
-          say("Could not resolve that place — please pick another from the list.");
+          say(
+            PP(
+              "Could not resolve that place — please pick another from the list.",
+              "वह स्थान हल नहीं हो सका — कृपया सूची से दूसरा चुनें।",
+            ),
+          );
           input.select();
           return;
         }
@@ -228,7 +237,12 @@ function setupField(field: HTMLElement): void {
       .catch(() => {
         clearRoles();
         syncClear();
-        say("Could not reach the place service — please try again.");
+        say(
+          PP(
+            "Could not reach the place service — please try again.",
+            "स्थान सेवा तक पहुँच नहीं मिली — कृपया फिर कोशिश करें।",
+          ),
+        );
       });
   };
 
@@ -239,7 +253,12 @@ function setupField(field: HTMLElement): void {
       .then(({ ok, j }) => {
         if (!ok || j.error) {
           items = [];
-          say("Suggestions are unavailable right now — please try again shortly.");
+          say(
+            PP(
+              "Suggestions are unavailable right now — please try again shortly.",
+              "सुझाव अभी उपलब्ध नहीं हैं — कृपया थोड़ी देर बाद फिर कोशिश करें।",
+            ),
+          );
           close();
           return;
         }
@@ -248,7 +267,12 @@ function setupField(field: HTMLElement): void {
       })
       .catch(() => {
         items = [];
-        say("Suggestions are unavailable right now — please try again shortly.");
+        say(
+          PP(
+            "Suggestions are unavailable right now — please try again shortly.",
+            "सुझाव अभी उपलब्ध नहीं हैं — कृपया थोड़ी देर बाद फिर कोशिश करें।",
+          ),
+        );
         close();
       });
   };
@@ -328,7 +352,8 @@ function setupField(field: HTMLElement): void {
       // focus moved back inside the field (e.g. × keeps it via mousedown) — skip
       if (field.contains(document.activeElement)) return;
       // AC-4: free text without a pick must never look valid
-      if (input.value.trim() && !isSelected()) setError("Please select a city from the list.");
+      if (input.value.trim() && !isSelected())
+        setError(PP("Please select a city from the list.", "कृपया सूची से एक शहर चुनें।"));
     }, 150),
   );
 

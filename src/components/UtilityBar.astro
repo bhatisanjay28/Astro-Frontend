@@ -1,19 +1,24 @@
 ---
+import type { Lang } from "../lib/i18n";
 /**
  * Top utility bar (home design §4): precision guarantee, language switch,
  * light/dark toggle. Persists the choice (localStorage "vyotish-theme") and
  * toggles BOTH the .dark class (Tailwind) and data-theme (legacy tokens).
- * S22: Base computes the counterpart hrefs — exact on / and /horoscope/*,
- * flat language-home fallback elsewhere (never a dead link).
+ * S24: Base computes counterpart hrefs site-wide (lib/i18n.ts — every page
+ * with a twin cross-links it; blog deep routes fall back to /hi/blog/).
+ * Strings from lib/i18n/chrome.ts by page language.
  */
+import { UTILITY } from "../lib/i18n/chrome";
+
 interface Props {
-  lang?: "en" | "hi";
+  lang?: Lang;
   /** English counterpart href (used when the page is Hindi). */
   enHref?: string;
   /** Hindi counterpart href (used when the page is English). */
   hiHref?: string;
 }
 const { lang = "en", enHref = "/", hiHref = "/hi/" } = Astro.props;
+const t = UTILITY[lang];
 ---
 
 <aside class="chrome-reset bg-light-surface-variant dark:bg-dark-surface-variant border-b border-light-outline-variant/60 dark:border-dark-outline-variant/40 py-2 px-4 sm:px-8">
@@ -21,17 +26,17 @@ const { lang = "en", enHref = "/", hiHref = "/hi/" } = Astro.props;
     <div class="flex items-center gap-4 text-light-outline dark:text-dark-outline">
       <span class="inline-flex items-center gap-1 font-body text-body-sm">
         <span class="material-symbols-outlined text-title-md text-accent">auto_awesome</span>
-        astronomy-engine &amp; Lahiri Ayanamsha precision computation
+        {t.precision}
       </span>
       <span class="hidden md:inline text-light-outline font-body text-body-sm">|</span>
-      <span class="hidden md:inline font-body text-body-sm">Calculated from local sunrise &amp; true astronomical coordinates</span>
+      <span class="hidden md:inline font-body text-body-sm">{t.calc}</span>
     </div>
     <div class="flex items-center gap-4">
       <!-- Language Switcher. The ACTIVE language renders as a plain span
            (aria-current) — a javascript:void(0) link is both a fake link for
            AT and would be blocked once CSP ships (UX audit F5). Inactive one
            is a real link, padded to a 24px-min tap target (F6). -->
-      <div class="flex items-center gap-1 bg-light-surface dark:bg-dark-surface rounded px-2 py-1 border border-light-outline-variant dark:border-dark-outline-variant">
+      <div data-lang-switcher class="flex items-center gap-1 bg-light-surface dark:bg-dark-surface rounded px-2 py-1 border border-light-outline-variant dark:border-dark-outline-variant">
         {
           lang === "en" ? (
             <span class="inline-flex items-center font-label text-label-sm px-2 py-1.5 font-semibold text-light-primary dark:text-dark-primary" aria-current="true">English</span>
@@ -53,8 +58,8 @@ const { lang = "en", enHref = "/", hiHref = "/hi/" } = Astro.props;
         type="button"
         data-theme-toggle
         class="inline-flex h-11 w-11 items-center justify-center rounded text-light-outline dark:text-dark-outline hover:text-light-on-surface dark:hover:text-dark-on-surface focus-visible:ring-2 focus-visible:ring-light-primary"
-        title="Toggle Light/Dark Theme"
-        aria-label="Toggle Theme"
+        title={t.themeTitle}
+        aria-label={t.themeAria}
       >
         <span class="material-symbols-outlined text-title-md dark:hidden">dark_mode</span>
         <span class="material-symbols-outlined text-title-md hidden dark:inline">light_mode</span>

@@ -2,9 +2,13 @@
 import BookingForm from "../../components/BookingForm.astro";
 /** /poojan/[slug] — puja detail + inline booking (Epic 5.3 follow-up).
  * Build-time fetch of GET /api/v1/pujas (D12); the catalogue list is the
- * source of truth, so unknown slugs simply don't generate a page. */
+ * source of truth, so unknown slugs simply don't generate a page.
+ * S24: chrome strings from the dict; /hi twin leads with the puja's Hindi
+ * name (name_hi) and keeps the English name as the gloss. */
 import Base from "../../layouts/Base.astro";
 import { type ApiPuja, fetchPujas } from "../../lib/content";
+import { langFromPath, withLang } from "../../lib/i18n";
+import { POOJAN_SLUG } from "../../lib/i18n/poojan";
 
 export async function getStaticPaths() {
   const pujas = (await fetchPujas()) ?? [];
@@ -15,47 +19,52 @@ interface Props {
   puja: ApiPuja;
 }
 const { puja: p } = Astro.props;
-const description =
-  p.purpose ||
-  p.description?.slice(0, 150) ||
-  `${p.name} — Vedic puja on Vyotish. Request a booking directly.`;
+const lang = langFromPath(Astro.url.pathname);
+const t = POOJAN_SLUG[lang];
+const hi = lang === "hi";
+const here = Astro.url.pathname;
+const displayName = hi && p.name_hi ? p.name_hi : p.name;
+const glossName = hi && p.name_hi ? p.name : p.name_hi;
+// S24 — admin Hindi description surfaces on the hi page when filled.
+const descText = hi && p.description_hi ? p.description_hi : p.description;
+const description = p.purpose || descText?.slice(0, 150) || t.descFallback(displayName);
 ---
 
-<Base title={`${p.name} — Vedic Puja | Vyotish Poojan`} description={description}>
+<Base title={t.title(displayName)} description={description}>
   <section class="prof">
     <nav class="crumbs" aria-label="Breadcrumb">
-      <a href="/">Home</a> › <a href="/poojan">Poojan</a> › <span aria-current="page">{p.name}</span>
+      <a href={withLang("/", here)}>{t.home}</a> › <a href={withLang("/poojan", here)}>{t.hub}</a> › <span aria-current="page">{displayName}</span>
     </nav>
 
     <div class="head">
       <div>
-        <h1>{p.name} <span class="hi-text">(पूजा)</span></h1>
-        {p.name_hi && <p class="title">{p.name_hi}</p>}
+        <h1>{displayName} <span class="hi-text">(पूजा)</span></h1>
+        {glossName && <p class="title">{glossName}</p>}
       </div>
       <span class="cat">{p.category.replace(/_/g, " ")}</span>
     </div>
 
     {p.purpose && (
-      <p class="purpose"><strong>Purpose:</strong> {p.purpose}</p>
+      <p class="purpose"><strong>{t.purposeK}</strong> {p.purpose}</p>
     )}
-    {p.description && <p class="about">{p.description}</p>}
+    {descText && <p class="about">{descText}</p>}
 
     <div class="facts">
-      <div class="fact"><span class="k">Duration</span><span class="v">{p.duration_label || "—"}</span></div>
+      <div class="fact"><span class="k">{t.durK}</span><span class="v">{p.duration_label || "—"}</span></div>
       <div class="fact">
-        <span class="k">Mode</span>
+        <span class="k">{t.modeK}</span>
         <span class="v">{p.mode.length > 0 ? p.mode.join(" / ") : "—"}</span>
       </div>
       <div class="fact">
-        <span class="k">Dakshina</span>
-        <span class="v">{p.price_inr === null ? "On request" : `₹${p.price_inr.toLocaleString("en-IN")}`}</span>
+        <span class="k">{t.dakshinaK}</span>
+        <span class="v">{t.priceV(p.price_inr)}</span>
       </div>
     </div>
 
     {
       p.includes.length > 0 && (
         <div class="block">
-          <h2>What's included</h2>
+          <h2>{t.includesH}</h2>
           <ul class="includes">
             {p.includes.map((i) => (
               <li>{i}</li>
@@ -67,17 +76,17 @@ const description =
 
     {p.muhurat_note && (
       <div class="block">
-        <h2>Muhurat note</h2>
+        <h2>{t.muhuratH}</h2>
         <p class="note">{p.muhurat_note}</p>
       </div>
     )}
 
-    <h2>Request {p.name}</h2>
+    <h2>{t.requestH(displayName)}</h2>
     <div class="formpanel">
-      <BookingForm kind="puja" slug={p.slug} subjectLabel="Puja" submitLabel="Request Puja" />
+      <BookingForm kind="puja" slug={p.slug} subjectLabel={t.subjectLabel} submitLabel={t.submitLabel} />
     </div>
 
-    <p class="fine">Exploring options? <a href="/poojan">Back to the full catalogue</a>.</p>
+    <p class="fine">{t.finePre}<a href={withLang("/poojan", here)}>{t.fineLink}</a>{t.finePost}</p>
   </section>
 </Base>
 
@@ -87,7 +96,7 @@ const description =
   itemListElement: [
     { "@type": "ListItem", position: 1, name: "Home", item: "https://vyotish.com/" },
     { "@type": "ListItem", position: 2, name: "Poojan", item: "https://vyotish.com/poojan" },
-    { "@type": "ListItem", position: 3, name: p.name },
+    { "@type": "ListItem", position: 3, name: displayName },
   ],
 })} />
 

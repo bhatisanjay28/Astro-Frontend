@@ -8,6 +8,8 @@
  * The frontend never invents astrology copy: verdicts, meanings and guidance
  * all come from the API (D12). Unknown data keys still render as detail rows.
  */
+
+import { calcTr } from "../lib/i18n/calc-render";
 import { CALC_MAP, LO_SHU_PLANET_NAMES } from "./calculator-render-map";
 import type { Cell, Chip, DetailCard, ToolSpec } from "./calculator-renderer-types";
 
@@ -15,6 +17,36 @@ export function esc(s: unknown): string {
   return String(s == null ? "" : s).replace(/[&<>"']/g, (ch) => {
     return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch] as string;
   });
+}
+
+/* S24 P4 — the spec's own label vocabulary translates exactly (CALC_HI);
+   API values (sign names, interpretations) pass through until the backend
+   learns ?lang=hi. Age mains like "30y 4m 12d" are pattern-translated. */
+const trAge = (s: string): string =>
+  s.replace(/^(\d+)y (\d+)m (\d+)d$/, (_m, y, mo, d) => `${y} वर्ष ${mo} मास ${d} दिन`);
+function trSpec(spec: ToolSpec): ToolSpec {
+  return {
+    ...spec,
+    eyebrow: calcTr(spec.eyebrow),
+    main: trAge(calcTr(spec.main)),
+    sub: spec.sub ? trAge(calcTr(spec.sub)) : spec.sub,
+    chips: spec.chips?.map((c) => ({ ...c, label: calcTr(c.label), value: calcTr(c.value) })),
+    details: spec.details?.map((card) => ({
+      ...card,
+      title: card.title ? calcTr(card.title) : card.title,
+      rows: card.rows?.map(([k, v]) => [calcTr(k), calcTr(v)] as [string, string]),
+      table: card.table
+        ? {
+            head: card.table.head.map(calcTr),
+            rows: card.table.rows.map((r) =>
+              r.map((c) => (typeof c === "string" ? calcTr(c) : { ...c, text: calcTr(c.text) })),
+            ),
+          }
+        : card.table,
+      legend: card.legend ? calcTr(card.legend) : card.legend,
+      bar: card.bar ? { ...card.bar, label: calcTr(card.bar.label) } : card.bar,
+    })),
+  };
 }
 
 const cellHtml = (cell: Cell): string => {
@@ -81,7 +113,7 @@ function meaningHtml(spec: ToolSpec, interpretation: unknown): string {
   for (const p of text) html += `<p>${esc(p)}</p>`;
   if (guidance.length)
     html += `<ul class="guidance">${guidance.map((g) => `<li>${esc(g)}</li>`).join("")}</ul>`;
-  if (basis) html += `<p class="basis">Basis: ${esc(basis)}</p>`;
+  if (basis) html += `<p class="basis">${esc(calcTr("Basis: "))}${esc(basis)}</p>`;
   html += `</div>`;
   return html;
 }
@@ -106,9 +138,9 @@ function leftoverHtml(data: Record<string, unknown>, hide: string[]): string {
         v.map((x) => (typeof x === "object" ? JSON.stringify(x) : String(x))).join(", ") || "—";
     else if (typeof v === "object") text = JSON.stringify(v);
     else text = String(v);
-    return `<div class="row"><span class="k">${esc(k.replace(/_/g, " "))}</span><span class="v">${esc(text)}</span></div>`;
+    return `<div class="row"><span class="k">${esc(calcTr(k.replace(/_/g, " ")))}</span><span class="v">${esc(text)}</span></div>`;
   });
-  return `<div class="detail-card"><div class="detail-title">More details</div>${rows.join("")}</div>`;
+  return `<div class="detail-card"><div class="detail-title">${esc(calcTr("More details"))}</div>${rows.join("")}</div>`;
 }
 
 export function renderCalculatorResult(
@@ -124,13 +156,13 @@ export function renderCalculatorResult(
   if (entry) {
     hide = entry.hide;
     try {
-      spec = entry.build(data);
+      spec = trSpec(entry.build(data));
     } catch {
       // A mapping bug must never blank the result — fall back to raw rows.
-      spec = { eyebrow: "RESULT", main: "" };
+      spec = { eyebrow: calcTr("RESULT"), main: "" };
     }
   } else {
-    spec = { eyebrow: "RESULT", main: "" };
+    spec = { eyebrow: calcTr("RESULT"), main: "" };
   }
 
   let html = "";
@@ -141,7 +173,7 @@ export function renderCalculatorResult(
     if (spec.sub) html += `<div class="verdict-sub">${esc(spec.sub)}</div>`;
     if (spec.status) {
       const words = { good: "Auspicious", bad: "Challenging", info: "Mixed" } as const;
-      html += `<span class="status-chip status-${spec.status}">${words[spec.status]}</span>`;
+      html += `<span class="status-chip status-${spec.status}">${esc(calcTr(words[spec.status]))}</span>`;
     }
     html += `</div>`;
   }
@@ -153,10 +185,10 @@ export function renderCalculatorResult(
   html += leftoverHtml(data, hide);
 
   if (data.verified === false) {
-    html += `<p class="flagline">Tables follow widely published variants — treat results as indicative.</p>`;
+    html += `<p class="flagline">${esc(calcTr("Tables follow widely published variants — treat results as indicative."))}</p>`;
   }
   if (data.for_fun === true) {
-    html += `<p class="flagline">For entertainment only.</p>`;
+    html += `<p class="flagline">${esc(calcTr("For entertainment only."))}</p>`;
   }
   const metaNote = meta && typeof meta.note === "string" ? meta.note : null;
   if (metaNote) html += `<p class="flagline">${esc(metaNote)}</p>`;

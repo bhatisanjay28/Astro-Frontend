@@ -90,6 +90,13 @@ main a:hover {
 [lang="hi"] .hi-text {
   font-family: "Noto Sans Devanagari", var(--font-body);
 }
+/* S24: whole-page Hindi — Devanagari body face on every /hi page (html lang
+ * is set per page by Base.astro), so Hindi never renders in the Latin-only
+ * stack. Latin text inside Hindi pages (brand names, "astronomy-engine")
+ * still renders — Devanagari faces carry Latin glyphs. */
+html[lang="hi"] body {
+  font-family: "Noto Sans Devanagari", var(--font-body);
+}
 
 /* ---- Design-surface resets (preflight-equivalent, :where = 0 specificity) ---- */
 .chrome-reset :where(h1, h2, h3, h4, h5, h6, p, figure, blockquote, dl, dd) {

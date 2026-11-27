@@ -2,13 +2,12 @@
 /**
  * Base HTML shell — Epic 2.1/2.4.
  * Theme: no-flash inline script (localStorage → prefers-color-scheme).
- * i18n: hreflang alternates when `langPath` provided (PRD §11). Audit
- * (2026-11-20): home + horoscope have real Hindi counterparts (S22 added the
- * /hi/horoscope/* section), so langPath is passed ONLY by those pages — pages
- * must never emit a hreflang="hi" link to a /hi/* URL that does not exist.
- * The UtilityBar switcher gets exact counterpart hrefs for those sections and
- * flat fallback links elsewhere (never a dead link).
- * Fonts: hotlinked for Coming-Soon parity — self-host before launch (P3).
+ * i18n (S24): the site is bilingual under the /hi prefix — every public page
+ * computes its counterpart + hreflang alternates from its own pathname
+ * (lib/i18n.ts). Blog deep routes have no /hi twin (articles keep their
+ * original language) and emit no cross-language alternates. Chrome strings
+ * come from lib/i18n/chrome.ts by page language.
+ * Fonts: self-hosted (S1/P3) incl. Noto Sans Devanagari.
  */
 import "../styles/tokens.css";
 import "../styles/fonts.css";
@@ -16,13 +15,12 @@ import "../styles/tailwind.css";
 import Footer from "../components/Footer.astro";
 import Header from "../components/Header.astro";
 import UtilityBar from "../components/UtilityBar.astro";
+import { hasHiTwin, hiPathOf, langFromPath, switcherHrefs } from "../lib/i18n";
+import { BASE_CHROME } from "../lib/i18n/chrome";
 
 interface Props {
   title: string;
   description: string;
-  lang?: "en" | "hi";
-  /** e.g. "/" → hreflang pair / ↔ /hi/ */
-  langPath?: string;
   /** lock the night-sky look (Coming-Soon page) */
   lockDark?: boolean;
   /** render header/footer chrome (off for the pixel-parity Coming-Soon page) */
@@ -40,8 +38,6 @@ interface Props {
 const {
   title,
   description,
-  lang = "en",
-  langPath,
   lockDark = false,
   chrome = true,
   canonical,
@@ -52,21 +48,19 @@ const {
 const canonicalUrl = canonical ?? `https://vyotish.com${Astro.url.pathname}`;
 const themeLock = lockDark ? "dark" : null;
 
-// Language-switcher hrefs (S22): the exact counterpart exists only on / and
-// the horoscope section (/hi/horoscope/*). Everywhere else the switcher falls
-// back to the flat language home — never a dead link.
-const SECTIONS_WITH_HI = ["/", "/horoscope"]; // "/" also prefix-matches nothing else
-const enPath = Astro.url.pathname.startsWith("/hi")
-  ? Astro.url.pathname.slice(3) || "/"
-  : Astro.url.pathname;
-const hasCounterpart =
-  enPath === "/" || SECTIONS_WITH_HI.some((p) => p !== "/" && enPath.startsWith(p));
-const switcherEnHref = hasCounterpart ? enPath : "/";
-const switcherHiHref = hasCounterpart ? (enPath === "/" ? "/hi/" : `/hi${enPath}`) : "/hi/";
+// Language-switcher hrefs + hreflang alternates (S24): computed from the page
+// path itself — /hi twins exist site-wide, so the counterpart is mechanical.
+// Deep blog routes (no twin) emit no cross-language alternates.
+const pageLang = langFromPath(Astro.url.pathname);
+const chromeT = BASE_CHROME[pageLang];
+const sw = switcherHrefs(Astro.url.pathname);
+const enAlt = pageLang === "hi" ? sw.en : Astro.url.pathname;
+const hiAlt = pageLang === "hi" ? Astro.url.pathname : hiPathOf(Astro.url.pathname);
+const showAlternates = hasHiTwin(enAlt);
 ---
 
 <!doctype html>
-<html lang={lang} data-theme={themeLock}>
+<html lang={pageLang} data-theme={themeLock}>
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -87,18 +81,18 @@ const switcherHiHref = hasCounterpart ? (enPath === "/" ? "/hi/" : `/hi${enPath}
       <script is:inline type="application/ld+json" set:html={JSON.stringify(jsonLd.length === 1 ? jsonLd[0] : jsonLd)} />
     )}
     {
-      langPath && (
-        <link rel="alternate" hreflang="en" href={`https://vyotish.com${langPath}`} />
+      showAlternates && (
+        <link rel="alternate" hreflang="en" href={`https://vyotish.com${enAlt}`} />
       )
     }
     {
-      langPath && (
-        <link rel="alternate" hreflang="hi" href={`https://vyotish.com/hi${langPath}`} />
+      showAlternates && (
+        <link rel="alternate" hreflang="hi" href={`https://vyotish.com${hiAlt}`} />
       )
     }
     {
-      langPath && (
-        <link rel="alternate" hreflang="x-default" href={`https://vyotish.com${langPath}`} />
+      showAlternates && (
+        <link rel="alternate" hreflang="x-default" href={`https://vyotish.com${enAlt}`} />
       )
     }
     <script is:inline src="/turnstile.js" defer></script>
@@ -127,30 +121,27 @@ const switcherHiHref = hasCounterpart ? (enPath === "/" ? "/hi/" : `/hi${enPath}
         }
       })();
     </script>
-    <!-- Fonts are self-hosted (Story S1/P3): @font-face set in styles/fonts.css,
+    <!-- Fonts are self-hosted: @font-face set in styles/fonts.css,
          woff2 in /public/fonts/ — zero third-party font requests. -->
   </head>
   <body>
-    <a class="skip-link" href="#main-content">Skip to main content</a>
-    {chrome && <UtilityBar lang={lang} enHref={switcherEnHref} hiHref={switcherHiHref} />}
+    <a class="skip-link" href="#main-content">{chromeT.skip}</a>
+    {chrome && <UtilityBar lang={pageLang} enHref={sw.en} hiHref={sw.hi} />}
     {
-      chrome && <Header currentPath={Astro.url.pathname} />
+      chrome && <Header currentPath={Astro.url.pathname} lang={pageLang} />
     }
     <main id="main-content">
       <slot />
     </main>
-    {chrome && <Footer lang={lang} />}
+    {chrome && <Footer lang={pageLang} />}
 
     <!-- Cookie notice: analytics stay off until the visitor accepts — the
          notice states that honestly and remembers acceptance in localStorage. -->
     {
       chrome && (
-        <div class="consent-stub" data-consent-stub hidden role="region" aria-label="Cookie notice">
-          <span>
-            Vyotish does not load analytics or tracking yet. When that changes we will
-            ask here before anything non-essential runs.
-          </span>
-          <button type="button" data-consent-ok>Got it</button>
+        <div class="consent-stub" data-consent-stub hidden role="region" aria-label={chromeT.consentAria}>
+          <span>{chromeT.consent}</span>
+          <button type="button" data-consent-ok>{chromeT.consentOk}</button>
         </div>
       )
     }

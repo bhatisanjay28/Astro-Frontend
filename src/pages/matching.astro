@@ -6,42 +6,49 @@ import PlaceField from "../components/PlaceField.astro";
  * /matching — Guna Milan (Ashtakoota 36) + Manglik UI (Epic 4.3).
  * The page is a thin renderer: POST /api/v1/kundli/match does everything
  * (D12). Honest fail-soft; verification status surfaced (P11).
+ * S24: the /hi twin renders this same body via the page path — labels and
+ * the JS-injected result lines follow the page language (MATCHING dict).
  */
 import Base from "../layouts/Base.astro";
+import { langFromPath } from "../lib/i18n";
+import { MATCHING } from "../lib/i18n/matching";
+
+const lang = langFromPath(Astro.url.pathname);
+const hi = lang === "hi";
+const t = MATCHING[lang];
 
 const labelClass =
   "block font-label text-label-sm font-semibold text-light-on-surface-variant dark:text-dark-on-surface-variant mb-1";
 
 type InputType = "date" | "time" | "number" | "text";
 
-function personFields(prefix: string, label: string) {
-  return {
-    prefix,
-    label,
-    fields: [
-      { name: `${prefix}-date`, label: `${label} birth date`, type: "date" },
-      { name: `${prefix}-time`, label: `${label} birth time`, type: "time" },
-    ] as Array<{ name: string; label: string; type: InputType; ph?: string }>,
-  };
-}
-const BOY = personFields("boy", "Boy");
-const GIRL = personFields("girl", "Girl");
+const BOY = {
+  prefix: "boy",
+  label: t.boy,
+  fields: [
+    { name: "boy-date", label: t.boyDate, type: "date" },
+    { name: "boy-time", label: t.boyTime, type: "time" },
+  ] as Array<{ name: string; label: string; type: InputType; ph?: string }>,
+};
+const GIRL = {
+  prefix: "girl",
+  label: t.girl,
+  fields: [
+    { name: "girl-date", label: t.girlDate, type: "date" },
+    { name: "girl-time", label: t.girlTime, type: "time" },
+  ] as Array<{ name: string; label: string; type: InputType; ph?: string }>,
+};
 ---
 
-<Base
-  title="Kundli Matching — Ashtakoota Guna Milan | Vyotish"
-  description="36-guna Ashtakoota marriage matching with per-koota explanations, plus classical Manglik checks from Lagna, Moon and Venus — computed by the Vyotish engine."
->
+<Base title={t.title} description={t.description}>
   <section class="mx">
-    <h1>Kundli Matching <span class="hi-text">(गुण मिलान)</span></h1>
-    <p class="lede">
-      Classical Ashtakoota milan — eight kootas, 36 gunas, accept ≥ 18 — plus Manglik
-      dosha from Lagna, Moon and Venus. Everything computes in the Vyotish backend;
-      details are never stored.
+    <h1 class={hi ? "hi-text" : ""}>{t.h1}</h1>
+    <p class={`lede ${hi ? "hi-text" : ""}`}>
+      {t.lede}
     </p>
 
     <form id="match-form" class="panel" autocomplete="off">
-      <RequiredNote />
+      <RequiredNote lang={lang} />
       <div class="grid md:grid-cols-2 gap-6">
         {
           [BOY, GIRL].map((p) => (
@@ -63,7 +70,7 @@ const GIRL = personFields("girl", "Girl");
               ))}
               <PlaceField
                 variant="separate"
-                label={`${p.label} birth place`}
+                label={`${p.label} ${hi ? "का जन्म स्थान" : "birth place"}`}
                 inputId={`${p.prefix}-place`}
                 ids={{ lat: `${p.prefix}-lat`, lng: `${p.prefix}-lng`, tz: `${p.prefix}-tz` }}
               />
@@ -73,25 +80,32 @@ const GIRL = personFields("girl", "Girl");
       </div>
       <button
         type="submit"
-        class="mt-5 w-full py-3 rounded bg-light-secondary text-light-on-secondary dark:bg-dark-secondary dark:text-dark-on-secondary font-label text-label-md font-semibold hover:opacity-95 transition-opacity"
+        class={`mt-5 w-full py-3 rounded bg-light-secondary text-light-on-secondary dark:bg-dark-secondary dark:text-dark-on-secondary font-label text-label-md font-semibold hover:opacity-95 transition-opacity ${hi ? "hi-text" : ""}`}
       >
-        Match Kundlis
+        {t.submit}
       </button>
     </form>
 
-    <section id="match-result" class="result" aria-live="polite">
-      <p class="hint">The Ashtakoota table and Manglik verdicts appear here.</p>
+    <section id="match-result" class={`result ${hi ? "hi-text" : ""}`} aria-live="polite">
+      <p class="hint">{t.hint}</p>
     </section>
 
-    <p class="fine">
-      Verification note: koota tables follow widely published variants and are
-      indicative. Matching supports life decisions — consult a qualified
-      astrologer for a full reading.
+    <p class={`fine ${hi ? "hi-text" : ""}`}>
+      {t.fine}
     </p>
   </section>
 </Base>
 
-<script define:vars={{ apiBase: import.meta.env.PUBLIC_API_BASE_URL ?? "https://astro-backend.vyotish.workers.dev" }}>
+<script define:vars={{
+  apiBase: import.meta.env.PUBLIC_API_BASE_URL ?? "https://astro-backend.vyotish.workers.dev",
+  errFields: t.errFields, matchingMsg: t.matching, fail: t.fail,
+  okPre: t.okPre, okTh: t.okTh, warnPre: t.warnPre,
+  thKoota: t.thKoota, thPoints: t.thPoints, thDetail: t.thDetail,
+  manglikH3: t.manglikH3, yes: t.yes, no: t.no, cancelPre: t.cancelPre,
+  rowBoyManglik: t.rowBoyManglik, rowGirlManglik: t.rowGirlManglik,
+  rowReading: t.rowReading, rowBoyProfile: t.rowBoyProfile, rowGirlProfile: t.rowGirlProfile,
+  moonLbl: t.moonLbl, padaLbl: t.padaLbl, flagline: t.flagline, errBackend: t.errBackend,
+}}>
   (function () {
     var form = document.getElementById("match-form");
     var box = document.getElementById("match-result");
@@ -118,10 +132,10 @@ const GIRL = personFields("girl", "Girl");
       var boy = person("boy");
       var girl = person("girl");
       if (!boy.date || !girl.date || !boy.tz || !girl.tz || isNaN(boy.lat) || isNaN(girl.lat)) {
-        box.innerHTML = "<p class='hint err'>Please pick both birth dates and select each birth place from the suggestions.</p>";
+        box.innerHTML = "<p class='hint err'>" + esc(errFields) + "</p>";
         return;
       }
-      box.innerHTML = "<p class='hint'>Matching 36 gunas across 8 kootas…</p>";
+      box.innerHTML = "<p class='hint'>" + esc(matchingMsg) + "</p>";
       fetch(apiBase + "/api/v1/kundli/match", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -130,7 +144,7 @@ const GIRL = personFields("girl", "Girl");
         .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
         .then(function (r) {
           if (!r.ok || r.j.error) {
-            box.innerHTML = "<p class='hint err'>" + esc((r.j.error && r.j.error.message) || "Match computation failed.") + "</p>";
+            box.innerHTML = "<p class='hint err'>" + esc((r.j.error && r.j.error.message) || fail) + "</p>";
             return;
           }
           var d = r.j.data;
@@ -140,25 +154,25 @@ const GIRL = personFields("girl", "Girl");
           }).join("");
           var pct = Math.round((a.total / a.max) * 100);
           var verdict = a.acceptable
-            ? "<strong class='ok'>Acceptable match — " + esc(a.total) + "/36 (" + pct + "%) ≥ threshold " + esc(a.threshold) + "</strong>"
-            : "<strong class='warn'>Below threshold — " + esc(a.total) + "/36 (" + pct + "%) &lt; " + esc(a.threshold) + "</strong>";
+            ? "<strong class='ok'>" + esc(okPre) + esc(a.total) + "/36 (" + esc(pct) + "%) ≥ " + esc(okTh) + esc(a.threshold) + "</strong>"
+            : "<strong class='warn'>" + esc(warnPre) + esc(a.total) + "/36 (" + esc(pct) + "%) &lt; " + esc(a.threshold) + "</strong>";
           var m = d.manglik;
           var manglikRows =
-            "<div class='row'><span class='k'>Boy Manglik</span><span class='v'>" + (m.boy.is_manglik ? "Yes" : "No") + (m.boy.cancelled ? " (cancelled: " + esc(m.boy.cancellation_reason) + ")" : "") + "</span></div>" +
-            "<div class='row'><span class='k'>Girl Manglik</span><span class='v'>" + (m.girl.is_manglik ? "Yes" : "No") + (m.girl.cancelled ? " (cancelled: " + esc(m.girl.cancellation_reason) + ")" : "") + "</span></div>" +
-            "<div class='row'><span class='k'>Reading</span><span class='v'>" + esc(m.note) + "</span></div>" +
-            "<div class='row'><span class='k'>Boy profile</span><span class='v'>Moon " + esc(a.boy.moon_sign) + " · " + esc(a.boy.moon_nakshatra) + " pada " + esc(a.boy.moon_pada) + "</span></div>" +
-            "<div class='row'><span class='k'>Girl profile</span><span class='v'>Moon " + esc(a.girl.moon_sign) + " · " + esc(a.girl.moon_nakshatra) + " pada " + esc(a.girl.moon_pada) + "</span></div>";
+            "<div class='row'><span class='k'>" + esc(rowBoyManglik) + "</span><span class='v'>" + (m.boy.is_manglik ? esc(yes) : esc(no)) + (m.boy.cancelled ? esc(cancelPre) + esc(m.boy.cancellation_reason) + ")" : "") + "</span></div>" +
+            "<div class='row'><span class='k'>" + esc(rowGirlManglik) + "</span><span class='v'>" + (m.girl.is_manglik ? esc(yes) : esc(no)) + (m.girl.cancelled ? esc(cancelPre) + esc(m.girl.cancellation_reason) + ")" : "") + "</span></div>" +
+            "<div class='row'><span class='k'>" + esc(rowReading) + "</span><span class='v'>" + esc(m.note) + "</span></div>" +
+            "<div class='row'><span class='k'>" + esc(rowBoyProfile) + "</span><span class='v'>" + esc(moonLbl) + esc(a.boy.moon_sign) + " · " + esc(a.boy.moon_nakshatra) + esc(padaLbl) + esc(a.boy.moon_pada) + "</span></div>" +
+            "<div class='row'><span class='k'>" + esc(rowGirlProfile) + "</span><span class='v'>" + esc(moonLbl) + esc(a.girl.moon_sign) + " · " + esc(a.girl.moon_nakshatra) + esc(padaLbl) + esc(a.girl.moon_pada) + "</span></div>";
           box.innerHTML =
             "<div class='verdict'>" + verdict + "</div>" +
-            "<table><thead><tr><th>Koota</th><th>Points</th><th>Detail</th></tr></thead><tbody>" + rows + "</tbody></table>" +
-            "<h3>Manglik dosha</h3>" + manglikRows +
-            "<p class='flagline'>Koota tables follow widely published variants — treat results as indicative. " + esc(r.j.meta && r.j.meta.consent_note ? "" : "") + "</p>";
+            "<table><thead><tr><th>" + esc(thKoota) + "</th><th>" + esc(thPoints) + "</th><th>" + esc(thDetail) + "</th></tr></thead><tbody>" + rows + "</tbody></table>" +
+            "<h3>" + esc(manglikH3) + "</h3>" + manglikRows +
+            "<p class='flagline'>" + esc(flagline) + "</p>";
           // consent-gated analytics; no-op unless GA4 is loaded
           if (window.vyTrack) window.vyTrack("calculator_used", { tool: "match" });
         })
         .catch(function () {
-          box.innerHTML = "<p class='hint err'>The backend could not be reached — please refresh and try again.</p>";
+          box.innerHTML = "<p class='hint err'>" + esc(errBackend) + "</p>";
         });
     });
   })();
@@ -175,7 +189,6 @@ const GIRL = personFields("girl", "Girl");
 <style>
   .mx { max-width: 900px; margin: 0 auto; padding: var(--space-6) var(--space-4) var(--space-8); }
   h1 { font-family: var(--font-display); color: var(--ivory); font-size: clamp(26px, 5vw, 36px); }
-  .hi-text { color: var(--text-dim); font-size: 0.7em; }
   .lede { color: var(--text-muted); font-size: 14.5px; margin-top: var(--space-2); max-width: 700px; }
   .panel { margin-top: var(--space-5); background: var(--bg-raised); border: 1px solid var(--color-border-strong); border-radius: var(--radius-card); padding: var(--space-5); }
   fieldset.person { border: 1px solid var(--color-border); border-radius: 10px; padding: var(--space-4); display: flex; flex-direction: column; gap: var(--space-3); }

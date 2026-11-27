@@ -14,50 +14,34 @@
  * tool exists — it linked to the Moon Sign page), "Vedic Numerology"
  * now points at /calculators/numerology instead of the hub, "Blog & Admin"
  * simplified to "Blog" (internal chrome stays out of public copy — audit C5).
+ *
+ * S24: every string has an EN/HI twin (lib/i18n/chrome.ts) and withLang()
+ * keeps ALL twin routes in the visitor's language.
  */
 import { NAV_TABS, withLang } from "../data/navigation";
+import type { Lang } from "../lib/i18n";
+import { FOOTER } from "../lib/i18n/chrome";
 
 interface Props {
-  /** Page language — on hi pages the Horoscope portal link carries /hi (S22). */
-  lang?: "en" | "hi";
+  /** Page language — hi pages render Hindi labels + /hi hrefs (S24). */
+  lang?: Lang;
 }
 const { lang = "en" } = Astro.props;
-// Only horoscope hrefs change (withLang is a no-op for everything else).
-const fl = (href: string) => withLang(href, lang === "hi" ? "/hi/" : "/");
+const f = FOOTER[lang];
+const hi = lang === "hi";
+// S24: on Hindi pages every footer link carries the /hi prefix (all twin
+// routes exist now); on English pages hrefs pass through unchanged.
+const fl = (href: string) => withLang(href, hi ? "/hi/" : "/");
 
 const portals = NAV_TABS.map((t) => ({
-  label: t.label,
+  label: hi ? (t.display_hi ?? t.label_hi) : t.label,
   href: t.href,
   soon: t.label === "Gemstones",
-  display:
-    t.label === "Panchang"
-      ? "Daily Panchang"
-      : t.label === "Muhurat"
-        ? "Shubh Muhurat"
-        : t.label === "Astrology"
-          ? "Astrology (Kundli)"
-          : t.label === "Poojan"
-            ? "Vedic Poojan"
-            : t.label,
+  soonLabel: hi ? "शीघ्र" : "Soon",
 }));
 
-const tools = [
-  { label: "Free Janam Kundli", href: "/kundli" },
-  { label: "Kundli Matching (36 Guna)", href: "/matching" },
-  { label: "Moon Sign (Rashi) Finder", href: "/calculators/rashi" },
-  { label: "Shani Sade Sati Check", href: "/calculators/sade-sati" },
-  { label: "Manglik Dosha Analysis", href: "/calculators/mangal-dosha" },
-  { label: "Vedic Numerology", href: "/calculators/numerology" },
-];
-
-const legal = [
-  { label: "Privacy Policy (DPDP Act)", href: "/privacy" },
-  { label: "Terms of Use", href: "/terms" },
-  { label: "Refund & Cancellation", href: "/refund" },
-  { label: "Astrological Disclaimer", href: "/disclaimer" },
-  { label: "About Vyotish", href: "/about" },
-  { label: "Grievance & Contact", href: "/contact" },
-];
+const tools = f.tools;
+const legal = f.legal;
 ---
 
 <footer class="footer chrome-reset">
@@ -68,33 +52,33 @@ const legal = [
         <div class="brand-tile">V</div>
         <span class="brand-name">Vyotish</span>
       </div>
-      <p class="mission">
-        Authentic Vedic astrology calculated with modern astronomical rigor. Providing accessible, zero-cost Janam Kundli charts, precision daily Panchang, and straightforward consultation booking.
+      <p class={`mission ${hi ? "hi-text" : ""}`}>
+        {f.mission}
       </p>
-      <div class="meta">
-        <div>Engine: astronomy-engine • Lahiri Ayanamsha</div>
-        <div>Timezones: IANA Time Zone Database</div>
+      <div class={`meta ${hi ? "hi-text" : ""}`}>
+        <div>{f.metaEngine}</div>
+        <div>{f.metaTz}</div>
       </div>
-      <div class="trust-chip">
+      <div class={`trust-chip ${hi ? "hi-text" : ""}`}>
         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
           <path d="m9 12 2 2 4-4"></path>
         </svg>
-        <span>Zero OTP — we never ask for one-time passwords</span>
+        <span>{f.trustChip}</span>
       </div>
     </div>
 
     <!-- Quick Nav: 9 Main Tabs -->
-    <nav aria-label="Portals">
-      <h2 class="col-head">Portals</h2>
+    <nav aria-label={f.portalsAria}>
+      <h2 class={`col-head ${hi ? "hi-text" : ""}`}>{f.colPortals}</h2>
       <ul class="links">
         {
           portals.map((p) => (
             <li>
               <a href={fl(p.href)} class="flink">
                 <span class="dot" aria-hidden="true" />
-                <span class="flabel">{p.display}</span>
-                {p.soon && <span class="badge-soon">Soon</span>}
+                <span class={`flabel ${hi ? "hi-text" : ""}`}>{p.label}</span>
+                {p.soon && <span class="badge-soon">{p.soonLabel}</span>}
                 <svg class="farrow" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                   <path d="m9 18 6-6-6-6" />
                 </svg>
@@ -106,15 +90,15 @@ const legal = [
     </nav>
 
     <!-- Free Calculators Tier 1 -->
-    <nav aria-label="Popular Tools">
-      <h2 class="col-head">Popular Tools</h2>
+    <nav aria-label={f.toolsAria}>
+      <h2 class={`col-head ${hi ? "hi-text" : ""}`}>{f.colTools}</h2>
       <ul class="links">
         {
           tools.map((t) => (
             <li>
-              <a href={t.href} class="flink">
+              <a href={fl(t.href)} class="flink">
                 <span class="dot" aria-hidden="true" />
-                <span class="flabel">{t.label}</span>
+                <span class={`flabel ${hi ? "hi-text" : ""}`}>{t.label}</span>
                 <svg class="farrow" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                   <path d="m9 18 6-6-6-6" />
                 </svg>
@@ -126,15 +110,15 @@ const legal = [
     </nav>
 
     <!-- Legal & Trust Policies (Mandatory Section 15) -->
-    <nav aria-label="Trust and Legal">
-      <h2 class="col-head">Trust &amp; Legal</h2>
+    <nav aria-label={f.legalAria}>
+      <h2 class={`col-head ${hi ? "hi-text" : ""}`}>{f.colLegal}</h2>
       <ul class="links">
         {
           legal.map((l) => (
             <li>
-              <a href={l.href} class="flink">
+              <a href={fl(l.href)} class="flink">
                 <span class="dot" aria-hidden="true" />
-                <span class="flabel">{l.label}</span>
+                <span class={`flabel ${hi ? "hi-text" : ""}`}>{l.label}</span>
                 <svg class="farrow" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                   <path d="m9 18 6-6-6-6" />
                 </svg>
@@ -148,12 +132,12 @@ const legal = [
 
   <!-- MANDATORY LEGAL DISCLAIMER (Section 15) -->
   <div class="legal-band">
-    <p>
-      <strong>Astrological Disclaimer:</strong> Astrology content, horoscope readings, and calculation tools provided on Vyotish are for philosophical guidance, self-discovery, and cultural informational purposes only. Astrological outcomes cannot be guaranteed. This platform does not provide or replace certified medical diagnoses, legal counsel, psychiatric therapy, or licensed financial planning.
+    <p class={hi ? "hi-text" : ""}>
+      <strong>{f.disclaimerLead}</strong> {f.disclaimerBody}
     </p>
-    <div class="legal-row">
-      <div>© {new Date().getFullYear()} Vyotish Platform. All rights reserved.</div>
-      <div>Astrological content is for guidance, not a substitute for professional advice.</div>
+    <div class={`legal-row ${hi ? "hi-text" : ""}`}>
+      <div>{f.copyright}</div>
+      <div>{f.guidance}</div>
     </div>
   </div>
 </footer>

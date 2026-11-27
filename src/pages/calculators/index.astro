@@ -1,9 +1,19 @@
 ---
 /** /calculators/ — hub (Epic 4.4). Tier 1 cards come from the Supabase
  * content_blocks via /content/home (D12, build-time fetch, honest empty
- * state); the Tier 2 tool list is URL/presentation config (like NAV_TABS). */
+ * state); the Tier 2 tool list is URL/presentation config (like NAV_TABS).
+ * S24: the /hi twin renders this same body via the page path — Tier 1 card
+ * text stays as served by the API (hi rows merge in at P6); the Tier 2 list
+ * shows its Hindi names on Hindi pages. */
 import Base from "../../layouts/Base.astro";
 import { fetchHomeContent } from "../../lib/content";
+import { langFromPath, withLang } from "../../lib/i18n";
+import { CALCULATORS_HUB } from "../../lib/i18n/hubs";
+
+const lang = langFromPath(Astro.url.pathname);
+const hi = lang === "hi";
+const t = CALCULATORS_HUB[lang];
+const lp = (href: string) => withLang(href, Astro.url.pathname);
 
 const home = await fetchHomeContent("en");
 const blocks = (home?.blocks ?? {}) as Record<string, unknown>;
@@ -21,73 +31,62 @@ const TIER2 = [
   { slug: "lagna", title: "Rising Sign (Lagna)", hi: "लग्न" },
   { slug: "vimshottari-dasha", title: "Vimshottari Dasha", hi: "विंशोत्तरी दशा" },
   { slug: "lo-shu", title: "Lo Shu Grid", hi: "लो शु" },
-  { slug: "numerology", title: "Vedic Numerology", hi: "अंक ज्योतिष" },
+  { slug: "numerology", title: "Vedic Numerology", hi: "वैदिक अंक ज्योतिष" },
   { slug: "destiny-number", title: "Destiny Number (Bhagyank)", hi: "भाग्यांक" },
   { slug: "moon-phase", title: "Moon Phase", hi: "चंद्र कला" },
   { slug: "sun-sign", title: "Sun Sign (Surya Rashi)", hi: "सूर्य राशि" },
   { slug: "name-numerology", title: "Name Numerology", hi: "नाम अंक" },
   { slug: "mobile-numerology", title: "Mobile Numerology", hi: "मोबाइल अंक" },
-  { slug: "vehicle-number", title: "Lucky Vehicle Number", hi: "वाहन अंक" },
-  { slug: "age", title: "Age Calculator", hi: "आयु" },
+  { slug: "vehicle-number", title: "Lucky Vehicle Number", hi: "शुभ वाहन अंक" },
+  { slug: "age", title: "Age Calculator", hi: "आयु यंत्र" },
   { slug: "name-compatibility", title: "Name Compatibility", hi: "नाम मिलान" },
-  { slug: "love", title: "Love Compatibility (fun)", hi: "प्रेम" },
+  { slug: "love", title: "Love Compatibility (fun)", hi: "प्रेम मिलान" },
   { slug: "friendship", title: "Friendship (fun)", hi: "मित्रता" },
   { slug: "flames", title: "FLAMES (fun)", hi: "फ्लेम्स" },
-  { slug: "karakas", title: "Atmakaraka / Darakaraka", hi: "आत्मकारक" },
+  { slug: "karakas", title: "Atmakaraka / Darakaraka", hi: "आत्मकारक / दराकारक" },
   { slug: "ishta-devata", title: "Ishta Devata", hi: "इष्ट देवता" },
-  { slug: "transits", title: "Current Transit Chart", hi: "गोचर" },
+  { slug: "transits", title: "Current Transit Chart", hi: "वर्तमान गोचर" },
 ];
 ---
 
-<Base
-  title="Free Astrology & Numerology Calculators | Vyotish"
-  description="Free Tier 1 and Tier 2 Vedic calculators — Rashi, Nakshatra, Sade Sati, Mangal Dosha, Kaal Sarp, numerology and more — computed live by the Vyotish engine."
->
+<Base title={t.title} description={t.description}>
   <section class="calc-index">
-    <h1>Free calculators</h1>
-    <p class="lede">
-      Every tool is computed by the Vyotish backend engine (/api/v1) — instant results,
-      plain-language explanations, zero login. Birth-based tools never store your details.
+    <h1 class={hi ? "hi-text" : ""}>{t.h1}</h1>
+    <p class={`lede ${hi ? "hi-text" : ""}`}>
+      {t.lede}
     </p>
 
-    <h2>Featured calculators</h2>
-    <div class="grid">
+    <h2 class={hi ? "hi-text" : ""}>{t.featured}</h2>
+    <div class={`grid ${hi ? "hi-text" : ""}`}>
       {
         TIER1.length === 0 ? (
-          <p class="lede">
-            Featured tools are temporarily unavailable — the backend content service could
-            not be reached at build time. The full list below still works.
-          </p>
+          <p class="lede">{t.empty}</p>
         ) : (
           TIER1.map((c) => (
-            <a class="card ready" href={c.href || "/calculators"}>
+            <a class="card ready" href={lp(c.href || "/calculators")}>
               <span class="name">{c.title}</span>
               {c.text && <span class="desc">{c.text}</span>}
-              <span class="cta">{c.cta || "Open →"}</span>
+              <span class="cta">{c.cta || t.open}</span>
             </a>
           ))
         )
       }
     </div>
 
-    <h2>More tools</h2>
-    <div class="grid small">
+    <h2 class={hi ? "hi-text" : ""}>{t.more}</h2>
+    <div class={`grid small ${hi ? "hi-text" : ""}`}>
       {
-        TIER2.map((t) => (
-          <a class="card" href={`/calculators/${t.slug}`}>
-            <span class="name">{t.title}</span>
-            <span class="hi">{t.hi}</span>
-            <span class="cta">Open →</span>
+        TIER2.map((tool) => (
+          <a class="card" href={lp(`/calculators/${tool.slug}`)}>
+            <span class="name">{hi ? tool.hi : tool.title}</span>
+            {!hi && <span class="hi">{tool.hi}</span>}
+            <span class="cta">{t.open}</span>
           </a>
         ))
       }
     </div>
 
-    <p class="note">
-      Building a match? Use the <a href="/matching">Guna Milan (Ashtakoota) page</a>, or generate a
-      full chart on the <a href="/kundli">Free Kundli page</a>. Fun tools are always labelled
-      <em>"for fun"</em>; astrological verdicts carry their verification status.
-    </p>
+    <p class={`note ${hi ? "hi-text" : ""}`} set:html={t.note} />
   </section>
 </Base>
 

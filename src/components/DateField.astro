@@ -76,20 +76,58 @@ const withTime = mode === "time" || mode === "datetime";
 const pre = mode === "datetime" ? `${id}-d` : id; // date-segment id prefix
 const preT = mode === "datetime" ? `${id}-t` : id; // time-segment id prefix
 
-const MONTHS = [
-  "January",
-  "February",
-  "March",
-  "April",
-  "May",
-  "June",
-  "July",
-  "August",
-  "September",
-  "October",
-  "November",
-  "December",
-];
+/* S24 — server-rendered strings follow the page language (picker-script
+   strings live in scripts/date-time-picker.ts). Segment VALUES stay numeric. */
+import { langFromPath } from "../lib/i18n";
+
+const hi = langFromPath(Astro.url.pathname) === "hi";
+const DT = {
+  optional: hi ? " (वैकल्पिक)" : " (optional)",
+  clear: hi ? "साफ़ करें" : "Clear",
+  openCal: hi ? "कैलेंडर खोलें" : "Open calendar",
+  chooseDate: hi ? "तिथि चुनें" : "Choose a date",
+  prevMonth: hi ? "पिछला महीना" : "Previous month",
+  nextMonth: hi ? "अगला महीना" : "Next month",
+  month: hi ? "महीना" : "Month",
+  year: hi ? "वर्ष" : "Year",
+  day: hi ? "दिन" : "Day",
+  hour12: hi ? "घंटा (1–12)" : "Hour (1–12)",
+  hour24: hi ? "घंटा (0–23)" : "Hour (0–23)",
+  minutes: hi ? "मिनट" : "Minutes",
+  days: hi ? "दिन" : "Days",
+  today: hi ? "आज" : "Today",
+  ampm: hi ? "पूर्वाह्न या अपराह्न" : "AM or PM",
+};
+
+const MONTHS = hi
+  ? [
+      "जनवरी",
+      "फ़रवरी",
+      "मार्च",
+      "अप्रैल",
+      "मई",
+      "जून",
+      "जुलाई",
+      "अगस्त",
+      "सितंबर",
+      "अक्टूबर",
+      "नवंबर",
+      "दिसंबर",
+    ]
+  : [
+      "January",
+      "February",
+      "March",
+      "April",
+      "May",
+      "June",
+      "July",
+      "August",
+      "September",
+      "October",
+      "November",
+      "December",
+    ];
 const ERR_ID = `${id}-err`;
 const HINT_ID = hint ? `${id}-hint` : undefined;
 const describedBy = [HINT_ID, ERR_ID].filter(Boolean).join(" ") || undefined;
@@ -111,7 +149,7 @@ const segProps = (segId: string, ariaLabel: string, len: number, ph: string) => 
  *  after a spread is emitted verbatim and the HTML parser keeps only the
  *  FIRST duplicate, which silently dropped dt-seg-year (2.4ch year clipped) */
 const yearSegProps = (segId: string) => ({
-  ...segProps(segId, "Year", 4, "YYYY"),
+  ...segProps(segId, DT.year, 4, "YYYY"),
   class: "dt-seg dt-seg-year",
 });
 
@@ -139,7 +177,7 @@ const ampm = /(\d{2}:\d{2})/.test(value)
           required ? (
             <span class="dt-req" aria-hidden="true"> *</span>
           ) : optional ? (
-            <span class="dt-opt" aria-hidden="true"> (optional)</span>
+            <span class="dt-opt" aria-hidden="true">{DT.optional}</span>
           ) : (
             ""
           )
@@ -151,16 +189,16 @@ const ampm = /(\d{2}:\d{2})/.test(value)
   {
     withDate && (
       <div class="dt-box" data-dt-box="date">
-        <input {...segProps(`${pre}-dd`, "Day", 2, "DD")} value={value ? value.slice(8, 10) : ""} />
+        <input {...segProps(`${pre}-dd`, DT.day, 2, "DD")} value={value ? value.slice(8, 10) : ""} />
         <span class="dt-sep" aria-hidden="true">
           /
         </span>
-        <input {...segProps(`${pre}-mm`, "Month", 2, "MM")} value={value ? value.slice(5, 7) : ""} />
+        <input {...segProps(`${pre}-mm`, DT.month, 2, "MM")} value={value ? value.slice(5, 7) : ""} />
         <span class="dt-sep" aria-hidden="true">
           /
         </span>
         <input {...yearSegProps(`${pre}-yy`)} data-dt-year-seg value={value ? value.slice(0, 4) : ""} />
-        <button type="button" class="dt-clear" data-dt-clear aria-label={`Clear ${label ?? "date"}`} hidden>
+        <button type="button" class="dt-clear" data-dt-clear aria-label={`${DT.clear} ${label ?? (hi ? "तिथि" : "date")}`} hidden>
           <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
             <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" fill="none" />
           </svg>
@@ -172,35 +210,35 @@ const ampm = /(\d{2}:\d{2})/.test(value)
           aria-haspopup="dialog"
           aria-expanded="false"
           aria-controls={`${pre}-pop`}
-          aria-label={`Open calendar${label ? " — " + label : ""}`}
+          aria-label={`${DT.openCal}${label ? " — " + label : ""}`}
         >
           <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
             <rect x="3" y="5" width="18" height="16" rx="2.5" />
             <path d="M3 10h18M8 3v4M16 3v4" />
           </svg>
         </button>
-        <div class="dt-pop" id={`${pre}-pop`} data-dt-pop role="dialog" aria-label="Choose a date" hidden>
+        <div class="dt-pop" id={`${pre}-pop`} data-dt-pop role="dialog" aria-label={DT.chooseDate} hidden>
           <div class="dt-pop-head">
-            <button type="button" class="dt-nav" data-dt-prev aria-label="Previous month">
+            <button type="button" class="dt-nav" data-dt-prev aria-label={DT.prevMonth}>
               <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
                 <path d="M14 6l-6 6 6 6" />
               </svg>
             </button>
-            <select class="dt-sel" data-dt-month aria-label="Month">
+            <select class="dt-sel" data-dt-month aria-label={DT.month}>
               {MONTHS.map((m, i) => (
                 <option value={String(i)}>{m}</option>
               ))}
             </select>
-            <select class="dt-sel dt-sel-year" data-dt-year aria-label="Year"></select>
-            <button type="button" class="dt-nav" data-dt-next aria-label="Next month">
+            <select class="dt-sel dt-sel-year" data-dt-year aria-label={DT.year}></select>
+            <button type="button" class="dt-nav" data-dt-next aria-label={DT.nextMonth}>
               <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
                 <path d="M10 6l6 6-6 6" />
               </svg>
             </button>
           </div>
-          <div class="dt-grid" data-dt-grid role="group" aria-label="Days"></div>
+          <div class="dt-grid" data-dt-grid role="group" aria-label={DT.days}></div>
           <div class="dt-pop-foot">
-            <button type="button" class="dt-today" data-dt-today>Today</button>
+            <button type="button" class="dt-today" data-dt-today>{DT.today}</button>
           </div>
         </div>
       </div>
@@ -210,20 +248,20 @@ const ampm = /(\d{2}:\d{2})/.test(value)
   {
     withTime && (
       <div class="dt-box" data-dt-box="time">
-        <input {...segProps(`${preT}-hh`, hour12 ? "Hour (1–12)" : "Hour (0–23)", 2, "HH")} value={value ? value.split("T").pop()!.slice(0, 2) : ""} />
+        <input {...segProps(`${preT}-hh`, hour12 ? DT.hour12 : DT.hour24, 2, "HH")} value={value ? value.split("T").pop()!.slice(0, 2) : ""} />
         <span class="dt-sep" aria-hidden="true">
           :
         </span>
-        <input {...segProps(`${preT}-mi`, "Minutes", 2, "MM")} value={value ? value.split("T").pop()!.slice(3, 5) : ""} />
+        <input {...segProps(`${preT}-mi`, DT.minutes, 2, "MM")} value={value ? value.split("T").pop()!.slice(3, 5) : ""} />
         {
           hour12 && (
-            <span class="dt-ampm" role="group" aria-label="AM or PM">
+            <span class="dt-ampm" role="group" aria-label={DT.ampm}>
               <button type="button" class="dt-amp" data-dt-amp aria-pressed={ampm === "am" ? "true" : "false"}>AM</button>
               <button type="button" class="dt-amp" data-dt-pm aria-pressed={ampm === "pm" ? "true" : "false"}>PM</button>
             </span>
           )
         }
-        <button type="button" class="dt-clear" data-dt-clear aria-label={`Clear ${label ?? "time"}`} hidden>
+        <button type="button" class="dt-clear" data-dt-clear aria-label={`${DT.clear} ${label ?? (hi ? "समय" : "time")}`} hidden>
           <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
             <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" fill="none" />
           </svg>

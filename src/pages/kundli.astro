@@ -8,85 +8,105 @@ import PlaceField from "../components/PlaceField.astro";
  * column), Vimshottari, API verdicts (Mangal dosha, Kaal Sarp, Sade Sati) and
  * the admin-authored interpretation notes (Epic 4.2b, GET /content/blocks
  * prefix=kundli.). No signup, no storage.
+ * S24: the /hi twin renders this same body via the page path — chrome,
+ * form labels and all JS-injected results follow the page language (KUNDLI
+ * dict; sign/planet names mapped client-side until the API serves hi).
  */
 import Base from "../layouts/Base.astro";
 import { fetchContentBlocks } from "../lib/content";
+import { langFromPath } from "../lib/i18n";
+import { KUNDLI } from "../lib/i18n/kundli";
 
 const apiBase = import.meta.env.PUBLIC_API_BASE_URL ?? "https://astro-backend.vyotish.workers.dev";
-const notes = (await fetchContentBlocks("kundli.")) ?? {};
+const lang = langFromPath(Astro.url.pathname);
+const hi = lang === "hi";
+const t = KUNDLI[lang];
+const notes = (await fetchContentBlocks("kundli.", lang)) ?? {};
 ---
 
 <Base
-  title="Free Kundli (Janam Kundali) — No Signup | Vyotish"
-  description="Free online Kundli with North/South Indian charts, planetary positions, Navamsha, Vimshottari Dasha and dosha notes. No signup; birth data never stored."
+  title={t.title}
+  description={t.description}
 >
   <section class="kl">
-    <h1>Free Kundli</h1>
-    <p class="lede">
-      Enter birth details — the chart computes live on our engine. No signup; birth
-      data is processed for this request and never stored.
+    <h1 class={hi ? "hi-text" : ""}>{t.h1}</h1>
+    <p class={`lede ${hi ? "hi-text" : ""}`}>
+      {t.lede}
     </p>
 
     <form data-k-form>
-      <RequiredNote />
+      <RequiredNote lang={lang} />
       <div class="row">
-        <DateField id="k-date" name="date" label="Birth date" required />
-        <DateField mode="time" id="k-time" name="time" label="Birth time" value="10:00" required />
-        <label>Chart style
+        <DateField id="k-date" name="date" label={t.birthDate} required />
+        <DateField mode="time" id="k-time" name="time" label={t.birthTime} value="10:00" required />
+        <label class={hi ? "hi-text" : ""}>{t.chartStyle}
           <select name="style">
-            <option value="north">North Indian</option>
-            <option value="south">South Indian</option>
+            <option value="north">{t.styleNorth}</option>
+            <option value="south">{t.styleSouth}</option>
           </select>
         </label>
       </div>
-      <PlaceField variant="combined" names={{ combined: "city" }} inputId="k-place" label="Place of birth" />
-      <button type="submit">Generate Kundli</button>
+      <PlaceField variant="combined" names={{ combined: "city" }} inputId="k-place" label={t.placeLabel} />
+      <button type="submit" class={hi ? "hi-text" : ""}>{t.submit}</button>
     </form>
 
-    <div class="k-error" data-k-error hidden>Could not generate the Kundli — please check the inputs.</div>
+    <div class="k-error" data-k-error hidden>{t.errGeneric}</div>
   </section>
 
   <section class="k-out" data-k-out hidden aria-live="polite">
     <div class="charts">
       <figure data-chart-wrap>
-        <figcaption>Chart (<span data-style-label>North Indian</span>) — printable SVG</figcaption>
+        <figcaption class={hi ? "hi-text" : ""}>{t.figPre}<span data-style-label>{t.styleNorth}</span>{t.figPost}</figcaption>
         <div data-chart-svg></div>
       </figure>
     </div>
 
     <div class="summary" data-summary></div>
 
-    <h2>Planetary positions</h2>
+    <h2 class={hi ? "hi-text" : ""}>{t.h2Planets}</h2>
     <div class="table-wrap"><table data-planets></table></div>
 
-    <h2>Vimshottari Dasha (Maha-dashas)</h2>
+    <h2 class={hi ? "hi-text" : ""}>{t.h2Dasha}</h2>
     <div class="table-wrap"><table data-dasha></table></div>
 
-    <h2>Dosha notes</h2>
+    <h2 class={hi ? "hi-text" : ""}>{t.h2Doshas}</h2>
     <div class="doshas" data-doshas></div>
 
-    <h2 data-interp-head hidden>Understanding your kundli</h2>
+    <h2 class={hi ? "hi-text" : ""} data-interp-head hidden>{t.h2Interp}</h2>
     <div class="interp" data-interp></div>
 
-    <p class="fine">
-      The short notes above are curated by the Vyotish team and are indicative,
-      not a full reading. Always cross-check major decisions with a qualified
-      astrologer.
+    <p class={`fine ${hi ? "hi-text" : ""}`}>
+      {t.fine}
     </p>
   </section>
 </Base>
 
-<script is:inline define:vars={{ apiBase, notes }}>
+<script is:inline define:vars={{
+  apiBase, notes, locale: t.locale, errPlace: t.errPlace,
+  styleNorth: t.styleNorth, styleSouth: t.styleSouth, ariaNorth: t.ariaNorth, ariaSouth: t.ariaSouth,
+  sumLagna: t.sumLagna, sumBirth: t.sumBirth, sumDasha: t.sumDasha, padaLbl: t.padaLbl,
+  thPlanet: t.thPlanet, thLon: t.thLon, thSign: t.thSign, thNak: t.thNak, thD9: t.thD9, thMotion: t.thMotion,
+  retro: t.retro, direct: t.direct,
+  thLord: t.thLord, thStart: t.thStart, thEnd: t.thEnd, thYears: t.thYears,
+  dMangal: t.dMangal, dKaal: t.dKaal, dSadeSati: t.dSadeSati,
+  vPresent: t.vPresent, vNot: t.vNot, vMangCancel: t.vMangCancel, cancelPre: t.cancelPre, kaalSuf: t.kaalSuf,
+  ssRunPre: t.ssRunPre, ssRunPost: t.ssRunPost, ssNotRun: t.ssNotRun,
+  ssSatPre: t.ssSatPre, ssMid: t.ssMid, ssSatPost: t.ssSatPost,
+  ssWinPre: t.ssWinPre, ssTo: t.ssTo, ssWinPost: t.ssWinPost, ssNextPre: t.ssNextPre, ssNextPost: t.ssNextPost,
+  signNames: t.signNames, planetNames: t.planetNames,
+}}>
   (function () {
     var SIGNS = ["Aries", "Taurus", "Gemini", "Cancer", "Leo", "Virgo", "Libra", "Scorpio", "Sagittarius", "Capricorn", "Aquarius", "Pisces"];
     var SIGN_SHORT = { Aries: "Ar", Taurus: "Ta", Gemini: "Ge", Cancer: "Cn", Leo: "Le", Virgo: "Vi", Libra: "Li", Scorpio: "Sc", Sagittarius: "Sg", Capricorn: "Cp", Aquarius: "Aq", Pisces: "Pi" };
     var ABBR = { Sun: "Su", Moon: "Mo", Mars: "Ma", Mercury: "Me", Jupiter: "Ju", Venus: "Ve", Saturn: "Sa", Rahu: "Ra", Ketu: "Ke" };
 
+    function pname(p) { return planetNames[p] || p; }
+    function sname(s) { return signNames[SIGNS.indexOf(s)] || s; }
     function esc(s) {
       return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
     }
     function fmtDay(iso) {
-      return iso ? new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" }) : "—";
+      return iso ? new Date(iso).toLocaleDateString(locale, { day: "numeric", month: "short", year: "numeric" }) : "—";
     }
 
     var form = document.querySelector("[data-k-form]");
@@ -126,7 +146,7 @@ const notes = (await fetchContentBlocks("kundli.")) ?? {};
     function northSVG(lagnaSign, byHouse) {
       // North Indian: fixed house diamonds; house 1 top-center diamond.
       var W = 320, H = 320;
-      var s = "<svg viewBox='0 0 " + W + " " + H + "' width='320' height='320' role='img' aria-label='North Indian chart'>";
+      var s = "<svg viewBox='0 0 " + W + " " + H + "' width='320' height='320' role='img' aria-label='" + ariaNorth + "'>";
       s += "<rect x='4' y='4' width='" + (W - 8) + "' height='" + (H - 8) + "' fill='none' stroke='currentColor' stroke-width='1.5'/>";
       var cx = W / 2, cy = H / 2;
       // diagonals + inner diamond
@@ -154,7 +174,7 @@ const notes = (await fetchContentBlocks("kundli.")) ?? {};
         [1, 0], [2, 0], [3, 0], [3, 1], [3, 2], [3, 3],
         [2, 3], [1, 3], [0, 3], [0, 2], [0, 1], [0, 0],
       ];
-      var s = "<svg viewBox='0 0 " + W + " " + H + "' width='320' height='320' role='img' aria-label='South Indian chart'>";
+      var s = "<svg viewBox='0 0 " + W + " " + H + "' width='320' height='320' role='img' aria-label='" + ariaSouth + "'>";
       for (var i = 0; i < 4; i++) {
         s += "<line x1='" + (i * u) + "' y1='0' x2='" + (i * u) + "' y2='" + H + "' stroke='currentColor'/>";
         s += "<line x1='0' y1='" + (i * u) + "' x2='" + W + "' y2='" + (i * u) + "' stroke='currentColor'/>";
@@ -172,64 +192,60 @@ const notes = (await fetchContentBlocks("kundli.")) ?? {};
     /* ---------- doshas — API verdicts (engine 1.8/1.10; D12: logic in backend) ---------- */
     function doshaNotes(d) {
       var m = d.manglik || {};
-      var manglikVerdict = m.cancelled
-        ? "Present but cancelled"
-        : m.is_manglik
-          ? "Present"
-          : "Not indicated";
+      var manglikVerdict = m.cancelled ? vMangCancel : m.is_manglik ? vPresent : vNot;
       var manglikDetail = m.detail || "";
-      if (m.cancelled && m.cancellation_reason) manglikDetail += " Cancellation: " + m.cancellation_reason;
+      if (m.cancelled && m.cancellation_reason) manglikDetail += " " + cancelPre + m.cancellation_reason;
 
       var k = d.kaal_sarp || {};
-      var ksVerdict = k.present ? (k.type ? k.type + " — present" : "Present") : "Not indicated";
+      var ksVerdict = k.present ? (k.type ? k.type + kaalSuf : vPresent) : vNot;
 
       var s = d.sade_sati || {};
       var ssVerdict, ssDetail;
       if (s.in_sade_sati) {
-        ssVerdict = "Running — phase " + (s.phase ?? "—") + " of 3";
-        ssDetail = "Saturn in " + s.saturn_sign + " vs natal Moon in " + s.moon_sign + ".";
-        if (s.current) ssDetail += " Window: " + fmtDay(s.current.start) + " to " + fmtDay(s.current.end) + ".";
+        ssVerdict = ssRunPre + (s.phase ?? "—") + ssRunPost;
+        ssDetail = ssSatPre + sname(s.saturn_sign) + ssMid + sname(s.moon_sign) + ssSatPost;
+        if (s.current) ssDetail += ssWinPre + fmtDay(s.current.start) + ssTo + fmtDay(s.current.end) + ssWinPost;
       } else {
-        ssVerdict = "Not running";
+        ssVerdict = ssNotRun;
         ssDetail = s.next
-          ? "Next window: " + fmtDay(s.next.start) + " to " + fmtDay(s.next.end) + "."
+          ? ssNextPre + fmtDay(s.next.start) + ssTo + fmtDay(s.next.end) + ssNextPost
           : "";
       }
       ssDetail += " " + (s.note || "");
 
       return [
-        { name: "Mangal Dosha", verdict: manglikVerdict, detail: manglikDetail },
-        { name: "Kaal Sarp", verdict: ksVerdict, detail: k.note || "" },
-        { name: "Shani Sade Sati", verdict: ssVerdict, detail: ssDetail.trim() },
+        { name: dMangal, verdict: manglikVerdict, detail: manglikDetail },
+        { name: dKaal, verdict: ksVerdict, detail: k.note || "" },
+        { name: dSadeSati, verdict: ssVerdict, detail: ssDetail.trim() },
       ];
     }
 
     /* ---------- render ---------- */
     function render(d, style) {
-      styleLabel.textContent = style === "south" ? "South Indian" : "North Indian";
+      styleLabel.textContent = style === "south" ? styleSouth : styleNorth;
       var byHouse = housePlants(d.grahas, d.houses);
       var bySign = signPlanets(d.grahas);
       chartWrap.innerHTML = style === "south" ? southSVG(bySign) : northSVG(d.lagna.signIndex, byHouse);
 
       summaryEl.innerHTML =
         '<div class="s-grid">' +
-        '<div class="s"><div class="k">Lagna</div><div class="v">' + d.lagna.sign + " · " + d.lagna.nakshatra + " pada " + d.lagna.pada + "</div></div>" +
-        '<div class="s"><div class="k">Birth (local)</div><div class="v">' + d.birth.date + " " + d.birth.time + " · " + d.birth.timezone + "</div></div>" +
-        '<div class="s"><div class="k">Current Maha-dasha</div><div class="v">' + d.dasha.mahadashas[0].lord + "</div></div>" +
+        '<div class="s"><div class="k">' + sumLagna + '</div><div class="v">' + sname(d.lagna.sign) + " · " + d.lagna.nakshatra + padaLbl + d.lagna.pada + "</div></div>" +
+        '<div class="s"><div class="k">' + sumBirth + '</div><div class="v">' + d.birth.date + " " + d.birth.time + " · " + d.birth.timezone + "</div></div>" +
+        '<div class="s"><div class="k">' + sumDasha + '</div><div class="v">' + pname(d.dasha.mahadashas[0].lord) + "</div></div>" +
         "</div>";
 
       planetsEl.innerHTML =
-        "<thead><tr><th>Planet</th><th>Longitude</th><th>Sign</th><th>Nakshatra (pada)</th><th>Navamsha (D9)</th><th>Motion</th></tr></thead><tbody>" +
+        "<thead><tr><th>" + thPlanet + "</th><th>" + thLon + "</th><th>" + thSign + "</th><th>" + thNak + "</th><th>" + thD9 + "</th><th>" + thMotion + "</th></tr></thead><tbody>" +
         d.grahas.map(function (g) {
           var d9 = d.divisionals && d.divisionals[g.planet] ? d.divisionals[g.planet].D9 : null;
-          return "<tr><td>" + g.planet + "</td><td>" + g.lon.toFixed(2) + "°</td><td>" + g.sign + "</td><td>" + g.nakshatra + " (" + g.pada + ")</td><td>" + (d9 == null ? "—" : SIGNS[d9]) + "</td><td>" + (g.retrograde ? "Retrograde*" : "Direct") + "</td></tr>";
+          return "<tr><td>" + pname(g.planet) + "</td><td>" + g.lon.toFixed(2) + "°</td><td>" + sname(g.sign) + "</td><td>" + g.nakshatra + " (" + g.pada + ")</td><td>" + (d9 == null ? "—" : signNames[d9]) + "</td><td>" + (g.retrograde ? retro : direct) + "</td></tr>";
         }).join("") +
         "</tbody>";
 
       dashaEl.innerHTML =
-        "<thead><tr><th>Lord</th><th>Start</th><th>End</th><th>Years</th></tr></thead><tbody>" +
+        "<thead><tr><th>" + thLord + "</th><th>" + thStart + "</th><th>" + thEnd + "</th><th>" + thYears + "</th></tr></thead><tbody>" +
         d.dasha.mahadashas.map(function (m) {
-          return "<tr><td>" + m.lord + "</td><td>" + new Date(m.start).toLocaleDateString() + "</td><td>" + new Date(m.end).toLocaleDateString() + "</td><td>" + m.years + "</td></tr>";
+          return "<tr><td>" + pname(m.lord) + "</td><td>" + new Date(m.start).toLocaleDateString(locale) + "</td><td>" + new Date(m.end).toLocaleDateString(locale) + "</td><td>" + m.years + "</td></tr>";
         }).join("") +
         "</tbody>";
 
@@ -260,13 +276,13 @@ const notes = (await fetchContentBlocks("kundli.")) ?? {};
       var cityRaw = String(f.get("city") || "");
       var style = String(f.get("style") || "north");
       if (!cityRaw) {
-        errEl.textContent = "Please select your place of birth from the suggestions.";
+        errEl.textContent = errPlace;
         errEl.removeAttribute("hidden");
         return;
       }
       var city = cityRaw.split(",");
       errEl.setAttribute("hidden", "");
-      fetch(apiBase + "/api/v1/kundli", {
+      fetch(apiBase + "/api/v1/kundli" + (document.documentElement.lang === "hi" ? "?lang=hi" : ""), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ date: f.get("date"), time: f.get("time"), lat: parseFloat(city[0]), lng: parseFloat(city[1]), tz: city[2] }),

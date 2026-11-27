@@ -1,60 +1,31 @@
 ---
 /** /astrology/ — Astrology tab hub (Epic 4.5): kundli, matching, calculators,
- * learn. All computation lives in the backend (D12); this page is navigation. */
+ * learn. All computation lives in the backend (D12); this page is navigation.
+ * S24: the /hi twin renders this same body via the page path. */
 import Base from "../../layouts/Base.astro";
+import { langFromPath, withLang } from "../../lib/i18n";
+import { ASTROLOGY_HUB } from "../../lib/i18n/hubs";
 
-const SECTIONS = [
-  {
-    href: "/kundli",
-    title: "Free Kundli",
-    hi: "जन्म कुंडली",
-    desc: "Full birth chart — nine grahas, Lagna, houses, Navamsha, divisionals, Sade Sati and the Vimshottari dasha table.",
-  },
-  {
-    href: "/matching",
-    title: "Kundli Matching",
-    hi: "गुण मिलान",
-    desc: "Ashtakoota 36-guna milan with per-koota explanations and Manglik dosha from Lagna, Moon and Venus.",
-  },
-  {
-    href: "/compatibility",
-    title: "Zodiac Compatibility",
-    hi: "राशि मैत्री",
-    desc: "Western sun-sign matching for all 144 pairings — love, trust, communication and emotional scores with original tips.",
-  },
-  {
-    href: "/calculators",
-    title: "Calculators",
-    hi: "कैलकुलेटर",
-    desc: "Rashi, Nakshatra, Sade Sati, Kaal Sarp, numerology and the full Tier 2 tool set — instant, free.",
-  },
-  {
-    href: "/astrology/learn/",
-    title: "Learn",
-    hi: "अध्ययन",
-    desc: "Original articles: the 12 rashis, Navagraha, 27 nakshatras, houses, panchang, doshas and dasha.",
-  },
-];
+const lang = langFromPath(Astro.url.pathname);
+const hi = lang === "hi";
+const t = ASTROLOGY_HUB[lang];
+const lp = (href: string) => withLang(href, Astro.url.pathname);
 ---
 
-<Base
-  title="Astrology — Kundli, Matching, Calculators & Learn | Vyotish"
-  description="Everything Vedic astrology on Vyotish: free kundli generation, Ashtakoota matching, free calculators and original learning articles."
->
+<Base title={t.title} description={t.description}>
   <section class="ax">
-    <h1>Astrology</h1>
-    <p class="lede">
-      Classical Jyotish computed properly — precise sidereal positions from the backend
-      engine, honest verification flags, and no fear-based readings anywhere.
+    <h1 class={hi ? "hi-text" : ""}>{t.h1}</h1>
+    <p class={`lede ${hi ? "hi-text" : ""}`}>
+      {t.lede}
     </p>
     <div class="grid">
       {
-        SECTIONS.map((s) => (
-          <a class="card" href={s.href}>
+        t.sections.map((s) => (
+          <a class={`card ${hi ? "hi-text" : ""}`} href={lp(s.href)}>
             <span class="name">{s.title}</span>
-            <span class="hi">{s.hi}</span>
+            {!hi && <span class="hi">{s.title_hi}</span>}
             <span class="desc">{s.desc}</span>
-            <span class="cta">Open →</span>
+            <span class="cta">{t.open}</span>
           </a>
         ))
       }

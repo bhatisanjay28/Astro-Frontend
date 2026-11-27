@@ -1,4 +1,6 @@
 ---
+import { type Lang, withLang } from "../../lib/i18n";
+import { HOME } from "../../lib/i18n/home";
 /**
  * Home "Today at a Glance" — home design §6 (D11) wired to the live
  * /api/v1/panchang (Epic 3.1 + 1.7 fields incl. Hindu month & Samvat).
@@ -7,8 +9,18 @@
  * in lat/lng/tz mode. Current/next limbs come from the server-picked
  * `active` field — the client never computes them.
  * Today/Tomorrow toggles the ?date parameter.
+ * S24: lang prop — Hindi labels + Hindi JS-injected strings on /hi pages;
+ * panchang values prefer the API's *_hi fields when the page is Hindi.
  */
 import PlaceField from "../PlaceField.astro";
+
+interface Props {
+  lang?: Lang;
+}
+const { lang = "en" } = Astro.props;
+const t = HOME[lang];
+const hi = lang === "hi";
+const apiBase = import.meta.env.PUBLIC_API_BASE_URL ?? "https://astro-backend.vyotish.workers.dev";
 ---
 
 <section id="panchang" class="py-10 px-4 sm:px-8 border-b border-light-outline-variant/40 dark:border-dark-outline-variant/30 bg-light-surface dark:bg-dark-surface">
@@ -17,11 +29,11 @@ import PlaceField from "../PlaceField.astro";
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
       <div>
         <div class="flex items-center gap-2">
-          <span class="font-label text-label-sm font-semibold uppercase tracking-wider text-saffron dark:text-dark-primary">Today at a Glance</span>
-          <span class="font-data text-label-sm px-2 py-0.5 rounded bg-light-primary-container text-light-on-primary-container dark:bg-dark-primary-container dark:text-dark-on-primary-container">Vedic Day: Sunrise to Sunrise</span>
+          <span class="font-label text-label-sm font-semibold uppercase tracking-wider text-saffron dark:text-dark-primary">{t.glanceKicker}</span>
+          <span class={`font-data text-label-sm px-2 py-0.5 rounded bg-light-primary-container text-light-on-primary-container dark:bg-dark-primary-container dark:text-dark-on-primary-container ${hi ? "hi-text" : ""}`}>{t.vedicDay}</span>
         </div>
-        <h2 class="font-headline text-headline-md font-bold text-light-on-surface dark:text-dark-on-surface mt-1">
-          Daily Panchang &amp; Auspicious Timings
+        <h2 class={`font-headline text-headline-md font-bold text-light-on-surface dark:text-dark-on-surface mt-1 ${hi ? "hi-text" : ""}`}>
+          {t.glanceH2}
         </h2>
       </div>
 
@@ -31,17 +43,17 @@ import PlaceField from "../PlaceField.astro";
           <PlaceField
             variant="combined"
             inputId="hp-place"
-            label="City"
+            label={t.city}
             required={false}
-            placeholder="New Delhi (default) — type your city"
+            placeholder={t.cityPlaceholder}
             names={{ combined: "hp-city" }}
           />
         </div>
 
         <!-- Quick Day Switcher -->
-        <div class="inline-flex self-end rounded border border-light-outline-variant dark:border-dark-outline-variant bg-light-surface-variant dark:bg-dark-surface-variant p-0.5" role="group" aria-label="Day">
-          <button type="button" data-day="today" class="px-3 py-1.5 rounded bg-light-surface dark:bg-dark-surface text-light-primary dark:text-dark-primary font-label text-label-sm font-semibold shadow-xs">Today</button>
-          <button type="button" data-day="tomorrow" class="px-3 py-1.5 rounded text-light-outline dark:text-dark-outline hover:text-light-on-surface dark:hover:text-dark-on-surface font-label text-label-sm font-medium">Tomorrow</button>
+        <div class="inline-flex self-end rounded border border-light-outline-variant dark:border-dark-outline-variant bg-light-surface-variant dark:bg-dark-surface-variant p-0.5" role="group" aria-label={t.day}>
+          <button type="button" data-day="today" class={`px-3 py-1.5 rounded bg-light-surface dark:bg-dark-surface text-light-primary dark:text-dark-primary font-label text-label-sm font-semibold shadow-xs ${hi ? "hi-text" : ""}`}>{t.today}</button>
+          <button type="button" data-day="tomorrow" class={`px-3 py-1.5 rounded text-light-outline dark:text-dark-outline hover:text-light-on-surface dark:hover:text-dark-on-surface font-label text-label-sm font-medium ${hi ? "hi-text" : ""}`}>{t.tomorrow}</button>
         </div>
       </div>
     </div>
@@ -49,21 +61,15 @@ import PlaceField from "../PlaceField.astro";
     <!-- Five Limbs (Panch-Anga) Cards Grid -->
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5 mb-6" data-limbs>
       {
-        [
-          { label: "Tithi (तिथि)", icon: "wb_sunny", key: "tithi" },
-          { label: "Vaar (दिन / वार)", icon: "today", key: "vaar" },
-          { label: "Nakshatra (नक्षत्र)", icon: "stars", key: "nakshatra" },
-          { label: "Yoga (योग)", icon: "self_improvement", key: "yoga" },
-          { label: "Karana (करण)", icon: "hourglass_bottom", key: "karana" },
-        ].map((limb) => (
+        t.limbs.map((limb) => (
           <div class="p-4 rounded-lg bg-light-surface-variant dark:bg-dark-surface-variant/70 border border-light-outline-variant/60 dark:border-dark-outline-variant/40" data-limb={limb.key}>
-            <span class="font-body text-body-sm text-light-outline dark:text-dark-outline flex items-center justify-between">
+            <span class={`font-body text-body-sm text-light-outline dark:text-dark-outline flex items-center justify-between ${hi ? "hi-text" : ""}`}>
               {limb.label}
               <span class="material-symbols-outlined text-title-md text-accent">{limb.icon}</span>
             </span>
-            <div class="mt-1 font-title text-title-md font-semibold text-light-on-surface dark:text-dark-on-surface min-h-[24px]" data-field="name">—</div>
-            <div class="font-data text-data-mono text-light-primary dark:text-dark-primary mt-1 font-medium min-h-[18px]" data-field="upto" />
-            <div class="font-body text-body-sm text-light-outline dark:text-dark-outline mt-0.5 min-h-[18px]" data-field="followed" />
+            <div class={`mt-1 font-title text-title-md font-semibold text-light-on-surface dark:text-dark-on-surface min-h-[24px] ${hi ? "hi-text" : ""}`} data-field="name">—</div>
+            <div class={`font-data text-data-mono text-light-primary dark:text-dark-primary mt-1 font-medium min-h-[18px] ${hi ? "hi-text" : ""}`} data-field="upto" />
+            <div class={`font-body text-body-sm text-light-outline dark:text-dark-outline mt-0.5 min-h-[18px] ${hi ? "hi-text" : ""}`} data-field="followed" />
           </div>
         ))
       }
@@ -76,7 +82,7 @@ import PlaceField from "../PlaceField.astro";
           <span class="material-symbols-outlined text-headline-sm">wb_twilight</span>
         </div>
         <div>
-          <span class="font-body text-body-sm text-light-outline dark:text-dark-outline block">Sunrise &amp; Sunset</span>
+          <span class={`font-body text-body-sm text-light-outline dark:text-dark-outline block ${hi ? "hi-text" : ""}`}>{t.sunriseSunset}</span>
           <span class="font-data text-data-mono font-semibold text-light-on-surface dark:text-dark-on-surface" data-times="sun">—</span>
         </div>
       </div>
@@ -86,7 +92,7 @@ import PlaceField from "../PlaceField.astro";
           <span class="material-symbols-outlined text-headline-sm">warning</span>
         </div>
         <div>
-          <span class="font-body text-body-sm text-error dark:text-[var(--color-error-text)] font-medium block">Rahu Kaal (Inauspicious)</span>
+          <span class={`font-body text-body-sm text-error dark:text-[var(--color-error-text)] font-medium block ${hi ? "hi-text" : ""}`}>{t.rahuKaal}</span>
           <span class="font-data text-data-mono font-semibold text-light-on-surface dark:text-dark-on-surface" data-times="rahu">—</span>
         </div>
       </div>
@@ -96,7 +102,7 @@ import PlaceField from "../PlaceField.astro";
           <span class="material-symbols-outlined text-headline-sm">verified</span>
         </div>
         <div>
-          <span class="font-body text-body-sm text-success dark:text-[var(--color-auspicious-text)] font-medium block">Abhijit Muhurat (Auspicious)</span>
+          <span class={`font-body text-body-sm text-success dark:text-[var(--color-auspicious-text)] font-medium block ${hi ? "hi-text" : ""}`}>{t.abhijit}</span>
           <span class="font-data text-data-mono font-semibold text-light-on-surface dark:text-dark-on-surface" data-times="abhijit">—</span>
         </div>
       </div>
@@ -106,31 +112,35 @@ import PlaceField from "../PlaceField.astro";
           <span class="material-symbols-outlined text-headline-sm">brightness_3</span>
         </div>
         <div>
-          <span class="font-body text-body-sm text-light-outline dark:text-dark-outline block">Hindu Month &amp; Samvat</span>
-          <span class="font-data text-data-mono font-semibold text-light-on-surface dark:text-dark-on-surface" data-times="samvat">—</span>
+          <span class={`font-body text-body-sm text-light-outline dark:text-dark-outline block ${hi ? "hi-text" : ""}`}>{t.hinduMonth}</span>
+          <span class={`font-data text-data-mono font-semibold text-light-on-surface dark:text-dark-on-surface ${hi ? "hi-text" : ""}`} data-times="samvat">—</span>
         </div>
       </div>
     </div>
 
-    <div class="mt-4 flex flex-col sm:flex-row items-center justify-between font-body text-body-sm text-light-outline dark:text-dark-outline gap-2">
+    <div class={`mt-4 flex flex-col sm:flex-row items-center justify-between font-body text-body-sm text-light-outline dark:text-dark-outline gap-2 ${hi ? "hi-text" : ""}`}>
       <div class="flex items-center gap-2">
-        <span>Method: <strong class="text-light-on-surface dark:text-dark-on-surface">Lahiri Ayanamsha</strong></span>
+        <span>{t.method} <strong class="text-light-on-surface dark:text-dark-on-surface">{t.methodLahiri}</strong></span>
         <span>•</span>
-        <span>Month: <strong class="text-light-on-surface dark:text-dark-on-surface">Purnimanta &amp; Amanta</strong></span>
+        <span>{t.monthSystem} <strong class="text-light-on-surface dark:text-dark-on-surface">{t.monthPurnimanta}</strong></span>
       </div>
-      <a href="/panchang/" class="text-light-primary dark:text-dark-primary font-semibold hover:underline flex items-center gap-1 font-label text-label-sm">
-        View Complete Choghadiya, Hora &amp; Monthly Calendar →
+      <a href={withLang("/panchang/", Astro.url.pathname)} class="text-light-primary dark:text-dark-primary font-semibold hover:underline flex items-center gap-1 font-label text-label-sm">
+        {t.panchangMore}
       </a>
     </div>
   </div>
 </section>
 
-<script define:vars={{ apiBase: import.meta.env.PUBLIC_API_BASE_URL ?? "https://astro-backend.vyotish.workers.dev" }}>
+<script define:vars={{ apiBase, hi: hi, weekdays: t.weekdays, uptoPre: t.uptoPre, uptoSuf: t.uptoSuf, followedPre: t.followedPre, rulingPre: t.rulingPre, adhikaTxt: t.adhika, vikramTxt: t.vikram }}>
   // Live wiring: panchang from /api/v1/panchang in lat/lng/tz
   // mode (PlaceField resolves the city); current/next limbs rendered from the
   // server-picked `active` field — the client never computes picks itself.
+  // On Hindi pages values prefer the API's *_hi fields and the injected
+  // phrases ("Upto…", "Followed by…") come from the page language.
+  // (No story ids in this comment — inline scripts ship verbatim to visitors.)
   (function () {
     var API = apiBase;
+    var HI = !!hi;
     var root = document.querySelector("#panchang");
     if (!root) return;
     var dayBtns = root.querySelectorAll("[data-day]");
@@ -140,7 +150,7 @@ import PlaceField from "../PlaceField.astro";
 
     function fmt(iso) {
       try {
-        return new Intl.DateTimeFormat("en-IN", { timeZone: undefined, hour: "2-digit", minute: "2-digit", hour12: true }).format(new Date(iso));
+        return new Intl.DateTimeFormat(HI ? "hi-IN" : "en-IN", { timeZone: undefined, hour: "2-digit", minute: "2-digit", hour12: true }).format(new Date(iso));
       } catch (e) {
         return iso;
       }
@@ -151,26 +161,33 @@ import PlaceField from "../PlaceField.astro";
       return fmt(iso);
     }
 
+    // vaar.name (Sanskrit transliteration) → weekday row in the page language
+    var VAAR_INDEX = { Ravivara: 0, Somavara: 1, Mangalavara: 2, Budhavara: 3, Guruvara: 4, Shukravara: 5, Shanivara: 6 };
+
     function render(p) {
       var set = function (limbKey, field, text) {
         var el = root.querySelector('[data-limb="' + limbKey + '"] [data-field="' + field + '"]');
         if (el) el.textContent = text;
       };
+      var pick = function (obj) {
+        if (!obj) return null;
+        return (HI && obj.name_hi) ? obj.name_hi : obj.name;
+      };
       // Vaar comes as a plain object; the other four use server-picked active
       var vaarEl = root.querySelector('[data-limb="vaar"] [data-field="name"]');
-      if (vaarEl) vaarEl.textContent = (p.vaar && p.vaar.name) || "—";
-      var vaarEn = { Ravivara: "Sunday", Somavara: "Monday", Mangalavara: "Tuesday", Budhavara: "Wednesday", Guruvara: "Thursday", Shukravara: "Friday", Shanivara: "Saturday" };
-      set("vaar", "upto", vaarEn[p.vaar && p.vaar.name] || "");
-      set("vaar", "followed", p.vaar ? "Ruling: " + p.vaar.name.replace("vara", "") : "");
+      if (vaarEl) vaarEl.textContent = pick(p.vaar) || "—";
+      var vi = VAAR_INDEX[p.vaar && p.vaar.name];
+      set("vaar", "upto", vi != null ? weekdays[vi] : "");
+      set("vaar", "followed", p.vaar ? rulingPre + p.vaar.name.replace("vara", "") : "");
 
       var limbKeys = ["tithi", "nakshatra", "yoga", "karana"];
       limbKeys.forEach(function (key) {
         var active = p.active && p.active[key];
         var cur = active && active.window;
         var nxt = active && active.next;
-        set(key, "name", cur ? cur.name : "—");
-        set(key, "upto", cur ? "Upto " + fmtLocal(cur.end) : "");
-        set(key, "followed", nxt ? "Followed by " + nxt.name.replace(/^(Shukla|Krishna) /, "") : "");
+        set(key, "name", cur ? (pick(cur) || "—") : "—");
+        set(key, "upto", cur ? uptoPre + fmtLocal(cur.end) + uptoSuf : "");
+        set(key, "followed", nxt ? followedPre + (pick(nxt) || "").replace(/^(Shukla|Krishna) /, "") : "");
       });
 
       var sunrise = p.vedic_day && new Date(p.vedic_day.sunrise);
@@ -183,8 +200,9 @@ import PlaceField from "../PlaceField.astro";
       if (abhEl && p.abhijit) abhEl.textContent = fmt(p.abhijit.start) + " - " + fmt(p.abhijit.end);
       var samEl = root.querySelector('[data-times="samvat"]');
       if (samEl && p.hindu_month && p.samvat) {
-        var monthName = p.hindu_month.purnimanta.name + (p.hindu_month.adhika ? " (Adhik)" : "");
-        samEl.textContent = monthName + " • Vikram " + p.samvat.vikram;
+        var month = HI ? (p.hindu_month.purnimanta.name_hi || p.hindu_month.purnimanta.name) : p.hindu_month.purnimanta.name;
+        var monthName = month + (p.hindu_month.adhika ? " " + adhikaTxt : "");
+        samEl.textContent = monthName + " • " + vikramTxt + " " + p.samvat.vikram;
       }
     }
 

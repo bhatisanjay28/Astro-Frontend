@@ -2,114 +2,111 @@
 /** /compatibility/ — Zodiac Sign Compatibility hub (Epic ZC S-ZC-3).
  * Entry point: pick two signs → canonical pair page. All scores, verdicts
  * and explanations come from the backend API (D12); this page is structure,
- * navigation and honest framing only. */
+ * navigation and honest framing only.
+ * S24: the /hi twin renders this same body via the page path; pair links
+ * go through withLang (the dynamic pair twins land with P3). */
 import Base from "../../layouts/Base.astro";
+import { langFromPath, withLang } from "../../lib/i18n";
+import { COMPATIBILITY } from "../../lib/i18n/compatibility";
 import { canonicalPairs, ZODIAC_SIGNS } from "../../lib/zodiac-signs";
+
+const lang = langFromPath(Astro.url.pathname);
+const hi = lang === "hi";
+const t = COMPATIBILITY[lang];
 
 const sameSignPairs = ZODIAC_SIGNS.map((s) => ({
   ...s,
-  href: `/compatibility/${s.slug}/${s.slug}/`,
+  href: withLang(`/compatibility/${s.slug}/${s.slug}/`, Astro.url.pathname),
 }));
 const pairCount = canonicalPairs().length;
 ---
 
 <Base
-  title="Zodiac Sign Compatibility — Check Your Sun Sign Match | Vyotish"
-  description="Pick two zodiac signs and see how compatible they are: love, sexual, friendship, communication, trust and emotional scores with an overall rating and original relationship tips for all 144 pairings."
+  title={t.title}
+  description={t.description}
 >
-  <nav class="zc-crumbs" aria-label="Breadcrumb">
-    <a href="/astrology">Astrology</a> <span aria-hidden="true">/</span>
-    <span aria-current="page">Zodiac Sign Compatibility</span>
+  <nav class={`zc-crumbs ${hi ? "hi-text" : ""}`} aria-label={hi ? "ब्रेडक्रंब" : "Breadcrumb"}>
+    <a href={withLang("/astrology", Astro.url.pathname)}>{t.crumbsRoot}</a> <span aria-hidden="true">/</span>
+    <span aria-current="page">{t.crumbsCurrent}</span>
   </nav>
 
   <section class="zc-hub">
     <header class="zc-hero">
-      <p class="zc-kicker">Astrology · Sun signs</p>
-      <h1>Zodiac Sign Compatibility</h1>
-      <p class="zc-lede">
-        Choose your sign and your partner's sign to see an honest sun-sign reading:
-        six compatibility scores, what each means for the two of you, and practical
-        tips for the friction points. Same sign for both works too.
+      <p class={`zc-kicker ${hi ? "hi-text" : ""}`}>{t.kicker}</p>
+      <h1 class={hi ? "hi-text" : ""}>{t.h1}</h1>
+      <p class={`zc-lede ${hi ? "hi-text" : ""}`}>
+        {t.lede}
       </p>
     </header>
 
-    <section class="zc-picker" aria-label="Check compatibility">
+    <section class="zc-picker" aria-label={t.pickerAria}>
       <form data-zc-picker>
         <div class="zc-fields">
-          <label>
-            <span>Your sign</span>
+          <label class={hi ? "hi-text" : ""}>
+            <span>{t.yourSign}</span>
             <select name="sign1" required>
-              <option value="" selected disabled>Choose your sign</option>
+              <option value="" selected disabled>{t.chooseYour}</option>
               {ZODIAC_SIGNS.map((s) => (
-                <option value={s.slug}>{s.en} · {s.hi}</option>
+                <option value={s.slug}>{hi ? s.hi : s.en} · {s.hi}</option>
               ))}
             </select>
           </label>
-          <button type="button" class="zc-swap" data-zc-swap aria-label="Swap the two signs">⇄</button>
-          <label>
-            <span>Partner's sign</span>
+          <button type="button" class="zc-swap" data-zc-swap aria-label={t.swapAria}>⇄</button>
+          <label class={hi ? "hi-text" : ""}>
+            <span>{t.partnerSign}</span>
             <select name="sign2" required>
-              <option value="" selected disabled>Choose their sign</option>
+              <option value="" selected disabled>{t.chooseTheir}</option>
               {ZODIAC_SIGNS.map((s) => (
-                <option value={s.slug}>{s.en} · {s.hi}</option>
+                <option value={s.slug}>{hi ? s.hi : s.en} · {s.hi}</option>
               ))}
             </select>
           </label>
         </div>
-        <button type="submit" class="zc-check" disabled>Check Compatibility</button>
-        <p class="zc-hint">Choosing the same sign twice is allowed.</p>
+        <button type="submit" class={`zc-check ${hi ? "hi-text" : ""}`} disabled>{t.check}</button>
+        <p class={`zc-hint ${hi ? "hi-text" : ""}`}>{t.hint}</p>
       </form>
     </section>
 
-    <section class="zc-how" aria-label="How this works">
-      <h2>How the reading works</h2>
+    <section class="zc-how" aria-label={t.howAria}>
+      <h2 class={hi ? "hi-text" : ""}>{t.howH}</h2>
       <ol>
-        <li>
-          <h3>Pick both signs</h3>
-          <p>Either order works — every pairing is symmetrical, so Aries &amp; Cancer reads the same as Cancer &amp; Aries.</p>
-        </li>
-        <li>
-          <h3>We compare the charts</h3>
-          <p>The engine looks at the angle between the two signs, their elements, modes and ruling planets — the classical Western sun-sign method.</p>
-        </li>
-        <li>
-          <h3>You get scores and tips</h3>
-          <p>Six categories scored on an honest 35–95 scale, a short explanation for each, and tips written for this exact pairing.</p>
-        </li>
+        {t.steps.map((step) => (
+          <li class={hi ? "hi-text" : ""}>
+            <h3>{step.h3}</h3>
+            <p>{step.p}</p>
+          </li>
+        ))}
       </ol>
     </section>
 
-    <section class="zc-grid-wrap" aria-label="All pairings by sign">
-      <h2>Browse all {pairCount} pairings</h2>
+    <section class="zc-grid-wrap" aria-label={t.gridAria}>
+      <h2 class={hi ? "hi-text" : ""}>{t.gridPre}{pairCount}{t.gridSuf}</h2>
       <div class="zc-grid">
         {sameSignPairs.map((s) => (
-          <a class="zc-sign-card" href={s.href}>
+          <a class={`zc-sign-card ${hi ? "hi-text" : ""}`} href={s.href}>
             <span class="zc-symbol" aria-hidden="true">{s.symbol}</span>
-            <span class="zc-name">{s.en}</span>
-            <span class="zc-hi">{s.hi}</span>
+            <span class="zc-name">{hi ? s.hi : s.en}</span>
+            <span class="zc-hi">{hi ? s.en : s.hi}</span>
           </a>
         ))}
       </div>
-      <p class="zc-grid-note">
-        Each card opens the sign with itself — similarities and friction points of two
-        identical natures. Every other pairing is reachable from any sign page.
+      <p class={`zc-grid-note ${hi ? "hi-text" : ""}`}>
+        {t.gridNote}
       </p>
     </section>
 
-    <section class="zc-strip" aria-label="Method and disclaimer">
-      <p>
-        Sun-sign compatibility is an interpretive method, not a scientific measure —
-        scores are a structured way to think about a pairing, not a verdict on any
-        real relationship. All readings are for guidance and entertainment.
+    <section class="zc-strip" aria-label={t.stripAria}>
+      <p class={hi ? "hi-text" : ""}>
+        {t.strip}
       </p>
     </section>
 
-    <section class="zc-vedic" aria-label="Vedic alternative">
+    <section class="zc-vedic" aria-label={t.vedicAria}>
       <div class="zc-vedic-copy">
-        <h2>Want the Vedic view?</h2>
-        <p>Kundli Matching scores a real birth-chart pair across 36 gunas, rather than sun signs.</p>
+        <h2 class={hi ? "hi-text" : ""}>{t.vedicH}</h2>
+        <p class={hi ? "hi-text" : ""}>{t.vedicP}</p>
       </div>
-      <a class="zc-vedic-btn" href="/matching">Open Kundli Matching</a>
+      <a class={`zc-vedic-btn ${hi ? "hi-text" : ""}`} href={withLang("/matching", Astro.url.pathname)}>{t.vedicBtn}</a>
     </section>
   </section>
 </Base>
@@ -138,7 +135,9 @@ const pairCount = canonicalPairs().length;
     const key = canonicalPairSlug(s1, s2);
     if (!key) return; // fail closed — never navigate on a non-canonical pair
     const [a, b] = key.split("-");
-    window.location.assign(`/compatibility/${a}/${b}/`);
+    // S24: keep the visitor's language — the dynamic pair pages have /hi twins
+    const prefix = document.documentElement.lang === "hi" ? "/hi" : "";
+    window.location.assign(`${prefix}/compatibility/${a}/${b}/`);
   });
 
   // Button stays disabled until both signs are chosen (design spec §1.3).

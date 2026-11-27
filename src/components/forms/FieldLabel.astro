@@ -11,9 +11,18 @@ interface Props {
   label: string;
   required?: boolean;
   optional?: boolean;
+  /** S24: page-language optional marker (default keeps the EN "(optional)") */
+  optionalText?: string;
   class?: string;
 }
-const { forId, label, required = false, optional = false, class: className } = Astro.props;
+const {
+  forId,
+  label,
+  required = false,
+  optional = false,
+  optionalText = " (optional)",
+  class: className,
+} = Astro.props;
 ---
 <label class={className} for={forId}>
   {label}
@@ -23,7 +32,7 @@ const { forId, label, required = false, optional = false, class: className } = A
         *
       </span>
     ) : optional ? (
-      <span class="req-opt" aria-hidden="true"> (optional)</span>
+      <span class="req-opt" aria-hidden="true">{optionalText}</span>
     ) : (
       ""
     )

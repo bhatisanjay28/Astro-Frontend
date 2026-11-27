@@ -15,7 +15,10 @@ export interface HomeAstrologer {
   slug: string;
   name: string;
   title: string;
+  /** S24 — admin-authored Hindi variants; picked on /hi pages when present. */
+  title_hi?: string | null;
   about: string;
+  about_hi?: string | null;
   expertise: string[];
   languages: string[];
   experience_years: number | null;
@@ -29,9 +32,12 @@ export interface HomeAstrologer {
 export interface HomePooja {
   slug: string;
   name: string;
+  /** S24 — admin-authored Hindi variants; picked on /hi pages when present. */
+  name_hi?: string | null;
   category: string;
   purpose: string;
   description: string;
+  description_hi?: string | null;
   duration_label: string;
   mode: string[];
   includes: string[];

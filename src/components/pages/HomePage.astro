@@ -1,0 +1,685 @@
+---
+import { NAV_TABS } from "../../data/navigation";
+/**
+ * Shared home page body (S24) — one component, two languages. The EN page
+ * (src/pages/index.astro) and the Hindi twin (src/pages/hi/index.astro) both
+ * render this with their `lang`.
+ *
+ * D12: every content list below is fetched at BUILD time from the backend
+ * (GET /api/v1/content/home → Supabase). If the backend is unreachable at
+ * build, the affected sections render an honest empty state — never baked
+ * or fake data. Live islands: HomePanchang, HomeHoroscope, HomeKundli,
+ * NewsletterForm ×2, BookingModal (Epic 3.1/4.2/5.1/5.5 wiring).
+ *
+ * S24 hi/en merge: on Hindi pages the hi payload is preferred per collection
+ * (astrologers/poojas/faqs) and per block key; any block the DB has no hi
+ * rows for falls back to the EN rows — nothing disappears, nothing is fake.
+ * Code-authored copy (hero, section chrome, forms) comes from the HOME dict.
+ */
+import Base from "../../layouts/Base.astro";
+import { fetchHomeContent } from "../../lib/content";
+import type { Lang } from "../../lib/i18n";
+import { withLang } from "../../lib/i18n";
+import { HOME } from "../../lib/i18n/home";
+import BookingModal from "../home/BookingModal.astro";
+import HomeHoroscope from "../home/HomeHoroscope.astro";
+import HomeKundli from "../home/HomeKundli.astro";
+import HomePanchang from "../home/HomePanchang.astro";
+import NewsletterForm from "../home/NewsletterForm.astro";
+
+interface Props {
+  lang?: Lang;
+}
+
+const { lang = "en" } = Astro.props;
+const t = HOME[lang];
+const hi = lang === "hi";
+const lp = (href: string) => withLang(href, Astro.url.pathname);
+
+const enHome = await fetchHomeContent("en");
+const hiHome = hi ? await fetchHomeContent("hi") : null;
+
+// --- hi-over-en merge -----------------------------------------------------
+const nonEmpty = (v: unknown) =>
+  (Array.isArray(v) && v.length > 0) ||
+  (v !== null && typeof v === "object" && Object.keys(v).length > 0) ||
+  (typeof v === "string" && v.trim().length > 0);
+
+const astrologersSrc = hiHome?.astrologers.length ? hiHome : enHome;
+const poojasSrc = hiHome?.poojas.length ? hiHome : enHome;
+const faqsSrc = hiHome?.faqs.length ? hiHome : enHome;
+
+const enBlocks = (enHome?.blocks ?? {}) as Record<string, unknown> & { is_sample: boolean };
+const hiBlocks = (hiHome?.blocks ?? {}) as Record<string, unknown> & { is_sample: boolean };
+const blocks: Record<string, unknown> = { ...enBlocks };
+for (const [key, value] of Object.entries(hiBlocks)) {
+  if (key === "is_sample") continue;
+  if (nonEmpty(value)) blocks[key] = value;
+}
+
+// --- content_blocks payload shapes (loose — payload is jsonb) ---
+interface CalculatorCard {
+  icon: string;
+  title: string;
+  text: string;
+  cta: string;
+  href: string;
+}
+interface TrustCard {
+  icon: string;
+  accent: "primary" | "secondary";
+  title: string;
+  text: string;
+}
+interface BlogTeaser {
+  tag: string;
+  accent: "primary" | "secondary";
+  read: string;
+  title: string;
+  text: string;
+  author: string;
+  date: string;
+  /** Optional link to the full article on /blog (added in 0011 for teaser posts). */
+  href?: string;
+}
+interface HeroTrustBadge {
+  icon: string;
+  tone: "success" | "accent" | "primary";
+  text: string;
+}
+interface GemstonesTeaser {
+  kicker: string;
+  title: string;
+}
+
+const CALCULATORS = (blocks.calculators as CalculatorCard[] | undefined) ?? [];
+const TRUST = (blocks.trust_cards as TrustCard[] | undefined) ?? [];
+const BLOG_POSTS = (blocks.blog_teasers as BlogTeaser[] | undefined) ?? [];
+const HERO_TRUST = (blocks.hero_trust as HeroTrustBadge[] | undefined) ?? [];
+const GEM_TEASER = blocks.gemstones_teaser as GemstonesTeaser | undefined;
+
+// Astrologer cards — API rows mapped into the design's card shape (D11).
+// S24: admin-authored title_hi/about_hi lead on the hi home when filled.
+const ASTROLOGERS = (astrologersSrc?.astrologers ?? []).map((a) => ({
+  initials: a.name
+    .replace(/^(Pt\.|Dr\.|Acharya)\s+/, "")
+    .split(/\s+/)
+    .map((w) => w[0] ?? "")
+    .join("")
+    .slice(0, 2)
+    .toUpperCase(),
+  tone: a.accent,
+  name: a.name,
+  role: hi && a.title_hi ? a.title_hi : a.title,
+  meta: `${t.yrsExp(String(a.experience_years ?? "—"))} • ${a.languages.join(", ")}`,
+  bio: hi && a.about_hi ? a.about_hi : a.about,
+  rate: a.rate_per_min === null ? "—" : `₹${a.rate_per_min} / min`,
+  avail: a.availability_label,
+  free: a.is_available,
+  slug: a.slug,
+}));
+
+// Pooja cards — includes lines and formatted dakshina from the API row.
+const POOJAS = (poojasSrc?.poojas ?? []).map((p) => ({
+  tag: p.purpose,
+  tone: p.accent,
+  duration: p.duration_label ? t.duration(p.duration_label) : "",
+  title: hi && p.name_hi ? p.name_hi : p.name,
+  text: hi && p.description_hi ? p.description_hi : p.description,
+  lines: p.includes,
+  price: p.price_inr === null ? "—" : `₹${p.price_inr.toLocaleString("en-IN")}`,
+}));
+
+const FAQS = (faqsSrc?.faqs ?? []).map((f) => ({ q: f.question, a: f.answer }));
+
+// JSON-LD structured data (Epic 7.1): Organization + WebSite + FAQPage.
+const jsonLd = [
+  {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    name: "Vyotish",
+    url: "https://vyotish.com",
+    description: t.jsonLdDesc,
+  },
+  {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    name: "Vyotish",
+    url: "https://vyotish.com",
+  },
+  ...(FAQS.length > 0
+    ? [
+        {
+          "@context": "https://schema.org",
+          "@type": "FAQPage",
+          mainEntity: FAQS.map((f) => ({
+            "@type": "Question",
+            name: f.q,
+            acceptedAnswer: { "@type": "Answer", text: f.a },
+          })),
+        },
+      ]
+    : []),
+];
+---
+
+<Base title={t.title} description={t.description} jsonLd={jsonLd}>
+  <main>
+    <div class="chrome-reset">
+    <!-- SECTION 1: HERO -->
+    <section class="relative py-12 md:py-16 px-4 sm:px-8 border-b border-light-outline-variant/40 dark:border-dark-outline-variant/30 overflow-hidden bg-light-surface dark:bg-dark-surface">
+      <div class="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 items-center relative z-10">
+        <!-- Hero Left Column -->
+        <div class="lg:col-span-7">
+          <div class={`inline-flex items-center gap-2 px-3 py-1 rounded-full bg-light-primary-container text-light-on-primary-container dark:bg-dark-primary-container dark:text-dark-on-primary-container font-label text-label-sm font-medium mb-4 ${hi ? "hi-text" : ""}`}>
+            <span class="material-symbols-outlined text-title-md text-saffron">verified</span>
+            {t.heroBadge}
+          </div>
+          <h1 class={`font-display text-display-lg-mobile md:text-display-lg font-bold text-light-on-surface dark:text-dark-on-surface tracking-tight mb-4 text-balance ${hi ? "hi-text" : ""}`}>
+            {t.heroH1}
+          </h1>
+          <p class={`font-body text-body-lg text-light-on-surface-variant dark:text-dark-on-surface-variant max-w-2xl mb-8 text-pretty leading-relaxed ${hi ? "hi-text" : ""}`}>
+            {t.heroSub}
+          </p>
+
+          <!-- 3 Main Hero Actions -->
+          <div class={`flex flex-wrap items-center gap-3.5 mb-8 ${hi ? "hi-text" : ""}`}>
+            <a href="#kundli-section" class="inline-flex items-center justify-center gap-2 px-6 py-3 bg-light-primary text-light-on-primary dark:bg-dark-primary dark:text-dark-on-primary rounded font-label text-label-lg font-semibold shadow-sm hover:opacity-95 active:scale-[0.98] transition-all">
+              <span class="material-symbols-outlined text-headline-sm">explore</span>
+              <span>{t.ctaKundli}</span>
+            </a>
+
+            <a href="#panchang" class="inline-flex items-center justify-center gap-2 px-5 py-3 bg-light-surface-variant dark:bg-dark-surface-variant text-light-on-surface dark:text-dark-on-surface border border-light-outline-variant dark:border-dark-outline-variant rounded font-label text-label-lg font-medium hover:border-light-primary dark:hover:border-dark-primary transition-colors">
+              <span class="material-symbols-outlined text-headline-sm text-accent">calendar_today</span>
+              <span>{t.ctaPanchang}</span>
+            </a>
+
+            <a href="#consultations" class="inline-flex items-center justify-center gap-2 px-5 py-3 bg-light-secondary text-light-on-secondary dark:bg-dark-secondary dark:text-dark-on-secondary rounded font-label text-label-lg font-medium hover:opacity-95 transition-opacity">
+              <span class="material-symbols-outlined text-headline-sm">call</span>
+              <span>{t.ctaTalk}</span>
+            </a>
+          </div>
+
+          <!-- Trust Badges Under Hero (content_blocks: hero_trust, D12) -->
+          <div class={`flex flex-wrap items-center gap-6 pt-4 border-t border-light-outline-variant/40 dark:border-dark-outline-variant/30 font-body text-body-sm text-light-outline dark:text-dark-outline ${hi ? "hi-text" : ""}`}>
+            {
+              HERO_TRUST.map((b) => (
+                <div class="flex items-center gap-1.5">
+                  <span class={`material-symbols-outlined text-title-md ${b.tone === "success"
+                    ? "text-success"
+                    : b.tone === "accent"
+                      ? "text-accent"
+                      : "text-light-primary dark:text-dark-primary"}`}>
+                    {b.icon}
+                  </span>
+                  <span>{b.text}</span>
+                </div>
+              ))
+            }
+          </div>
+        </div>
+
+        <!-- Hero Right Column: LIVE KUNDLI PREVIEW CARD -->
+        <div class="lg:col-span-5">
+          <div class="bg-light-surface dark:bg-dark-surface-variant/70 border border-light-outline-variant dark:border-dark-outline-variant rounded-xl p-5 shadow-sm">
+            <div class="flex items-center justify-between mb-3 pb-2 border-b border-light-outline-variant/40 dark:border-dark-outline-variant/30">
+              <div class="flex items-center gap-2">
+                <span class="material-symbols-outlined text-saffron text-headline-sm">temple_hindu</span>
+                <span class={`font-headline font-semibold text-headline-sm text-light-on-surface dark:text-dark-on-surface ${hi ? "hi-text" : ""}`}>{t.kundliCardTitle}</span>
+              </div>
+              <span class={`font-data text-label-sm text-light-primary dark:text-dark-primary bg-light-primary-container dark:bg-dark-primary-container dark:text-dark-primary px-2 py-0.5 rounded font-medium ${hi ? "hi-text" : ""}`}>{t.kundliCardStyle}</span>
+            </div>
+
+            <!-- SVG Kundli Chart Graphic (Traditional North Indian Diamond Chart) -->
+            <div class="aspect-square w-full max-w-[320px] mx-auto relative bg-light-surface-variant dark:bg-dark-surface rounded-lg p-2 border border-light-outline-variant/40 dark:border-dark-outline-variant/30">
+              <svg viewBox="0 0 200 200" class="w-full h-full stroke-light-primary dark:stroke-dark-primary font-data fill-none" aria-hidden="true">
+                <rect x="5" y="5" width="190" height="190" stroke-width="1.5"></rect>
+                <line x1="5" y1="5" x2="195" y2="195" stroke-width="1"></line>
+                <line x1="195" y1="5" x2="5" y2="195" stroke-width="1"></line>
+                <polygon points="100,5 195,100 100,195 5,100" stroke-width="1.5"></polygon>
+                <text x="100" y="50" text-anchor="middle" class="fill-light-on-surface dark:fill-dark-on-surface font-semibold text-[11px]" stroke="none">1. Lagna</text>
+                <text x="100" y="65" text-anchor="middle" class="fill-light-primary dark:fill-dark-primary text-[9px]" stroke="none">Su, Me</text>
+                <text x="50" y="100" text-anchor="middle" class="fill-light-on-surface dark:fill-dark-on-surface text-[10px]" stroke="none">4. Mo (Chandra)</text>
+                <text x="100" y="150" text-anchor="middle" class="fill-light-on-surface dark:fill-dark-on-surface text-[10px]" stroke="none">7. Ju (Guru)</text>
+                <text x="150" y="100" text-anchor="middle" class="fill-light-on-surface dark:fill-dark-on-surface text-[10px]" stroke="none">10. Sa (Shani)</text>
+                <text x="50" y="40" text-anchor="middle" class="fill-light-outline dark:fill-dark-outline text-[9px]" stroke="none">2</text>
+                <text x="35" y="65" text-anchor="middle" class="fill-light-outline dark:fill-dark-outline text-[9px]" stroke="none">3</text>
+                <text x="35" y="140" text-anchor="middle" class="fill-light-outline dark:fill-dark-outline text-[9px]" stroke="none">5</text>
+                <text x="50" y="165" text-anchor="middle" class="fill-light-outline dark:fill-dark-outline text-[9px]" stroke="none">6 (Ma)</text>
+                <text x="150" y="165" text-anchor="middle" class="fill-light-outline dark:fill-dark-outline text-[9px]" stroke="none">8 (Ra)</text>
+                <text x="165" y="140" text-anchor="middle" class="fill-light-outline dark:fill-dark-outline text-[9px]" stroke="none">9</text>
+                <text x="165" y="65" text-anchor="middle" class="fill-light-outline dark:fill-dark-outline text-[9px]" stroke="none">11</text>
+                <text x="150" y="40" text-anchor="middle" class="fill-light-outline dark:fill-dark-outline text-[9px]" stroke="none">12 (Ke)</text>
+              </svg>
+            </div>
+
+            <!-- Chart Quick Data -->
+            <div class="mt-3 grid grid-cols-3 gap-2 text-center">
+              <div class="p-2 rounded bg-light-surface-variant dark:bg-dark-surface/60">
+                <span class={`block font-body text-light-outline dark:text-dark-outline text-label-sm ${hi ? "hi-text" : ""}`}>{t.lblLagna}</span>
+                <span class="font-data font-semibold text-data-mono text-light-primary dark:text-dark-primary">Mesh (04°12')</span>
+              </div>
+              <div class="p-2 rounded bg-light-surface-variant dark:bg-dark-surface/60">
+                <span class={`block font-body text-light-outline dark:text-dark-outline text-label-sm ${hi ? "hi-text" : ""}`}>{t.lblMoon}</span>
+                <span class="font-data font-semibold text-data-mono text-light-primary dark:text-dark-primary">Karka (Cancer)</span>
+              </div>
+              <div class="p-2 rounded bg-light-surface-variant dark:bg-dark-surface/60">
+                <span class={`block font-body text-light-outline dark:text-dark-outline text-label-sm ${hi ? "hi-text" : ""}`}>{t.lblDasha}</span>
+                <span class="font-data font-semibold text-data-mono text-light-primary dark:text-dark-primary">Guru - Budh</span>
+              </div>
+            </div>
+
+            <div class="mt-3 text-center">
+              <a href="#kundli-section" class={`font-label text-label-sm font-semibold text-light-primary dark:text-dark-primary hover:underline inline-flex items-center gap-1 ${hi ? "hi-text" : ""}`}>
+                {t.kundliCardCta}
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 2: TODAY AT A GLANCE (live) -->
+    <HomePanchang lang={lang} />
+
+    <!-- SECTION 3: DAILY HOROSCOPE (live) -->
+    <HomeHoroscope lang={lang} />
+
+    <!-- SECTION 4: EXPLORE VYOTISH -->
+    <section class="py-12 px-4 sm:px-8 border-b border-light-outline-variant/40 dark:border-dark-outline-variant/30 bg-light-surface dark:bg-dark-surface">
+      <div class="max-w-7xl mx-auto">
+        <div class="text-center max-w-2xl mx-auto mb-10">
+          <span class={`font-label text-label-sm font-semibold uppercase tracking-wider text-saffron dark:text-dark-primary ${hi ? "hi-text" : ""}`}>{t.exploreKicker}</span>
+          <h2 class={`font-headline text-headline-md font-bold text-light-on-surface dark:text-dark-on-surface mt-1 ${hi ? "hi-text" : ""}`}>
+            {t.exploreH2}
+          </h2>
+          <p class={`font-body text-body-sm text-light-outline dark:text-dark-outline mt-2 ${hi ? "hi-text" : ""}`}>
+            {t.exploreSub}
+          </p>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {
+            NAV_TABS.map((tab, i) => (
+              <a href={lp(tab.href)} class="p-5 rounded-lg bg-light-surface-variant dark:bg-dark-surface-variant border border-light-outline-variant/60 dark:border-dark-outline-variant/40 hover:border-light-primary dark:hover:border-dark-primary hover:shadow-xs transition-all group">
+                <div class="w-10 h-10 rounded-lg bg-light-primary-container text-light-primary dark:bg-dark-primary-container dark:text-dark-primary flex items-center justify-center mb-3">
+                  <span class="material-symbols-outlined text-headline-sm">{tab.icon}</span>
+                </div>
+                <div class={`flex items-center gap-2 ${hi ? "hi-text" : ""}`}>
+                  <h3 class="font-title text-title-md font-semibold text-light-on-surface dark:text-dark-on-surface group-hover:text-light-primary dark:group-hover:text-dark-primary">
+                    {i + 1}. {hi ? (tab.label_hi ?? tab.label) : tab.label}
+                  </h3>
+                  {tab.label === "Gemstones" && (
+                    <span class={`font-label text-label-sm px-1.5 py-0.5 rounded bg-light-primary-container text-light-primary dark:bg-dark-primary-container dark:text-dark-primary font-semibold ${hi ? "hi-text" : ""}`}>{t.soon}</span>
+                  )}
+                </div>
+                <p class={`font-body text-body-sm text-light-outline dark:text-dark-outline mt-1.5 ${hi ? "hi-text" : ""}`}>{hi ? (tab.description_hi ?? tab.description) : tab.description}</p>
+              </a>
+            ))
+          }
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 5: QUICK KUNDLI GENERATOR (live) -->
+    <HomeKundli lang={lang} />
+
+    <!-- SECTION 6: TIER 1 CALCULATORS -->
+    <section id="calculators" class="py-12 px-4 sm:px-8 border-b border-light-outline-variant/40 dark:border-dark-outline-variant/30 bg-light-surface-variant dark:bg-dark-surface-variant">
+      <div class="max-w-7xl mx-auto">
+        <div class="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4">
+          <div>
+            <span class={`font-label text-label-sm font-semibold uppercase tracking-wider text-saffron dark:text-dark-primary ${hi ? "hi-text" : ""}`}>{t.calcKicker}</span>
+            <h2 class={`font-headline text-headline-md font-bold text-light-on-surface dark:text-dark-on-surface mt-1 ${hi ? "hi-text" : ""}`}>
+              {t.calcH2}
+            </h2>
+            <p class={`font-body text-body-sm text-light-outline dark:text-dark-outline mt-1 ${hi ? "hi-text" : ""}`}>
+              {t.calcSub}
+            </p>
+          </div>
+          <div class="relative w-full md:w-64">
+            <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-light-outline dark:text-dark-outline text-title-md">search</span>
+            <input type="search" placeholder={t.calcSearch} aria-label={t.calcSearchAria} class={`w-full pl-9 pr-3 py-1.5 min-h-[44px] rounded bg-light-surface dark:bg-dark-surface border border-light-outline-variant dark:border-dark-outline-variant text-light-on-surface dark:text-dark-on-surface font-body text-body-sm ${hi ? "hi-text" : ""}`} />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {
+            CALCULATORS.length === 0 ? (
+              <p class={`font-body text-body-sm text-light-outline dark:text-dark-outline lg:col-span-4 ${hi ? "hi-text" : ""}`}>{t.emptiness}</p>
+            ) : (
+              CALCULATORS.map((c) => (
+                <div class={`p-4 rounded-lg bg-light-surface dark:bg-dark-surface border border-light-outline-variant/60 dark:border-dark-outline-variant/40 hover:border-light-primary dark:hover:border-dark-primary transition-all ${hi ? "hi-text" : ""}`}>
+                  <div class="flex items-center gap-2 mb-2 text-saffron">
+                    <span class="material-symbols-outlined text-headline-sm">{c.icon}</span>
+                    <h3 class="font-title text-title-sm font-semibold text-light-on-surface dark:text-dark-on-surface">{c.title}</h3>
+                  </div>
+                  <p class="font-body text-body-sm text-light-outline dark:text-dark-outline mb-3">{c.text}</p>
+                  <a href={lp(c.href)} class="font-label text-label-sm font-semibold text-light-primary dark:text-dark-primary hover:underline">{c.cta}</a>
+                </div>
+              ))
+            )
+          }
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 7: FEATURED ASTROLOGERS -->
+    <section id="consultations" class="py-12 px-4 sm:px-8 border-b border-light-outline-variant/40 dark:border-dark-outline-variant/30 bg-light-surface dark:bg-dark-surface">
+      <div class="max-w-7xl mx-auto">
+        <div class="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4">
+          <div>
+            <div class="flex items-center gap-2 mb-1">
+              <span class={`font-label text-label-sm font-semibold uppercase tracking-wider text-saffron dark:text-dark-primary ${hi ? "hi-text" : ""}`}>{t.astroKicker}</span>
+            </div>
+            <h2 class={`font-headline text-headline-md font-bold text-light-on-surface dark:text-dark-on-surface ${hi ? "hi-text" : ""}`}>
+              {t.astroH2}
+            </h2>
+            <p class={`font-body text-body-sm text-light-outline dark:text-dark-outline mt-1 ${hi ? "hi-text" : ""}`}>
+              {t.astroSub}
+            </p>
+          </div>
+          <div class="flex items-center gap-2">
+            <select class={`px-3 py-1.5 rounded bg-light-surface-variant dark:bg-dark-surface-variant border border-light-outline-variant dark:border-dark-outline-variant text-light-on-surface dark:text-dark-on-surface font-body text-body-sm ${hi ? "hi-text" : ""}`} aria-label={t.specAria}>
+              <option>{t.specAll}</option>
+              {t.specs.map((s) => <option>{s}</option>)}
+            </select>
+          </div>
+        </div>
+
+        <!-- Astrologer Cards Grid (astrologers table via /content/home, D12) -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          {
+            ASTROLOGERS.length === 0 ? (
+              <p class={`font-body text-body-sm text-light-outline dark:text-dark-outline md:col-span-3 ${hi ? "hi-text" : ""}`}>{t.emptiness}</p>
+            ) : (
+              ASTROLOGERS.map((a) => (
+                <article class={`bg-light-surface-variant dark:bg-dark-surface-variant border border-light-outline-variant dark:border-dark-outline-variant rounded-xl p-5 flex flex-col justify-between ${hi ? "hi-text" : ""}`}>
+                  <div>
+                    <div class="flex items-start gap-3.5 mb-3">
+                      <div class={`w-14 h-14 rounded-full flex items-center justify-center font-display font-bold text-title-lg shrink-0 ${a.tone === "secondary"
+                        ? "bg-light-secondary text-light-on-secondary dark:bg-dark-secondary dark:text-dark-on-secondary"
+                        : "bg-light-primary text-light-on-primary dark:bg-dark-primary dark:text-dark-on-primary"}`}>
+                        {a.initials}
+                      </div>
+                      <div>
+                        <h3 class="font-title text-title-md font-semibold text-light-on-surface dark:text-dark-on-surface">{a.name}</h3>
+                        <p class="font-body text-body-sm text-light-outline dark:text-dark-outline">{a.role}</p>
+                        <p class="font-label text-label-sm text-light-primary dark:text-dark-primary font-medium mt-0.5">{a.meta}</p>
+                      </div>
+                    </div>
+                    <p class="font-body text-body-sm text-light-on-surface-variant dark:text-dark-on-surface-variant line-clamp-3 mb-3">{a.bio}</p>
+                    <div class="flex items-center justify-between py-2 border-t border-b border-light-outline-variant/40 dark:border-dark-outline-variant/40">
+                      <span class="font-data text-data-mono font-semibold text-light-primary dark:text-dark-primary">{a.rate}</span>
+                      <span class={`inline-flex items-center gap-1 font-label text-label-sm font-medium ${a.free ? "text-success dark:text-[var(--color-auspicious-text)]" : "text-light-outline dark:text-dark-outline"}`}>
+                        <span class={`w-2 h-2 rounded-full ${a.free ? "bg-success dark:bg-[var(--color-auspicious-text)]" : "bg-light-outline dark:bg-dark-outline"}`} />
+                        {a.avail}
+                      </span>
+                    </div>
+                  </div>
+                  <div class="mt-4">
+                    <button type="button" data-open-booking class="w-full py-2.5 px-4 bg-light-primary text-light-on-primary dark:bg-dark-primary dark:text-dark-on-primary rounded font-label text-label-md font-semibold text-center hover:opacity-95 transition-opacity">
+                      {t.bookCta}
+                    </button>
+                  </div>
+                </article>
+              ))
+            )
+          }
+        </div>
+
+        <p class={`font-body text-body-sm text-center text-light-outline dark:text-dark-outline ${hi ? "hi-text" : ""}`}>
+          {t.astroNote}
+        </p>
+      </div>
+    </section>
+
+    <!-- SECTION 8: VEDIC POOJAN — live catalogue from the poojan services DB -->
+    <section id="poojan" class="py-12 px-4 sm:px-8 border-b border-light-outline-variant/40 dark:border-dark-outline-variant/30 bg-light-surface-variant dark:bg-dark-surface-variant">
+      <div class="max-w-7xl mx-auto">
+        <div class="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4">
+          <div>
+            <span class={`font-label text-label-sm font-semibold uppercase tracking-wider text-saffron dark:text-dark-primary ${hi ? "hi-text" : ""}`}>{t.poojanKicker}</span>
+            <h2 class={`font-headline text-headline-md font-bold text-light-on-surface dark:text-dark-on-surface mt-1 ${hi ? "hi-text" : ""}`}>
+              {t.poojanH2}
+            </h2>
+            <p class={`font-body text-body-sm text-light-outline dark:text-dark-outline mt-1 ${hi ? "hi-text" : ""}`}>
+              {t.poojanSub}
+            </p>
+          </div>
+          <a href={lp("/poojan")} class={`font-label text-label-md font-semibold text-light-primary dark:text-dark-primary hover:underline ${hi ? "hi-text" : ""}`}>
+            {t.poojanViewAll}
+          </a>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {
+            POOJAS.length === 0 ? (
+              <p class={`font-body text-body-sm text-light-outline dark:text-dark-outline md:col-span-3 ${hi ? "hi-text" : ""}`}>{t.emptiness}</p>
+            ) : (
+              POOJAS.map((p) => (
+                <div class={`bg-light-surface dark:bg-dark-surface rounded-xl border border-light-outline-variant/60 dark:border-dark-outline-variant/40 p-5 flex flex-col justify-between ${hi ? "hi-text" : ""}`}>
+                  <div>
+                    <div class="flex items-center justify-between mb-2">
+                      <span class={`font-label text-label-sm px-2.5 py-0.5 rounded-full font-semibold ${p.tone === "secondary"
+                        ? "bg-light-secondary-container text-light-secondary dark:bg-dark-secondary-container dark:text-dark-secondary"
+                        : "bg-light-primary-container text-light-primary dark:bg-dark-primary-container dark:text-dark-primary"}`}>
+                        {p.tag}
+                      </span>
+                      <span class="font-data text-data-mono text-light-outline dark:text-dark-outline">{p.duration}</span>
+                    </div>
+                    <h3 class="font-title text-title-lg font-semibold text-light-on-surface dark:text-dark-on-surface">{p.title}</h3>
+                    <p class="font-body text-body-sm text-light-outline dark:text-dark-outline mt-2">{p.text}</p>
+                    <div class="mt-4 flex flex-col gap-1 font-body text-body-sm text-light-on-surface-variant dark:text-dark-on-surface-variant">
+                      {p.lines.map((line) => (
+                        <div>• {line.startsWith(t.mode) ? (
+                          <>
+                            <span>{t.mode} </span>
+                            <strong class="text-light-on-surface dark:text-dark-on-surface">{line.slice(t.mode.length)}</strong>
+                          </>
+                        ) : line.startsWith("Mode:") ? (
+                          <>
+                            <span>Mode: </span>
+                            <strong class="text-light-on-surface dark:text-dark-on-surface">{line.slice(6)}</strong>
+                          </>
+                        ) : (
+                          <span>{line}</span>
+                        )}</div>
+                      ))}
+                    </div>
+                  </div>
+                  <div class="mt-5 pt-4 border-t border-light-outline-variant/30 dark:border-dark-outline-variant/30 flex items-center justify-between">
+                    <div>
+                      <span class={`font-body text-label-sm text-light-outline dark:text-dark-outline block ${hi ? "hi-text" : ""}`}>{t.dakshina}</span>
+                      <span class="font-data text-title-lg font-semibold text-light-primary dark:text-dark-primary">{p.price}</span>
+                    </div>
+                    <button type="button" data-open-booking class="px-4 py-2 bg-light-surface-variant dark:bg-dark-surface-variant text-light-on-surface dark:text-dark-on-surface hover:bg-light-primary hover:text-white rounded font-label text-label-sm font-semibold transition-colors">
+                      {t.poojaBookCta}
+                    </button>
+                  </div>
+                </div>
+              ))
+            )
+          }
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 9: GEMSTONES TEASER (notify form is LIVE via /newsletter) -->
+    <section id="gemstones" class="py-12 px-4 sm:px-8 border-b border-light-outline-variant/40 dark:border-dark-outline-variant/30 bg-light-surface dark:bg-dark-surface">
+      <div class="max-w-5xl mx-auto rounded-2xl bg-light-surface-variant dark:bg-dark-surface-variant border border-light-outline-variant dark:border-dark-outline-variant p-8 sm:p-12 text-center relative overflow-hidden flex flex-col items-center gap-4">
+        {GEM_TEASER && (
+          <>
+            <div class={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-light-primary-container text-light-primary dark:bg-dark-primary-container dark:text-dark-primary font-label text-label-sm font-semibold ${hi ? "hi-text" : ""}`}>
+              <span class="material-symbols-outlined text-title-md">diamond</span>
+              {GEM_TEASER.kicker}
+            </div>
+
+            <h2 class={`font-headline text-headline-lg-mobile md:text-headline-lg font-bold text-light-on-surface dark:text-dark-on-surface max-w-2xl mx-auto ${hi ? "hi-text" : ""}`}>
+              {GEM_TEASER.title}
+            </h2>
+          </>
+        )}
+
+        <p class={`font-body text-body-md text-light-on-surface-variant dark:text-dark-on-surface-variant max-w-xl mx-auto leading-relaxed ${hi ? "hi-text" : ""}`}>
+          {t.gemBody}
+        </p>
+
+        <NewsletterForm
+          source="gemstones_notify"
+          placeholder={t.gemPlaceholder}
+          inputClass="flex-1 px-4 py-3 rounded bg-light-surface dark:bg-dark-surface border border-light-outline-variant dark:border-dark-outline-variant text-light-on-surface dark:text-dark-on-surface font-body text-body-sm focus-visible:ring-2 focus-visible:ring-light-primary"
+          buttonClass="px-5 py-3 rounded bg-light-primary text-light-on-primary dark:bg-dark-primary dark:text-dark-on-primary font-label text-label-md font-semibold hover:opacity-95 transition-opacity whitespace-nowrap"
+          success={t.gemSuccess}
+          buttonLabel={t.notifyBtn}
+          fail={t.newsFail}
+          hi={hi}
+        />
+
+        <p class={`font-body text-body-sm text-light-outline dark:text-dark-outline mt-1 ${hi ? "hi-text" : ""}`}>
+          {t.gemNote}
+        </p>
+      </div>
+    </section>
+
+    <!-- SECTION 10: LATEST BLOG ARTICLES -->
+    <section id="blog" class="py-12 px-4 sm:px-8 border-b border-light-outline-variant/40 dark:border-dark-outline-variant/30 bg-light-surface-variant dark:bg-dark-surface-variant">
+      <div class="max-w-7xl mx-auto">
+        <div class="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4">
+          <div>
+            <span class={`font-label text-label-sm font-semibold uppercase tracking-wider text-saffron dark:text-dark-primary ${hi ? "hi-text" : ""}`}>{t.blogKicker}</span>
+            <h2 class={`font-headline text-headline-md font-bold text-light-on-surface dark:text-dark-on-surface mt-1 ${hi ? "hi-text" : ""}`}>
+              {t.blogH2}
+            </h2>
+            <p class={`font-body text-body-sm text-light-outline dark:text-dark-outline mt-1 ${hi ? "hi-text" : ""}`}>
+              {t.blogSub}
+            </p>
+          </div>
+          <div class="flex items-center gap-3">
+            <a href={lp("/blog")} class={`font-label text-label-md font-semibold text-light-primary dark:text-dark-primary hover:underline ${hi ? "hi-text" : ""}`}>
+              {t.blogBrowse}
+            </a>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {
+            BLOG_POSTS.length === 0 ? (
+              <p class={`font-body text-body-sm text-light-outline dark:text-dark-outline md:col-span-3 ${hi ? "hi-text" : ""}`}>{t.emptiness}</p>
+            ) : (
+              BLOG_POSTS.map((b) => (
+                <article class={`relative bg-light-surface dark:bg-dark-surface rounded-xl border border-light-outline-variant/60 dark:border-dark-outline-variant/40 p-5 flex flex-col justify-between hover:border-light-primary dark:hover:border-dark-primary transition-colors ${hi ? "hi-text" : ""}`}>
+                  {b.href && <a href={lp(b.href)} class="absolute inset-0 z-10" aria-label={b.title}></a>}
+                  <div>
+                    <div class="flex items-center gap-2 mb-2">
+                      <span class={`font-label text-label-sm font-semibold px-2 py-0.5 rounded ${b.accent === "secondary"
+                        ? "bg-light-secondary-container text-light-secondary dark:bg-dark-secondary-container dark:text-dark-secondary"
+                        : "bg-light-primary-container text-light-primary dark:bg-dark-primary-container dark:text-dark-primary"}`}>
+                        {b.tag}
+                      </span>
+                      <span class="font-body text-body-sm text-light-outline dark:text-dark-outline">{b.read}</span>
+                    </div>
+                    <h3 class="font-title text-title-md font-semibold text-light-on-surface dark:text-dark-on-surface mb-2">{b.title}</h3>
+                    <p class="font-body text-body-sm text-light-outline dark:text-dark-outline line-clamp-3">{b.text}</p>
+                  </div>
+                  <div class="mt-4 pt-3 border-t border-light-outline-variant/30 dark:border-dark-outline-variant/30 flex items-center justify-between font-body text-body-sm text-light-outline dark:text-dark-outline">
+                    <span>{b.author}</span>
+                    <span>{b.date}</span>
+                  </div>
+                </article>
+              ))
+            )
+          }
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 11: TRUST & CALCULATION INTEGRITY -->
+    <section class="py-12 px-4 sm:px-8 bg-light-surface dark:bg-dark-surface border-b border-light-outline-variant/40 dark:border-dark-outline-variant/30">
+      <div class="max-w-7xl mx-auto">
+        <div class="text-center max-w-2xl mx-auto mb-10">
+          <span class={`font-label text-label-sm font-semibold uppercase tracking-wider text-saffron dark:text-dark-primary ${hi ? "hi-text" : ""}`}>{t.trustKicker}</span>
+          <h2 class={`font-headline text-headline-md font-bold text-light-on-surface dark:text-dark-on-surface mt-1 ${hi ? "hi-text" : ""}`}>
+            {t.trustH2}
+          </h2>
+          <p class={`font-body text-body-sm text-light-outline dark:text-dark-outline mt-1 ${hi ? "hi-text" : ""}`}>
+            {t.trustSub}
+          </p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 text-center md:text-left">
+          {
+            TRUST.length === 0 ? (
+              <p class={`font-body text-body-sm text-light-outline dark:text-dark-outline md:col-span-3 ${hi ? "hi-text" : ""}`}>{t.emptiness}</p>
+            ) : (
+              TRUST.map((tc) => (
+                <div class={`p-6 rounded-xl bg-light-surface-variant dark:bg-dark-surface-variant border border-light-outline-variant/50 dark:border-dark-outline-variant/50 ${hi ? "hi-text" : ""}`}>
+                  <div class={`w-12 h-12 rounded-lg flex items-center justify-center mb-4 mx-auto md:mx-0 ${tc.accent === "secondary"
+                    ? "bg-light-secondary-container text-light-secondary dark:bg-dark-secondary-container dark:text-dark-on-secondary-container"
+                    : "bg-light-primary-container text-light-primary dark:bg-dark-primary-container dark:text-dark-primary"}`}>
+                    <span class="material-symbols-outlined text-headline-sm">{tc.icon}</span>
+                  </div>
+                  <h3 class="font-title text-title-md font-semibold mb-2 text-light-on-surface dark:text-dark-on-surface">{tc.title}</h3>
+                  <p class="font-body text-body-sm text-light-on-surface-variant dark:text-dark-on-surface-variant leading-relaxed">{tc.text}</p>
+                </div>
+              ))
+            )
+          }
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 12: FAQ & NEWSLETTER -->
+    <section class="py-12 px-4 sm:px-8 bg-light-surface-variant dark:bg-dark-surface-variant">
+      <div class="max-w-4xl mx-auto">
+        <h2 class={`font-headline text-headline-md font-bold text-center text-light-on-surface dark:text-dark-on-surface mb-8 ${hi ? "hi-text" : ""}`}>
+          {t.faqH2}
+        </h2>
+
+        <div class="flex flex-col gap-4 mb-12">
+          {
+            FAQS.length === 0 ? (
+              <p class={`font-body text-body-sm text-light-outline dark:text-dark-outline ${hi ? "hi-text" : ""}`}>{t.emptiness}</p>
+            ) : (
+              FAQS.map((f) => (
+                <details class={`group p-4 bg-light-surface dark:bg-dark-surface rounded-lg border border-light-outline-variant/50 dark:border-dark-outline-variant/30 ${hi ? "hi-text" : ""}`}>
+                  <summary class="flex justify-between items-center font-title text-title-sm font-semibold cursor-pointer list-none text-light-on-surface dark:text-dark-on-surface">
+                    <span>{f.q}</span>
+                    <span class="material-symbols-outlined text-light-outline dark:text-dark-outline group-open:rotate-180 transition-transform">expand_more</span>
+                  </summary>
+                  <p class="font-body text-body-sm text-light-outline dark:text-dark-outline mt-3 leading-relaxed">{f.a}</p>
+                </details>
+              ))
+            )
+          }
+        </div>
+
+        <!-- Newsletter signup (live via /newsletter) -->
+        <div class={`p-6 md:p-8 rounded-xl bg-light-surface dark:bg-dark-surface border border-light-outline-variant dark:border-dark-outline-variant text-center flex flex-col items-center gap-3 ${hi ? "hi-text" : ""}`}>
+          <span class="material-symbols-outlined text-accent text-headline-lg">mail</span>
+          <h3 class="font-headline text-headline-sm font-bold text-light-on-surface dark:text-dark-on-surface">
+            {t.newsH3}
+          </h3>
+          <p class="font-body text-body-sm text-light-outline dark:text-dark-outline max-w-md mx-auto leading-relaxed">
+            {t.newsSub}
+          </p>
+          <NewsletterForm
+            source="weekly_panchang"
+            placeholder={t.newsPlaceholder}
+            inputClass="flex-1 px-4 py-2.5 rounded bg-light-surface-variant dark:bg-dark-surface-variant border border-light-outline-variant dark:border-dark-outline-variant text-light-on-surface dark:text-dark-on-surface font-body text-body-sm focus-visible:ring-2 focus-visible:ring-light-primary"
+            buttonClass="px-5 py-2.5 rounded bg-light-secondary text-light-on-secondary dark:bg-dark-secondary dark:text-dark-on-secondary font-label text-label-md font-semibold hover:opacity-95"
+            success={t.newsSuccess}
+            buttonLabel={t.newsBtn}
+            fail={t.newsFail}
+            hi={hi}
+          />
+          <p class="font-body text-body-sm text-light-outline dark:text-dark-outline">{t.spamNote}</p>
+        </div>
+      </div>
+    </section>
+    </div>
+  </main>
+
+  <!-- Consultation booking modal -->
+  <BookingModal lang={lang} />
+</Base>

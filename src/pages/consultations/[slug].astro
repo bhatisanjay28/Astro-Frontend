@@ -3,9 +3,13 @@ import BookingForm from "../../components/BookingForm.astro";
 /** /consultations/[slug] — astrologer profile + inline booking (Epic 5.2
  * follow-up). Build-time fetch of GET /api/v1/astrologers (D12: the frontend
  * renders; the directory list is the source of truth, so unknown slugs at
- * build time simply don't generate a page — 404 via the static output). */
+ * build time simply don't generate a page — 404 via the static output).
+ * S24: chrome strings from the dict; /hi twin renders Hindi chrome around the
+ * same DB-served profile. */
 import Base from "../../layouts/Base.astro";
 import { type ApiAstrologer, fetchAstrologers } from "../../lib/content";
+import { langFromPath, withLang } from "../../lib/i18n";
+import { CONSULT_SLUG } from "../../lib/i18n/consultations";
 
 export async function getStaticPaths() {
   const astrologers = (await fetchAstrologers()) ?? [];
@@ -16,6 +20,12 @@ interface Props {
   astrologer: ApiAstrologer;
 }
 const { astrologer: a } = Astro.props;
+const t = CONSULT_SLUG[langFromPath(Astro.url.pathname)];
+const here = Astro.url.pathname;
+const hi = langFromPath(here) === "hi";
+// S24 — admin-authored Hindi title/about surface on the hi profile when set.
+const aTitle = hi && a.title_hi ? a.title_hi : a.title;
+const aAbout = hi && a.about_hi ? a.about_hi : a.about;
 const initials = a.name
   .replace(/^(Pt\.|Dr\.|Acharya)\s+/, "")
   .split(/\s+/)
@@ -24,42 +34,41 @@ const initials = a.name
   .slice(0, 2)
   .toUpperCase();
 const description =
-  a.about.slice(0, 150) ||
-  `${a.name} — ${a.title || "Vedic astrologer"} on Vyotish: ${a.expertise.slice(0, 3).join(", ")}. Request a consultation directly.`;
+  aAbout.slice(0, 150) || t.descFallback(a.name, aTitle || "", a.expertise.slice(0, 3).join(", "));
 ---
 
-<Base title={`${a.name}${a.title ? ` — ${a.title}` : ""} | Vyotish Consultations`} description={description}>
+<Base title={`${a.name}${aTitle ? ` — ${aTitle}` : ""}${t.titleSuffix}`} description={description}>
   <section class="prof">
     <nav class="crumbs" aria-label="Breadcrumb">
-      <a href="/">Home</a> › <a href="/consultations">Consultations</a> › <span aria-current="page">{a.name}</span>
+      <a href={withLang("/", here)}>{t.home}</a> › <a href={withLang("/consultations", here)}>{t.hub}</a> › <span aria-current="page">{a.name}</span>
     </nav>
 
     <div class="head">
       <span class="badge">{initials}</span>
       <div>
         <h1>{a.name} <span class="hi-text">(ज्योतिषी)</span></h1>
-        {a.title && <p class="title">{a.title}</p>}
+        {aTitle && <p class="title">{aTitle}</p>}
       </div>
       <span class={`avail ${a.is_available ? "on" : ""}`}>
-        <span class="dot" /> {a.availability_label || (a.is_available ? "Available" : "Unavailable")}
+        <span class="dot" /> {a.availability_label || (a.is_available ? t.availYes : t.availNo)}
       </span>
     </div>
 
-    {a.about && <p class="about">{a.about}</p>}
+    {aAbout && <p class="about">{aAbout}</p>}
 
     <div class="facts">
-      <div class="fact"><span class="k">Experience</span><span class="v">{a.experience_years ?? "—"} years</span></div>
-      <div class="fact"><span class="k">Consultation rate</span><span class="v">{a.rate_per_min === null ? "On request" : `₹${a.rate_per_min} / min`}</span></div>
+      <div class="fact"><span class="k">{t.expK}</span><span class="v">{t.yearsV(a.experience_years ?? null)}</span></div>
+      <div class="fact"><span class="k">{t.rateK}</span><span class="v">{t.rateV(a.rate_per_min)}</span></div>
       <div class="fact">
-        <span class="k">Languages</span>
-        <span class="v">{a.languages.length > 0 ? a.languages.join(", ") : "—"}</span>
+        <span class="k">{t.langK}</span>
+        <span class="v">{a.languages.length > 0 ? a.languages.join(", ") : t.dash}</span>
       </div>
     </div>
 
     {
       a.expertise.length > 0 && (
         <div class="block">
-          <h2>Expertise</h2>
+          <h2>{t.expertiseH}</h2>
           <div class="tags">
             {a.expertise.map((e) => (
               <span class="tag">{e}</span>
@@ -72,12 +81,12 @@ const description =
     {
       a.session_types.length > 0 && (
         <div class="block">
-          <h2>Session types</h2>
+          <h2>{t.sessionsH}</h2>
           <ul class="sessions">
             {a.session_types.map((s) => (
               <li>
-                {s.type ?? "Session"}
-                {s.duration_min ? ` · ${s.duration_min} min` : ""}
+                {s.type ?? t.sessionFallback}
+                {s.duration_min ? t.minV(s.duration_min) : ""}
               </li>
             ))}
           </ul>
@@ -85,12 +94,12 @@ const description =
       )
     }
 
-    <h2>Request a consultation with {a.name}</h2>
+    <h2>{t.requestH(a.name)}</h2>
     <div class="formpanel">
-      <BookingForm kind="consultation" slug={a.slug} subjectLabel="Topic" submitLabel="Request Consultation" />
+      <BookingForm kind="consultation" slug={a.slug} subjectLabel={t.subjectLabel} submitLabel={t.submitLabel} />
     </div>
 
-    <p class="fine">Looking for someone else? <a href="/consultations">Back to the full directory</a>.</p>
+    <p class="fine">{t.finePre}<a href={withLang("/consultations", here)}>{t.fineLink}</a>{t.finePost}</p>
   </section>
 </Base>
 

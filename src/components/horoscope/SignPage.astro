@@ -121,7 +121,7 @@ const descTag = hi
   : `${title} Vedic horoscope for ${sign.en} (Moon sign) — overview, love, career, money, health, dos & don'ts, plus lucky colours, number, deity and mantra.`;
 ---
 
-<Base lang={lang} langPath={`/horoscope/${sign.slug}/${period.slug}`} title={titleTag} description={descTag}>
+<Base title={titleTag} description={descTag}>
   <section class:list={["hz", { "hz-hi": hi }]}>
     <nav class="crumbs" aria-label="Breadcrumb">
       <a href={hubHref}>{hi ? "राशिफल" : "Horoscope"}</a>

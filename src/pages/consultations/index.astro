@@ -5,26 +5,27 @@ import OfferStrip from "../../components/OfferStrip.astro";
  * a build-time fetch of GET /api/v1/astrologers (D12); the booking form posts
  * live to POST /api/v1/requests/consultation. Offers come from the admin
  * settings (public.offers_config, audience=consultation) — honest empty state
- * when unset. Honest empty states throughout. */
+ * when unset. Honest empty states throughout.
+ * S24: the /hi twin renders this same body via the page path. */
 import Base from "../../layouts/Base.astro";
 import { fetchAstrologers, fetchSettings, parseOffers } from "../../lib/content";
+import { langFromPath, withLang } from "../../lib/i18n";
+import { CONSULTATIONS_HUB } from "../../lib/i18n/hubs";
+
+const lang = langFromPath(Astro.url.pathname);
+const hi = lang === "hi";
+const t = CONSULTATIONS_HUB[lang];
 
 const astrologers = (await fetchAstrologers()) ?? [];
 const settings = await fetchSettings();
 const offers = parseOffers(settings?.offers_config, "consultation");
-const EMPTY =
-  "The astrologer directory is temporarily unavailable — the backend service could not be reached at build time. Please try again later.";
 ---
 
-<Base
-  title="Consult a Jyotish Scholar — Astrologer Directory | Vyotish"
-  description="Browse verified Vedic astrologers by expertise, language and experience — request a consultation directly; an astrologer responds within 24–48 hours."
->
+<Base title={t.title} description={t.description}>
   <section class="cons">
-    <h1>Consultations <span class="hi-text">(ज्योतिष परामर्श)</span></h1>
-    <p class="lede">
-      Choose a scholar by expertise, language and lineage. An astrologer responds
-      personally within 24–48 hours. No payment is taken online yet.
+    <h1 class={hi ? "hi-text" : ""}>{t.h1}</h1>
+    <p class={`lede ${hi ? "hi-text" : ""}`}>
+      {t.lede}
     </p>
 
     <OfferStrip offers={offers} />
@@ -32,21 +33,22 @@ const EMPTY =
     <div class="grid">
       {
         astrologers.length === 0 ? (
-          <p class="lede">{EMPTY}</p>
+          <p class={`lede ${hi ? "hi-text" : ""}`}>{t.empty}</p>
         ) : (
           astrologers.map((a) => (
-            <article class="card">
+            <article class={`card ${hi ? "hi-text" : ""}`}>
               <div class="head">
                 <span class="badge">{a.name.replace(/^(Pt\.|Dr\.|Acharya)\s+/, "").split(/\s+/).map((w) => w[0] ?? "").join("").slice(0, 2).toUpperCase()}</span>
                 <div>
                   <span class="name">{a.name}</span>
-                  {a.title && <span class="title">{a.title}</span>}
+                  {/* S24 — admin Hindi title/about surface when filled */}
+                  {a.title && <span class="title">{hi && a.title_hi ? a.title_hi : a.title}</span>}
                   <span class="meta">
-                    {a.experience_years ?? "—"} yrs exp · {a.languages.join(", ")}
+                    {a.experience_years ?? "—"} {t.yrsExp} · {a.languages.join(", ")}
                   </span>
                 </div>
               </div>
-              <p class="about">{a.about}</p>
+              <p class="about">{hi && a.about_hi ? a.about_hi : a.about}</p>
               <div class="tags">
                 {a.expertise.map((e) => (
                   <span class="tag">{e}</span>
@@ -55,10 +57,10 @@ const EMPTY =
               <div class="foot">
                 <span class="rate">{a.rate_per_min === null ? "—" : `₹${a.rate_per_min} / min`}</span>
                 <span class={`avail ${a.is_available ? "on" : ""}`}>
-                  <span class="dot" /> {a.availability_label || (a.is_available ? "Available" : "Unavailable")}
+                  <span class="dot" /> {a.availability_label || (a.is_available ? t.availOn : t.availOff)}
                 </span>
               </div>
-              <a class="profile" href={`/consultations/${a.slug}`}>View profile →</a>
+              <a class="profile" href={withLang(`/consultations/${a.slug}`, Astro.url.pathname)}>{t.profile}</a>
             </article>
           ))
         )
@@ -66,14 +68,14 @@ const EMPTY =
     </div>
 
     {astrologers.length > 0 && (
-      <p class="lede">
-        Launch preview: profiles shown are illustrative while the directory is being finalised.
+      <p class={`lede ${hi ? "hi-text" : ""}`}>
+        {t.previewNote}
       </p>
     )}
 
-    <h2>Request a consultation</h2>
+    <h2 class={hi ? "hi-text" : ""}>{t.formH2}</h2>
     <div class="formpanel">
-      <BookingForm kind="consultation" subjectLabel="Topic" submitLabel="Request Consultation" />
+      <BookingForm kind="consultation" subjectLabel={t.subjectLabel} submitLabel={t.submitLabel} lang={lang} />
     </div>
   </section>
 </Base>
@@ -82,7 +84,6 @@ const EMPTY =
   .cons { max-width: 1000px; margin: 0 auto; padding: var(--space-6) var(--space-4) var(--space-8); }
   h1 { font-family: var(--font-display); color: var(--ivory); font-size: clamp(26px, 5vw, 38px); }
   h2 { font-family: var(--font-display); color: var(--gold); font-size: 19px; margin-top: var(--space-7); margin-bottom: var(--space-3); }
-  .hi-text { color: var(--text-dim); font-size: 0.7em; }
   .lede { color: var(--text-muted); margin-top: var(--space-2); font-size: 14.5px; max-width: 760px; }
   .grid { display: grid; gap: var(--space-3); grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); margin-top: var(--space-5); }
   .card { background: var(--bg-raised); border: 1px solid var(--color-border-strong); border-radius: var(--radius-card); padding: var(--space-4); display: flex; flex-direction: column; gap: var(--space-3); }

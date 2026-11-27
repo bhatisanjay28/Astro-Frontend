@@ -1,4 +1,6 @@
 ---
+import { type Lang, withLang } from "../../lib/i18n";
+import { HOME } from "../../lib/i18n/home";
 /**
  * Consultation booking modal — home design (D11) trigger wiring. Submits to
  * the live Epic 5.2 endpoint POST /api/v1/requests/consultation (201 = stored
@@ -7,11 +9,19 @@
  * 6.4 consent flow, so asking for them would silently drop user input.
  * Turnstile bot check: widget renders in the modal slot (ensure() on first
  * open — display:none can't render) and the token rides the submit payload.
+ * S24: lang prop — labels, options, consent copy and JS-injected messages
+ * come from the HOME dict for the page language.
  */
 import DateField from "../DateField.astro";
 import FieldLabel from "../forms/FieldLabel.astro";
 import RequiredNote from "../forms/RequiredNote.astro";
 
+interface Props {
+  lang?: Lang;
+}
+const { lang = "en" } = Astro.props;
+const t = HOME[lang];
+const hi = lang === "hi";
 const turnstileSitekey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY ?? "";
 ---
 
@@ -19,40 +29,36 @@ const turnstileSitekey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY ?? "";
   <div class="bg-light-surface dark:bg-dark-surface border border-light-outline-variant dark:border-dark-outline-variant rounded-xl max-w-lg w-full p-6 shadow-xl relative max-h-[90vh] overflow-y-auto">
     <div class="flex items-center justify-between mb-4 pb-3 border-b border-light-outline-variant/40 dark:border-dark-outline-variant/40">
       <div>
-        <h3 class="font-headline text-headline-sm font-bold text-light-on-surface dark:text-dark-on-surface">Book Consultation Request</h3>
-        <p class="font-body text-body-sm text-light-outline dark:text-dark-outline">Saved securely — used only to contact you about this request.</p>
+        <h3 class={`font-headline text-headline-sm font-bold text-light-on-surface dark:text-dark-on-surface ${hi ? "hi-text" : ""}`}>{t.bmTitle}</h3>
+        <p class={`font-body text-body-sm text-light-outline dark:text-dark-outline ${hi ? "hi-text" : ""}`}>{t.bmSecure}</p>
       </div>
-      <button type="button" data-modal-close class="w-8 h-8 rounded-full flex items-center justify-center text-light-outline dark:text-dark-outline hover:text-light-on-surface dark:hover:text-dark-on-surface focus-visible:ring-2 focus-visible:ring-light-primary" aria-label="Close modal">
+      <button type="button" data-modal-close class="w-8 h-8 rounded-full flex items-center justify-center text-light-outline dark:text-dark-outline hover:text-light-on-surface dark:hover:text-dark-on-surface focus-visible:ring-2 focus-visible:ring-light-primary" aria-label={t.bmClose}>
         <span class="material-symbols-outlined text-headline-sm">close</span>
       </button>
     </div>
 
     <form class="space-y-3.5" data-booking-form>
-      <RequiredNote />
+      <RequiredNote lang={lang} />
       <div>
-        <FieldLabel forId="bk-name" label="Full Name" required class="block font-label text-label-sm font-medium mb-1 text-light-on-surface dark:text-dark-on-surface" />
-        <input id="bk-name" type="text" required placeholder="Your full name" class="w-full px-3 py-2 rounded bg-light-surface-variant dark:bg-dark-surface-variant border border-light-outline-variant dark:border-dark-outline-variant text-light-on-surface dark:text-dark-on-surface font-body text-body-sm" />
+        <FieldLabel forId="bk-name" label={t.bmName} required class={`block font-label text-label-sm font-medium mb-1 text-light-on-surface dark:text-dark-on-surface ${hi ? "hi-text" : ""}`} />
+        <input id="bk-name" type="text" required placeholder={t.bmNamePlaceholder} class={`w-full px-3 py-2 rounded bg-light-surface-variant dark:bg-dark-surface-variant border border-light-outline-variant dark:border-dark-outline-variant text-light-on-surface dark:text-dark-on-surface font-body text-body-sm ${hi ? "hi-text" : ""}`} />
       </div>
 
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
-          <FieldLabel forId="bk-phone" label="WhatsApp / Phone Number" required class="block font-label text-label-sm font-medium mb-1 text-light-on-surface dark:text-dark-on-surface" />
+          <FieldLabel forId="bk-phone" label={t.bmPhone} required class={`block font-label text-label-sm font-medium mb-1 text-light-on-surface dark:text-dark-on-surface ${hi ? "hi-text" : ""}`} />
           <input id="bk-phone" type="tel" required placeholder="+91 98765 43210" class="w-full px-3 py-2 rounded bg-light-surface-variant dark:bg-dark-surface-variant border border-light-outline-variant dark:border-dark-outline-variant text-light-on-surface dark:text-dark-on-surface font-body text-body-sm" />
         </div>
         <div>
-          <FieldLabel forId="bk-email" label="Email Address" optional class="block font-label text-label-sm font-medium mb-1 text-light-on-surface dark:text-dark-on-surface" />
+          <FieldLabel forId="bk-email" label={t.bmEmail} optional optionalText={` ${t.optional}`} class={`block font-label text-label-sm font-medium mb-1 text-light-on-surface dark:text-dark-on-surface ${hi ? "hi-text" : ""}`} />
           <input id="bk-email" type="email" placeholder="you@email.com" class="w-full px-3 py-2 rounded bg-light-surface-variant dark:bg-dark-surface-variant border border-light-outline-variant dark:border-dark-outline-variant text-light-on-surface dark:text-dark-on-surface font-body text-body-sm" />
         </div>
       </div>
 
       <div>
-        <label class="block font-label text-label-sm font-medium mb-1 text-light-on-surface dark:text-dark-on-surface" for="bk-topic">Primary Consultation Topic</label>
-        <select id="bk-topic" class="w-full px-3 py-2 rounded bg-light-surface-variant dark:bg-dark-surface-variant border border-light-outline-variant dark:border-dark-outline-variant text-light-on-surface dark:text-dark-on-surface font-body text-body-sm">
-          <option>Kundli &amp; Life Path Overview</option>
-          <option>Career, Business &amp; Financial Timing</option>
-          <option>Marriage Compatibility &amp; Matchmaking</option>
-          <option>Health, Dosha &amp; Vedic Remedies</option>
-          <option>Auspicious Muhurat Selection</option>
+        <label class={`block font-label text-label-sm font-medium mb-1 text-light-on-surface dark:text-dark-on-surface ${hi ? "hi-text" : ""}`} for="bk-topic">{t.bmTopic}</label>
+        <select id="bk-topic" class={`w-full px-3 py-2 rounded bg-light-surface-variant dark:bg-dark-surface-variant border border-light-outline-variant dark:border-dark-outline-variant text-light-on-surface dark:text-dark-on-surface font-body text-body-sm ${hi ? "hi-text" : ""}`}>
+          {t.topics.map((topic) => <option>{topic}</option>)}
         </select>
       </div>
 
@@ -60,18 +66,16 @@ const turnstileSitekey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY ?? "";
         <div>
           <DateField
             id="bk-date"
-            label="Preferred Date"
-            labelClass="block font-label text-label-sm font-medium mb-1 text-light-on-surface dark:text-dark-on-surface"
+            label={t.bmDate}
+            labelClass={`block font-label text-label-sm font-medium mb-1 text-light-on-surface dark:text-dark-on-surface ${hi ? "hi-text" : ""}`}
             preset="free"
             optional
           />
         </div>
         <div>
-          <label class="block font-label text-label-sm font-medium mb-1 text-light-on-surface dark:text-dark-on-surface" for="bk-window">Preferred Time Window</label>
-          <select id="bk-window" class="w-full px-3 py-2 rounded bg-light-surface-variant dark:bg-dark-surface-variant border border-light-outline-variant dark:border-dark-outline-variant text-light-on-surface dark:text-dark-on-surface font-body text-body-sm">
-            <option>Morning (10:00 AM - 01:00 PM)</option>
-            <option>Afternoon (02:00 PM - 05:00 PM)</option>
-            <option>Evening (06:00 PM - 09:00 PM)</option>
+          <label class={`block font-label text-label-sm font-medium mb-1 text-light-on-surface dark:text-dark-on-surface ${hi ? "hi-text" : ""}`} for="bk-window">{t.bmWindow}</label>
+          <select id="bk-window" class={`w-full px-3 py-2 rounded bg-light-surface-variant dark:bg-dark-surface-variant border border-light-outline-variant dark:border-dark-outline-variant text-light-on-surface dark:text-dark-on-surface font-body text-body-sm ${hi ? "hi-text" : ""}`}>
+            {t.windows.map((w) => <option>{w}</option>)}
           </select>
         </div>
       </div>
@@ -82,32 +86,30 @@ const turnstileSitekey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY ?? "";
       <!-- Consent Checkbox (Section 15 DPDP Act) -->
       <div class="flex items-start gap-2 pt-1">
         <input type="checkbox" required id="consent-check" class="mt-1 rounded text-light-primary focus-visible:ring-2 focus-visible:ring-light-primary" />
-        <label for="consent-check" class="font-body text-body-sm text-light-outline dark:text-dark-outline">
-          I consent to processing these details strictly for scheduling my astrological consultation under the Vyotish <a href="/privacy" target="_blank" rel="noopener" class="text-light-primary dark:text-dark-primary underline">Privacy Policy</a>.
-        </label>
+        <label for="consent-check" class={`font-body text-body-sm text-light-outline dark:text-dark-outline ${hi ? "hi-text" : ""}`} set:html={t.bmConsent(withLang("/privacy", Astro.url.pathname))} />
       </div>
 
       <!-- Turnstile bot check (public sitekey only; challenge is managed) -->
       <div data-turnstile-slot data-turnstile-sitekey={turnstileSitekey} class="flex justify-center"></div>
-      <div class="p-2.5 rounded bg-light-surface-variant dark:bg-dark-surface-variant border border-light-outline-variant/40 dark:border-dark-outline-variant/40 flex items-center justify-between font-body text-body-sm text-light-outline dark:text-dark-outline">
+      <div class={`p-2.5 rounded bg-light-surface-variant dark:bg-dark-surface-variant border border-light-outline-variant/40 dark:border-dark-outline-variant/40 flex items-center justify-between font-body text-body-sm text-light-outline dark:text-dark-outline ${hi ? "hi-text" : ""}`}>
         <div class="flex items-center gap-1.5">
           <span class="material-symbols-outlined text-title-md text-success">verified</span>
-          <span>Protected by Cloudflare Turnstile</span>
+          <span>{t.bmProtected}</span>
         </div>
-        <span class="font-data text-label-sm">Automatic bot check</span>
+        <span class="font-data text-label-sm">{t.bmAutoCheck}</span>
       </div>
 
       <button type="submit" class="w-full py-3 rounded bg-light-primary text-light-on-primary dark:bg-dark-primary dark:text-dark-on-primary font-label text-label-md font-semibold text-center hover:opacity-95 transition-opacity">
-        Submit Consultation Request
+        <span class={hi ? "hi-text" : ""}>{t.bmSubmit}</span>
       </button>
 
-      <p class="hidden font-body text-body-sm text-success font-medium" data-booking-ok>Request received. Our team will confirm your booking by phone/WhatsApp shortly.</p>
-      <p class="hidden font-body text-body-sm text-error" data-booking-fail role="alert">Could not submit right now — please try again.</p>
+      <p class={`hidden font-body text-body-sm text-success font-medium ${hi ? "hi-text" : ""}`} data-booking-ok>{t.bmOk}</p>
+      <p class={`hidden font-body text-body-sm text-error ${hi ? "hi-text" : ""}`} data-booking-fail role="alert">{t.bmFail}</p>
     </form>
   </div>
 </div>
 
-<script define:vars={{ apiBase: import.meta.env.PUBLIC_API_BASE_URL ?? "https://astro-backend.vyotish.workers.dev" }}>
+<script define:vars={{ apiBase: import.meta.env.PUBLIC_API_BASE_URL ?? "https://astro-backend.vyotish.workers.dev", failTxt: t.bmFail }}>
   (function () {
     var modal = document.getElementById("booking-modal");
     if (!modal) return;
@@ -174,7 +176,7 @@ const turnstileSitekey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY ?? "";
                     ? " " + err.error.details.join(" ")
                     : "";
                 throw new Error(
-                  msg ? msg + details : "Could not submit right now — please try again.",
+                  msg ? msg + details : failTxt,
                 );
               });
           })
@@ -186,7 +188,7 @@ const turnstileSitekey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY ?? "";
           .catch(function (err) {
             if (fail) {
               fail.textContent =
-                err && err.message ? err.message : "Could not submit right now — please try again.";
+                err && err.message ? err.message : failTxt;
               fail.classList.remove("hidden");
             }
           })
@@ -207,14 +209,18 @@ const turnstileSitekey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY ?? "";
   // checkbox; email stays optional (privacy policy + backend contract — a
   // filled email still gets a native type=email format check); topic/window
   // selects carry defaults, preferred date is optional.
+  // S24 — validation messages follow the page language (Base sets html[lang]).
   import { installFormValidation } from "../../scripts/form-validation";
+  import { HOME } from "../../lib/i18n/home";
+  const pageLang = document.documentElement.lang === "hi" ? "hi" : "en";
+  const t = HOME[pageLang];
   const modal = document.getElementById("booking-modal");
   const bmForm = modal?.querySelector<HTMLFormElement>("[data-booking-form]");
   if (bmForm) {
     installFormValidation(bmForm, {
       text: [
-        { el: bmForm.querySelector<HTMLInputElement>("#bk-name")!, required: true, message: "Please enter your name." },
-        { el: bmForm.querySelector<HTMLInputElement>("#bk-phone")!, required: true, message: "Please enter your phone number." },
+        { el: bmForm.querySelector<HTMLInputElement>("#bk-name")!, required: true, message: t.bmErrName },
+        { el: bmForm.querySelector<HTMLInputElement>("#bk-phone")!, required: true, message: t.bmErrPhone },
       ],
       check: [{ el: bmForm.querySelector<HTMLInputElement>("#consent-check")! }],
     });

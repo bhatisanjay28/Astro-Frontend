@@ -3,9 +3,18 @@ import Pager from "../../components/blog/Pager.astro";
 import PostCard from "../../components/blog/PostCard.astro";
 import Base from "../../layouts/Base.astro";
 import { API_BASE, fetchBlogCategories, fetchBlogPosts } from "../../lib/content";
+import { langFromPath } from "../../lib/i18n";
+import { BLOG_HUB } from "../../lib/i18n/hubs";
 
 /** /blog — public blog home (Epic 6.3). Listing page 1; later pages live at
- * /blog/page/N. Search runs client-side against the same public endpoint. */
+ * /blog/page/N. Search runs client-side against the same public endpoint.
+ * S24: the /hi twin renders this same body via the page path. Article links
+ * stay on the single-language blog deep routes by design (no translated
+ * article URLs), and the header switcher maps deep routes back to /hi/blog/. */
+
+const lang = langFromPath(Astro.url.pathname);
+const hi = lang === "hi";
+const t = BLOG_HUB[lang];
 
 const perPage = 10;
 const result = await fetchBlogPosts({ page: 1, perPage });
@@ -14,33 +23,28 @@ const posts = result?.posts ?? [];
 const total = result?.total ?? 0;
 ---
 
-<Base
-  title="Blog — Vedic Astrology Articles | Vyotish"
-  description="Original astro-education articles: rashis, nakshatras, yogas, doshas, dasha, panchang and practical astrology guides from the Vyotish team."
->
+<Base title={t.title} description={t.description}>
   <section class="blog">
-    <h1>Vyotish Blog</h1>
-    <p class="lede">
-      Original articles on Vedic astrology — how the system works, what the classics
-      say and how Vyotish computes it. Also available as
-      <a href="/blog/rss.xml">RSS</a>.
+    <h1 class={hi ? "hi-text" : ""}>{t.h1}</h1>
+    <p class={`lede ${hi ? "hi-text" : ""}`}>
+      {t.ledePre}<a href="/blog/rss.xml">{t.rssLabel}</a>{t.ledePost}
     </p>
 
     <form class="search" data-blog-search data-api-base={API_BASE} role="search">
       <input
         type="search"
         name="q"
-        placeholder="Search articles…"
-        aria-label="Search articles"
+        placeholder={t.searchPh}
+        aria-label={t.searchAria}
         minlength="1"
         maxlength="80"
       />
-      <button type="submit">Search</button>
+      <button type="submit" class={hi ? "hi-text" : ""}>{t.searchBtn}</button>
     </form>
-    <div class="results" data-blog-results hidden>
+    <div class={`results ${hi ? "hi-text" : ""}`} data-blog-results hidden>
       <h2 data-blog-heading></h2>
       <div class="grid" data-blog-grid></div>
-      <button type="button" class="clear" data-blog-clear>Show all articles</button>
+      <button type="button" class={`clear ${hi ? "hi-text" : ""}`} data-blog-clear>{t.clear}</button>
     </div>
 
     {
@@ -57,10 +61,7 @@ const total = result?.total ?? 0;
 
     {
       posts.length === 0 ? (
-        <p class="empty">
-          The first articles are being written and edited — check back shortly.
-          Meanwhile, the <a href="/astrology/learn">Learn library</a> is open.
-        </p>
+        <p class={`empty ${hi ? "hi-text" : ""}`} set:html={t.empty} />
       ) : (
         <>
           <div class="grid">

@@ -7,95 +7,22 @@
  * DECISIONS.md D5, IANA timezone db, GeoNames 70k+ city seed (Epic 4.7b),
  * 250+ automated backend tests (Epic 8.1), honest empty states + marked sample
  * data per PRD §15. No invented numbers, no invented credentials.
+ * S24: prose lives in the ABOUT dict; the /hi twin renders this same body
+ * via the page path with fully translated sections.
  */
 import LegalPage from "../components/LegalPage.astro";
+import { langFromPath } from "../lib/i18n";
+import { ABOUT } from "../lib/i18n/about";
 
-const UPDATED = "21 November 2026";
-
-const sections = [
-  {
-    id: "why",
-    heading: "Why Vyotish exists",
-    paragraphs: [
-      "Vyotish is our attempt to bring classical Vedic astrology into modern life without the noise that usually surrounds it — no fear-selling, no miracle promises, no paywalls in front of basic charts. The core idea is simple: <strong>authentic Vedic astrology, calculated with real astronomical rigor, offered honestly.</strong>",
-      "Most people meet astrology through someone trying to sell them something. We wanted the opposite experience: a place where you can generate a proper Janam Kundli, check today’s panchang, find a muhurat, understand your chart — free — and only then decide whether you want a human consultation.",
-    ],
-  },
-  {
-    id: "rigor",
-    heading: "What “calculated with rigor” means",
-    paragraphs: [
-      "Every computation on Vyotish rests on published, open methods — nothing is a black box:",
-    ],
-    bullets: [
-      "<strong>Sidereal zodiac with the Lahiri ayanamsha</strong> — the reference frame used in India’s official panchang calculations.",
-      "<strong>Planetary positions from astronomy-engine</strong>, an open-source (MIT-licensed) astronomical library, running behind our own Lahiri sidereal layer.",
-      "<strong>Time handled through the IANA Time Zone database</strong> — including historical zones and half-hour offsets — so a birth time means the same thing everywhere.",
-      "<strong>70,000+ cities worldwide, India first</strong>, sourced from the GeoNames database, for birth-place lookups.",
-      "<strong>250+ automated tests</strong> across the calculation engine and APIs, and growing with every fix.",
-    ],
-    note: [
-      'Precision in astronomy is our standard; honesty about interpretation is our promise. Where computation ends and opinion begins, we say so — see our <a href="/disclaimer">astrological disclaimer</a>.',
-    ],
-  },
-  {
-    id: "what-you-find",
-    heading: "What you will find here",
-    bullets: [
-      "<strong>Janam Kundli</strong> — a full Vedic birth chart, free, no signup.",
-      "<strong>Kundli matching</strong> — the traditional 36-guna compatibility score for two charts.",
-      "<strong>Panchang</strong> — daily tithi, nakshatra, yoga, karana and sunrise/sunset, plus a monthly calendar.",
-      "<strong>Muhurat</strong> — auspicious timing for today, and a finder for events like travel, exams and property.",
-      "<strong>23 free calculators</strong> — rashi, sade sati, mangal dosha, gemstone recommendation and more.",
-      "<strong>Horoscopes, Learn and blog</strong> — daily, weekly and monthly readings, and grounded explainers.",
-      "<strong>Consultations and pooja booking</strong> — requests routed to us; you confirm the session with a human before anything happens.",
-    ],
-    note: [
-      "The site works on the slowest phones we could test and never asks you to create an account to use a tool. It runs in English today, with Hindi rolling out.",
-    ],
-  },
-  {
-    id: "never-do",
-    heading: "What we will never do",
-    bullets: [
-      "<strong>No fear-selling:</strong> we will not frighten you into a remedy. If a chart shows a dosha, we explain what tradition says, at what weight, and what — if anything — you might do about it.",
-      "<strong>No cure claims:</strong> no gemstone, pooja or mantra is sold as medicine. Ever.",
-      "<strong>No guaranteed results:</strong> predictions are opinions; you will never see “100% guaranteed” here.",
-      "<strong>No fabricated trust:</strong> no invented reviews, ratings, user counts or awards. Real numbers, real testimonials, or an honest empty space.",
-      '<strong>No hidden fees:</strong> the tools are free; when paid services open, their prices and this site’s <a href="/refund">refund policy</a> will be published before you are ever charged.',
-    ],
-  },
-  {
-    id: "privacy",
-    heading: "How we handle your data",
-    paragraphs: [
-      'The tools run without storing your inputs — you compute a chart, take your result, and the details are not kept in our database. Booking requests collect only what a human needs to schedule your session, and birth details for consultations are taken only with an explicit consent tick. Deletion on request is a promise, not a process. The full detail lives in our <a href="/privacy">Privacy Policy</a>, written against India’s DPDP Act, 2023.',
-    ],
-  },
-  {
-    id: "today",
-    heading: "Where Vyotish is today",
-    paragraphs: [
-      "This is phase one of a phased public launch. The calculation engine, the tool layer and the content sections are live; a few things — like the gemstones section — show an honest “coming soon” label until they are ready rather than a hollow page. Sample or illustrative content is always marked as such, and it is replaced by reviewed, real content as we grow.",
-      "We keep fixing, measuring and correcting in the open: if a computed value looks wrong, report it and it becomes a test case and a fix.",
-    ],
-  },
-  {
-    id: "contact",
-    heading: "Talk to us",
-    paragraphs: [
-      'Every genuine message reaches a human: <a href="mailto:vyotish@gmail.com">vyotish@gmail.com</a>, or through our <a href="/contact">contact page</a>. Corrections, questions, feedback and well-wishes are all welcome — especially corrections.',
-    ],
-  },
-];
+const t = ABOUT[langFromPath(Astro.url.pathname)];
 ---
 
 <LegalPage
-  title="About Vyotish | Vyotish"
-  heading="About Vyotish"
-  eyebrow="About Vyotish"
-  intro="Authentic Vedic astrology, calculated with modern astronomical rigor — free core tools, honest guidance, and no fear-selling."
-  updated={UPDATED}
-  sections={sections}
-  note="Vyotish is launching in phases; some sections carry an honest “coming soon” label until they are ready. This page is reviewed and updated as the site grows."
+  title={t.title}
+  heading={t.heading}
+  eyebrow={t.eyebrow}
+  intro={t.intro}
+  updated={t.updated}
+  sections={t.sections}
+  note={t.note}
 />

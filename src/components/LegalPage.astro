@@ -26,6 +26,8 @@
  * launch-blockers.md.
  */
 import Base from "../layouts/Base.astro";
+import { langFromPath, withLang } from "../lib/i18n";
+import { LEGAL_CHROME } from "../lib/i18n/legal";
 
 interface Section {
   id: string;
@@ -48,35 +50,25 @@ interface Props {
   /** Optional status footnote (e.g. phased-launch note on the About page). */
   note?: string;
 }
-const {
-  title,
-  heading,
-  intro,
-  updated,
-  eyebrow = "Trust & Legal",
-  sections = [],
-  body = [],
-  note,
-} = Astro.props;
+const { title, heading, intro, updated, eyebrow, sections = [], body = [], note } = Astro.props;
+
+/* S24 — page-level language: chrome (eyebrow, TOC, related docs, trust card,
+ * back link) follows the /hi path; document content comes from the caller's
+ * dict. Only the display-font headings need the explicit .hi-text face — body
+ * text inherits html[lang="hi"] from base.css. */
+const lang = langFromPath(Astro.url.pathname);
+const c = LEGAL_CHROME[lang];
+const hi = lang === "hi";
 
 const EMAIL = "vyotish@gmail.com";
-
-/** Sibling documents shown in the closing "Related documents" card. */
-const RELATED_DOCS = [
-  { label: "Privacy Policy (DPDP Act)", href: "/privacy" },
-  { label: "Terms of Use", href: "/terms" },
-  { label: "Refund & Cancellation", href: "/refund" },
-  { label: "Astrological Disclaimer", href: "/disclaimer" },
-  { label: "About Vyotish", href: "/about" },
-];
 const here = Astro.url.pathname.replace(/\/+$/, "");
 ---
 
 <Base title={title} description={intro}>
   <article class="legal">
     <header class="legal-head">
-      <p class="eyebrow"><span class="edot" aria-hidden="true"></span>{eyebrow}</p>
-      <h1>{heading}</h1>
+      <p class={`eyebrow ${hi ? "hi-text" : ""}`}><span class="edot" aria-hidden="true"></span>{eyebrow ?? c.eyebrow}</p>
+      <h1 class={hi ? "hi-text" : ""}>{heading}</h1>
       <p class="intro">{intro}</p>
       {
         updated && (
@@ -84,7 +76,7 @@ const here = Astro.url.pathname.replace(/\/+$/, "");
             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
-            <span>Last updated: {updated}</span>
+            <span>{c.updatedPre}{updated}</span>
           </p>
         )
       }
@@ -92,11 +84,11 @@ const here = Astro.url.pathname.replace(/\/+$/, "");
 
     {
       sections.length > 1 && (
-        <nav class="toc" aria-label="On this page">
+        <nav class="toc" aria-label={c.tocAria}>
           <div class="toc-head">
-            <p class="toc-title">On this page</p>
+            <p class="toc-title">{c.tocTitle}</p>
             <span class="toc-count">
-              {sections.length} {sections.length === 1 ? "section" : "sections"}
+              {sections.length} {c.sectionsWord}
             </span>
           </div>
           <ol class="toc-list">
@@ -117,7 +109,7 @@ const here = Astro.url.pathname.replace(/\/+$/, "");
     {
       sections.map((s) => (
         <section class="legal-section" id={s.id}>
-          <h2>{s.heading}</h2>
+          <h2 class={hi ? "hi-text" : ""}>{s.heading}</h2>
           {s.paragraphs?.map((p) => <p set:html={p} />)}
           {s.bullets && (
             <ul>
@@ -136,12 +128,13 @@ const here = Astro.url.pathname.replace(/\/+$/, "");
     {note && <div class="page-note">{note}</div>}
 
     <div class="closing">
-      <nav class="related" aria-label="Related documents">
-        <p class="card-label">Related documents</p>
+      <nav class="related" aria-label={c.relatedAria}>
+        <p class={`card-label ${hi ? "hi-text" : ""}`}>{c.relatedTitle}</p>
         <ul class="related-list">
           {
-            RELATED_DOCS.map((d) => {
-              const current = here === d.href;
+            c.relatedDocs.map((d) => {
+              const href = withLang(d.href, Astro.url.pathname);
+              const current = here === href;
               const row = (
                 <>
                   <span class="dot" aria-hidden="true" />
@@ -153,10 +146,10 @@ const here = Astro.url.pathname.replace(/\/+$/, "");
                   {current ? (
                     <span class="rrow current" aria-current="page">
                       {row}
-                      <span class="chip-current">Current</span>
+                      <span class="chip-current">{c.current}</span>
                     </span>
                   ) : (
-                    <a class="rrow" href={d.href}>
+                    <a class="rrow" href={href}>
                       {row}
                       <svg class="rarrow" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                         <path d="m9 18 6-6-6-6" />
@@ -180,13 +173,13 @@ const here = Astro.url.pathname.replace(/\/+$/, "");
               </svg>
             </span>
             <div>
-              <h2 class="trust-title">Your safety first</h2>
-              <p class="trust-text">We never ask for OTPs, passwords or payments over chat.</p>
+              <h2 class={`trust-title ${hi ? "hi-text" : ""}`}>{c.trustTitle}</h2>
+              <p class={`trust-text ${hi ? "hi-text" : ""}`}>{c.trustText}</p>
             </div>
           </div>
         </div>
         <div class="questions-card">
-          <p class="card-label">Questions about this document?</p>
+          <p class={`card-label ${hi ? "hi-text" : ""}`}>{c.questionsLabel}</p>
           <a class="mail-link" href={`mailto:${EMAIL}`}>
             <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
@@ -197,7 +190,7 @@ const here = Astro.url.pathname.replace(/\/+$/, "");
       </div>
     </div>
 
-    <a class="back" href="/">← Back to home</a>
+    <a class="back" href={withLang("/", Astro.url.pathname)}>{c.backHome}</a>
   </article>
 </Base>
 

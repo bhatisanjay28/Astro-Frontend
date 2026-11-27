@@ -4,27 +4,27 @@ import OfferStrip from "../../components/OfferStrip.astro";
 /** /poojan/ — Pooja catalogue + booking (Epic 5.3). Catalogue is a
  * build-time fetch of GET /api/v1/pujas (D12); the booking form posts live to
  * POST /api/v1/requests/puja. Offers come from the admin settings
- * (public.offers_config, audience=puja) — honest empty state when unset. */
+ * (public.offers_config, audience=puja) — honest empty state when unset.
+ * S24: the /hi twin renders this same body via the page path. */
 import Base from "../../layouts/Base.astro";
 import { fetchPujas, fetchSettings, parseOffers } from "../../lib/content";
+import { langFromPath, withLang } from "../../lib/i18n";
+import { POOJAN_HUB } from "../../lib/i18n/hubs";
+
+const lang = langFromPath(Astro.url.pathname);
+const hi = lang === "hi";
+const t = POOJAN_HUB[lang];
 
 const pujas = (await fetchPujas()) ?? [];
 const settings = await fetchSettings();
 const offers = parseOffers(settings?.offers_config, "puja");
-const EMPTY =
-  "The poojan catalogue is temporarily unavailable — the backend service could not be reached at build time. Please try again later.";
 ---
 
-<Base
-  title="Poojan — Vedic Puja Catalogue | Vyotish"
-  description="Vedic pujas with purpose, duration, mode and what's included — Graha Shanti, Satyanarayan, Griha Pravesh and more — booked through the Vyotish admin inbox."
->
+<Base title={t.title} description={t.description}>
   <section class="poo">
-    <h1>Poojan <span class="hi-text">(पूजन)</span></h1>
-    <p class="lede">
-      Traditional pujas performed by qualified pandits — online or at your home/temple.
-      Every listing states its purpose, duration and inclusions. Request below; the team
-      confirms muhurat, samagri and mode personally.
+    <h1 class={hi ? "hi-text" : ""}>{t.h1}</h1>
+    <p class={`lede ${hi ? "hi-text" : ""}`}>
+      {t.lede}
     </p>
 
     <OfferStrip offers={offers} />
@@ -32,17 +32,19 @@ const EMPTY =
     <div class="grid">
       {
         pujas.length === 0 ? (
-          <p class="lede">{EMPTY}</p>
+          <p class={`lede ${hi ? "hi-text" : ""}`}>{t.empty}</p>
         ) : (
           pujas.map((p) => (
-            <article class="card">
+            <article class={`card ${hi ? "hi-text" : ""}`}>
               <div class="toprow">
                 <span class="cat">{p.category.replace(/_/g, " ")}</span>
-                {p.name_hi && <span class="hi">{p.name_hi}</span>}
+                {/* S24 — gloss shows the OTHER language's name: hi as sub on EN
+                    cards, EN as sub on hi cards; primary name follows the page */}
+                {hi ? (p.name && p.name_hi ? <span class="hi">{p.name}</span> : null) : p.name_hi ? <span class="hi">{p.name_hi}</span> : null}
               </div>
-              <span class="name">{p.name}</span>
-              {p.purpose && <p class="purpose"><strong>Purpose:</strong> {p.purpose}</p>}
-              {p.description && <p class="desc">{p.description}</p>}
+              <span class="name">{hi && p.name_hi ? p.name_hi : p.name}</span>
+              {p.purpose && <p class="purpose"><strong>{t.purpose}</strong> {p.purpose}</p>}
+              {hi && p.description_hi ? <p class="desc">{p.description_hi}</p> : p.description && <p class="desc">{p.description}</p>}
               <div class="tags">
                 {p.mode.map((m) => (
                   <span class="tag">{m}</span>
@@ -50,12 +52,12 @@ const EMPTY =
                 {p.duration_label && <span class="tag">{p.duration_label}</span>}
               </div>
               {p.includes.length > 0 && (
-                <p class="includes"><strong>Includes:</strong> {p.includes.join(" · ")}</p>
+                <p class="includes"><strong>{t.includes}</strong> {p.includes.join(" · ")}</p>
               )}
               {p.muhurat_note && <p class="note">{p.muhurat_note}</p>}
               <div class="foot">
-                <span class="price">{p.price_inr === null ? "On request" : `₹${p.price_inr.toLocaleString("en-IN")}`}</span>
-                <a class="profile" href={`/poojan/${p.slug}`}>Details →</a>
+                <span class="price">{p.price_inr === null ? t.onRequest : `₹${p.price_inr.toLocaleString("en-IN")}`}</span>
+                <a class="profile" href={withLang(`/poojan/${p.slug}`, Astro.url.pathname)}>{t.details}</a>
               </div>
             </article>
           ))
@@ -63,9 +65,9 @@ const EMPTY =
       }
     </div>
 
-    <h2>Request a puja</h2>
+    <h2 class={hi ? "hi-text" : ""}>{t.formH2}</h2>
     <div class="formpanel">
-      <BookingForm kind="puja" subjectLabel="Puja" submitLabel="Request Puja" />
+      <BookingForm kind="puja" subjectLabel={t.subjectLabel} submitLabel={t.submitLabel} lang={lang} />
     </div>
   </section>
 </Base>
@@ -74,7 +76,6 @@ const EMPTY =
   .poo { max-width: 1000px; margin: 0 auto; padding: var(--space-6) var(--space-4) var(--space-8); }
   h1 { font-family: var(--font-display); color: var(--ivory); font-size: clamp(26px, 5vw, 38px); }
   h2 { font-family: var(--font-display); color: var(--gold); font-size: 19px; margin-top: var(--space-7); margin-bottom: var(--space-3); }
-  .hi-text { color: var(--text-dim); font-size: 0.7em; }
   .lede { color: var(--text-muted); margin-top: var(--space-2); font-size: 14.5px; max-width: 760px; }
   .grid { display: grid; gap: var(--space-3); grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); margin-top: var(--space-5); }
   .card { background: var(--bg-raised); border: 1px solid var(--color-border-strong); border-radius: var(--radius-card); padding: var(--space-4); display: flex; flex-direction: column; gap: var(--space-2); }

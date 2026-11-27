@@ -8,7 +8,11 @@
  * The frontend never invents astrology copy: verdicts, explanations, tips,
  * the disclaimer and the method note all come from the API (D12). Scores are
  * rendered as authored by the backend engine; nothing is recomputed here.
+ * S24 P4: the renderer's own chrome (chip labels, band words, section
+ * titles) follows the page language; API payload text stays EN until the
+ * backend learns ?lang=hi (P5).
  */
+import { calcTr } from "../lib/i18n/calc-render";
 
 export interface ZcPairPayload {
   pair: string;
@@ -38,6 +42,7 @@ export function esc(s: unknown): string {
 }
 
 function bandClass(band: string): string {
+  // band stays EN here — it keys the CSS class (zc-band-excellent …)
   return band.toLowerCase().replace(/\s+/g, "-");
 }
 
@@ -47,16 +52,16 @@ function chip(label: string, value: string): string {
 
 function factChips(facts: ZcPairPayload["facts"]): string {
   // Raw values — chip() escapes once; do NOT pre-escape (double-escape bug).
-  let html = chip("Aspect", `${facts.aspect} · ${facts.degrees}°`);
-  html += chip("Elements", facts.element_pair);
-  html += chip("Modes", facts.modality_pair);
-  html += chip("Polarity", facts.polarity_pair);
-  html += chip("Rulers", facts.rulers);
+  let html = chip(calcTr("Aspect"), `${facts.aspect} · ${facts.degrees}°`);
+  html += chip(calcTr("Elements"), facts.element_pair);
+  html += chip(calcTr("Modes"), facts.modality_pair);
+  html += chip(calcTr("Polarity"), facts.polarity_pair);
+  html += chip(calcTr("Rulers"), facts.rulers);
   if (facts.shared_ruler) {
     const disputed = facts.shared_ruler.disputed
-      ? " (traditional — disputed by modern astrologers)"
+      ? calcTr(" (traditional — disputed by modern astrologers)")
       : "";
-    html += chip("Shared ruler", `${facts.shared_ruler.planet}${disputed}`);
+    html += chip(calcTr("Shared ruler"), `${facts.shared_ruler.planet}${disputed}`);
   }
   return html;
 }
@@ -95,18 +100,18 @@ export function renderPairResult(payload: ZcPairPayload): string {
         <span class="zc-score-value">${ov.score}</span><span class="zc-score-range">/ 95</span>
       </div>
       <div class="zc-overall-copy">
-        <p class="zc-eyebrow">Overall compatibility</p>
-        <p class="zc-band-line"><span class="zc-band-chip">${esc(ov.band)}</span></p>
+        <p class="zc-eyebrow">${esc(calcTr("Overall compatibility"))}</p>
+        <p class="zc-band-line"><span class="zc-band-chip">${esc(calcTr(ov.band))}</span></p>
         <p class="zc-verdict">${esc(ov.verdict)}</p>
         <p class="zc-band-note">${esc(ov.band_note)}</p>
-        ${payload.verified ? "" : '<p class="zc-unverified">Interpretive method — scores sit in an honest 35–95 range.</p>'}
+        ${payload.verified ? "" : `<p class="zc-unverified">${esc(calcTr("Interpretive method — scores sit in an honest 35–95 range."))}</p>`}
       </div>
     </div>
     <div class="zc-facts">${factChips(payload.facts)}</div>
     ${payload.facts.ruler_note ? `<p class="zc-ruler-note">${esc(payload.facts.ruler_note)}</p>` : ""}
-    <h2 class="zc-section-title">How the two signs compare</h2>
+    <h2 class="zc-section-title">${esc(calcTr("How the two signs compare"))}</h2>
     <div class="zc-cats">${payload.categories.map(categoryCard).join("")}</div>
-    <h2 class="zc-section-title">Relationship tips for this pairing</h2>
+    <h2 class="zc-section-title">${esc(calcTr("Relationship tips for this pairing"))}</h2>
     <ul class="zc-tips">${payload.tips.map((t) => `<li>${esc(t)}</li>`).join("")}</ul>
     <div class="zc-note-strip">
       <p class="zc-method">${esc(payload.method_note)}</p>

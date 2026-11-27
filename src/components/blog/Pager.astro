@@ -1,6 +1,9 @@
 ---
 /** Simple prev/next pagination (Epic 6.3). `base` never ends with a slash:
- * page 1 → base, page N → base/page/N. */
+ * page 1 → base, page N → base/page/N. S24: labels follow the page language. */
+import { langFromPath } from "../../lib/i18n";
+import { BLOG_PAGER } from "../../lib/i18n/hubs";
+
 interface Props {
   base: string;
   page: number;
@@ -9,6 +12,7 @@ interface Props {
 }
 
 const { base, page, perPage, total } = Astro.props;
+const t = BLOG_PAGER[langFromPath(Astro.url.pathname)];
 const pages = Math.max(1, Math.ceil(total / perPage));
 const prev = page > 1 ? (page - 1 === 1 ? base : `${base}/page/${page - 1}`) : null;
 const next = page < pages ? `${base}/page/${page + 1}` : null;
@@ -16,13 +20,11 @@ const next = page < pages ? `${base}/page/${page + 1}` : null;
 
 {
   pages > 1 && (
-    <nav class="pager" aria-label="Pagination">
-      <span class="info">
-        Page {page} of {pages}
-      </span>
+    <nav class="pager" aria-label={t.aria}>
+      <span class="info">{t.pageOf(page, pages)}</span>
       <span class="links">
-        {prev ? <a href={prev}>← Newer</a> : <span aria-hidden="true" />}
-        {next ? <a href={next}>Older →</a> : <span aria-hidden="true" />}
+        {prev ? <a href={prev}>{t.newer}</a> : <span aria-hidden="true" />}
+        {next ? <a href={next}>{t.older}</a> : <span aria-hidden="true" />}
       </span>
     </nav>
   )

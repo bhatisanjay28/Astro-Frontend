@@ -3,39 +3,43 @@
  * Gemstones (PRD §5.8) — wired to the GEMSTONES_SITE_URL site setting via
  * GET /api/v1/settings (Epic 5.4). While the setting is empty this page
  * renders; once the owner sets it, the page links straight out to the store.
+ * S24: the /hi twin renders this same body via the page path.
  */
 import Base from "../layouts/Base.astro";
 import { fetchSettings } from "../lib/content";
+import { langFromPath, withLang } from "../lib/i18n";
+import { GEMSTONES } from "../lib/i18n/hubs";
+
+const lang = langFromPath(Astro.url.pathname);
+const hi = lang === "hi";
+const t = GEMSTONES[lang];
 
 const settings = await fetchSettings();
 const storeUrl = settings?.gemstones_site_url ?? null;
 ---
 
 <Base
-  title={storeUrl ? "Gemstones | Vyotish" : "Gemstones — Coming soon..! | Vyotish"}
-  description="Vyotish gemstones recommendations — lab-certified stones with traditional Vedic energisation."
+  title={storeUrl ? t.titleLive : t.titleSoon}
+  description={t.description}
   lockDark
 >
   <section class="gem">
     <div class="om" aria-hidden="true">💎</div>
     {storeUrl ? (
       <>
-        <h1>Vyotish Gemstones</h1>
-        <p>
-          Our dedicated lab-certified gemstone platform is ready — every stone ships with
-          a government-accredited certificate and traditional Vedic energisation.
+        <h1 class={hi ? "hi-text" : ""}>{t.h1Live}</h1>
+        <p class={hi ? "hi-text" : ""}>
+          {t.pLive}
         </p>
-        <a class="cta" href={storeUrl} rel="noopener noreferrer">Visit the gemstone store →</a>
+        <a class="cta" href={storeUrl} rel="noopener noreferrer">{t.ctaLive}</a>
       </>
     ) : (
       <>
-        <h1>Coming soon..!</h1>
-        <p>
-          Our gemstone recommendations are being crafted with the same care as the rest
-          of Vyotish — traditional guidance, honest sourcing, no exaggerated claims. The
-          moment the store launches, this page links straight to it.
+        <h1 class={hi ? "hi-text" : ""}>{t.h1Soon}</h1>
+        <p class={hi ? "hi-text" : ""}>
+          {t.pSoon}
         </p>
-        <a class="back" href="/">← Back to home</a>
+        <a class="back" href={withLang("/", Astro.url.pathname)}>{t.backHome}</a>
       </>
     )}
   </section>

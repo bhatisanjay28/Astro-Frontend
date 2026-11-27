@@ -223,6 +223,7 @@ function syncDate(ctx: RootCtx): void {
     { dd: ctx.dd?.value ?? "", mm: ctx.mmD?.value ?? "", yyyy: ctx.yy?.value ?? "" },
     ctx.preset,
     todayMidnight(),
+    isHi() ? "hi" : "en",
   );
   if (ctx.mode === "datetime") {
     // combined contract: hidden only fills when BOTH halves are valid;
@@ -262,7 +263,11 @@ function syncTimePart(ctx: RootCtx): TimeCheck {
       : ctx.am?.getAttribute("aria-pressed") === "true"
         ? "am"
         : "";
-  const chk = checkTime({ hh: ctx.hh?.value ?? "", mm: ctx.mi?.value ?? "", ampm }, ctx.hour12);
+  const chk = checkTime(
+    { hh: ctx.hh?.value ?? "", mm: ctx.mi?.value ?? "", ampm },
+    ctx.hour12,
+    isHi() ? "hi" : "en",
+  );
   if (ctx.mode === "time") {
     if (chk.ok) {
       ctx.hidden.value = chk.value;

@@ -5,10 +5,18 @@ import PlaceField from "../../components/PlaceField.astro";
 /** /muhurat/ — today's windows + finder form (Epic 3.4). Client islands on
  * the LIVE /api/v1/muhurat routes. City pickers use the /places proxy
  * (owner directive, 2026-11-20); the today-island keeps a New Delhi default
- * and reloads when a place is selected. */
+ * and reloads when a place is selected.
+ * S24: the /hi twin renders this same body via the page path — chrome,
+ * labels, island status strings, event labels and window names follow the
+ * page language (MUHURAT dict). */
 import Base from "../../layouts/Base.astro";
+import { langFromPath } from "../../lib/i18n";
+import { MUHURAT } from "../../lib/i18n/muhurat";
 
 const apiBase = import.meta.env.PUBLIC_API_BASE_URL ?? "https://astro-backend.vyotish.workers.dev";
+const lang = langFromPath(Astro.url.pathname);
+const hi = lang === "hi";
+const t = MUHURAT[lang];
 const EVENTS = [
   "marriage",
   "engagement",
@@ -24,83 +32,87 @@ const EVENTS = [
 ---
 
 <Base
-  title="Muhurat Today & Finder | Vyotish"
-  description="Today's auspicious and inauspicious windows (Abhijit, Brahma Muhurta, Rahu Kaal) and an event-wise muhurat finder."
+  title={t.title}
+  description={t.description}
 >
   <section class="mt">
-    <h1>Muhurat</h1>
-    <p class="lede">
-      Today's auspicious and inauspicious periods for your city, plus an event-wise
-      finder. <strong>Treat the windows as indicative only — for an important
-      occasion, confirm the muhurat in a personal consultation.</strong>
-    </p>
+    <h1 class={hi ? "hi-text" : ""}>{t.h1}</h1>
+    <p class={`lede ${hi ? "hi-text" : ""}`} set:html={t.lede} />
   </section>
 
   <section class="today" aria-labelledby="today-h">
-    <h2 id="today-h">Today</h2>
+    <h2 id="today-h" class={hi ? "hi-text" : ""}>{t.todayH}</h2>
     <div class="toolbar">
       <div class="tb-city">
         <PlaceField
           variant="combined"
           inputId="mt-place"
-          label="Your city"
+          label={t.yourCity}
           names={{ combined: "city" }}
           ids={{}}
           hiddenAttrs={{ "data-mt-city": "", value: "28.6139,77.209,Asia/Kolkata" }}
         />
       </div>
-      <p class="def-note">Defaults to New Delhi — pick your city above for local windows.</p>
+      <p class={`def-note ${hi ? "hi-text" : ""}`}>{t.defNote}</p>
     </div>
     <div class="windows" data-mt-out>
-      <div class="cell skeleton">Loading…</div>
+      <div class={`cell skeleton ${hi ? "hi-text" : ""}`}>{t.loading}</div>
     </div>
   </section>
 
   <section class="finder" aria-labelledby="finder-h">
-    <h2 id="finder-h">Muhurat finder</h2>
+    <h2 id="finder-h" class={hi ? "hi-text" : ""}>{t.finderH}</h2>
     <form data-mf-form>
-      <RequiredNote />
+      <RequiredNote lang={lang} />
       <div class="row">
-        <label>Event
+        <label class={hi ? "hi-text" : ""}>{t.eventLabel}
           <select name="event">
-            {EVENTS.map((e) => <option value={e}>{e.replace(/_/g, " ")}</option>)}
+            {EVENTS.map((e) => <option value={e}>{t.events[e] ?? e.replace(/_/g, " ")}</option>)}
           </select>
         </label>
-        <DateField id="mf-from" name="from" label="From" required preset="free" />
-        <DateField id="mf-to" name="to" label="To" required preset="free" />
+        <DateField id="mf-from" name="from" label={t.from} required preset="free" />
+        <DateField id="mf-to" name="to" label={t.to} required preset="free" />
         <PlaceField
           variant="combined"
           inputId="mf-place"
-          label="City"
+          label={t.city}
           names={{ combined: "city" }}
         />
       </div>
-      <button type="submit">Find muhurat windows</button>
+      <button type="submit" class={hi ? "hi-text" : ""}>{t.submit}</button>
     </form>
-    <div class="mf-error" data-mf-error hidden>Could not run the finder — check the range (max 62 days) and try again.</div>
+    <div class={`mf-error ${hi ? "hi-text" : ""}`} data-mf-error hidden>{t.errFinder}</div>
     <div class="mf-out" data-mf-out hidden aria-live="polite"></div>
   </section>
 
   <script>
     // S18 — shared validation gate for the finder: From/To dates + city are
-    // markup-driven (all required); no text rules.
+    // markup-driven (all required); no text rules. The city message follows
+    // the page language (module scripts read <html lang>).
     import { installFormValidation } from "../../scripts/form-validation";
+    import { MUHURAT } from "../../lib/i18n/muhurat";
+    const mfLang = document.documentElement.lang === "hi" ? "hi" : "en";
     const mfForm = document.querySelector<HTMLFormElement>("[data-mf-form]");
     // the finder's City is a location, not a birth place — keep the gate's
     // message in the field's own context (its inline check stays as fallback)
-    if (mfForm) installFormValidation(mfForm, { placeMessage: "Please select the city from the suggestions." });
+    if (mfForm) installFormValidation(mfForm, { placeMessage: MUHURAT[mfLang].errCity });
   </script>
 
-  <script is:inline define:vars={{ apiBase }}>
+  <script is:inline define:vars={{
+    apiBase, locale: t.locale, loading: t.loading, avoid: t.avoid, unavailToday: t.unavailToday,
+    errCity: t.errCity, failPre: t.failPre, exclPre: t.exclPre, exclPost: t.exclPost,
+    verdicts: t.verdicts, windowNames: t.windowNames,
+  }}>
     (function () {
+      function wname(n) { return windowNames[n] || n; }
       function fmt(iso, tz) {
         try {
-          return new Intl.DateTimeFormat("en-GB", { timeZone: tz, hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(iso));
+          return new Intl.DateTimeFormat(locale, { timeZone: tz, hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(iso));
         } catch (e) { return "—"; }
       }
       function dayName(iso, tz) {
         try {
-          return new Intl.DateTimeFormat("en-GB", { timeZone: tz, weekday: "short", day: "numeric", month: "short" }).format(new Date(iso));
+          return new Intl.DateTimeFormat(locale, { timeZone: tz, weekday: "short", day: "numeric", month: "short" }).format(new Date(iso));
         } catch (e) { return ""; }
       }
 
@@ -110,18 +122,18 @@ const EVENTS = [
       function loadToday() {
         var parts = citySel.value.split(",");
         var url = apiBase + "/api/v1/muhurat/today?lat=" + parts[0] + "&lng=" + parts[1] + "&tz=" + encodeURIComponent(parts[2]);
-        out.innerHTML = '<div class="cell skeleton">Loading…</div>';
+        out.innerHTML = '<div class="cell skeleton">' + loading + "</div>";
         fetch(url).then(function (r) { return r.json(); }).then(function (j) {
           var d = j.data;
           var rows = [];
           d.auspicious.forEach(function (s) {
-            rows.push('<div class="cell good"><div class="sn">' + s.name + '</div><div class="st">' + fmt(s.start, d.timezone) + " – " + fmt(s.end, d.timezone) + "</div></div>");
+            rows.push('<div class="cell good"><div class="sn">' + wname(s.name) + '</div><div class="st">' + fmt(s.start, d.timezone) + " – " + fmt(s.end, d.timezone) + "</div></div>");
           });
           d.inauspicious.forEach(function (s) {
-            rows.push('<div class="cell bad"><div class="sn">' + s.name + '</div><div class="st">' + fmt(s.start, d.timezone) + " – " + fmt(s.end, d.timezone) + '</div><div class="ss">avoid</div></div>');
+            rows.push('<div class="cell bad"><div class="sn">' + wname(s.name) + '</div><div class="st">' + fmt(s.start, d.timezone) + " – " + fmt(s.end, d.timezone) + '</div><div class="ss">' + avoid + "</div></div>");
           });
           out.innerHTML = rows.join("");
-        }).catch(function () { out.innerHTML = '<div class="cell">Unavailable right now.</div>'; });
+        }).catch(function () { out.innerHTML = '<div class="cell">' + unavailToday + "</div>"; });
       }
       citySel.addEventListener("change", loadToday);
       // the place picker writes the hidden input directly — listen for it
@@ -139,7 +151,7 @@ const EVENTS = [
         var f = new FormData(form);
         var cityRaw = String(f.get("city") || "");
         if (!cityRaw || cityRaw.split(",").length < 3) {
-          mfErr.textContent = "Please select the city from the suggestions.";
+          mfErr.textContent = errCity;
           mfErr.removeAttribute("hidden");
           return;
         }
@@ -163,10 +175,10 @@ const EVENTS = [
             res.days.forEach(function (day) {
               var badge = day.verdict === "suitable" ? "ok" : day.verdict === "conditional" ? "cond" : "no";
               var fails = day.failing_rules.map(function (fr) { return fr.rule_name; }).join("; ") || "—";
-              html += '<div class="day ' + badge + '"><div class="dh"><span>' + dayName(day.date + "T00:00:00Z", res.timezone) + '</span><span class="badge ' + badge + '">' + day.verdict + "</span></div>";
-              html += '<div class="df">Failing rules: ' + fails + "</div>";
+              html += '<div class="day ' + badge + '"><div class="dh"><span>' + dayName(day.date + "T00:00:00Z", res.timezone) + '</span><span class="badge ' + badge + '">' + (verdicts[day.verdict] || day.verdict) + "</span></div>";
+              html += '<div class="df">' + failPre + fails + "</div>";
               day.candidate_windows.forEach(function (w) {
-                html += '<div class="win">' + w.name + ": " + fmt(w.start, res.timezone) + " – " + fmt(w.end, res.timezone) + (w.exclusions.length ? " (excludes " + w.exclusions.join(", ") + ")" : "") + "</div>";
+                html += '<div class="win">' + wname(w.name) + ": " + fmt(w.start, res.timezone) + " – " + fmt(w.end, res.timezone) + (w.exclusions.length ? exclPre + w.exclusions.map(wname).join(", ") + exclPost : "") + "</div>";
               });
               html += "</div>";
             });

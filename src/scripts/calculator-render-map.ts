@@ -8,17 +8,20 @@
  */
 import type { Cell, Chip, DetailCard, ToolMapEntry } from "./calculator-renderer-types";
 
+/* S24 — date locale follows the page language (client-only module) */
+const dateLocale = (): string =>
+  (document.documentElement.lang || "en").toLowerCase().startsWith("hi") ? "hi-IN" : "en-IN";
 const fmtDate = (iso: unknown): string => {
   const s = iso == null ? "" : String(iso);
   const d = new Date(s);
   if (!s || Number.isNaN(d.getTime())) return s || "—";
-  return d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+  return d.toLocaleDateString(dateLocale(), { day: "numeric", month: "short", year: "numeric" });
 };
 const fmtDateTime = (iso: unknown): string => {
   const s = iso == null ? "" : String(iso);
   const d = new Date(s);
   if (!s || Number.isNaN(d.getTime())) return s || "—";
-  return `${fmtDate(s)}, ${d.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}`;
+  return `${fmtDate(s)}, ${d.toLocaleTimeString(dateLocale(), { hour: "2-digit", minute: "2-digit" })}`;
 };
 const ordinal = (n: number): string => {
   const mod10 = n % 10;

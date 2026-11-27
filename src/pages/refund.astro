@@ -1,111 +1,13 @@
 ---
 /**
- * Refund & Cancellation — Epic 7.3 final draft.
- * Phase 1 = booking requests only, no online payments (PRD §20), so the page is
- * honest about that and pre-commits the refund principles that take effect when
- * payments open (gateway + GST invoicing). Windows follow astrology-industry
- * practice: consultations full-refund ≥24h before session, poojas 48h windows
- * (AnytimeAstro pattern), 5–7 business-day processing to original payment method,
- * refund-source symmetry per Consumer Protection (E-Commerce) Rules 2020 Rule 4(8).
- * Owner review pending (epics.md 7.3 / launch-blockers.md).
+ * Refund & Cancellation — Epic 7.3 final draft. S24: content moved to
+ * src/lib/i18n/refund.ts (EN verified verbatim); the /hi twin renders Hindi.
  */
 import LegalPage from "../components/LegalPage.astro";
+import { langFromPath } from "../lib/i18n";
+import { REFUND } from "../lib/i18n/refund";
 
-const UPDATED = "21 November 2026";
-
-const sections = [
-  {
-    id: "scope",
-    heading: "Scope and current status",
-    paragraphs: [
-      "This policy covers cancellations, refunds and disputes for <strong>consultations</strong> and <strong>pooja bookings</strong> on Vyotish.",
-      "<strong>Important for today:</strong> Vyotish is currently in its first launch phase and does not accept online payments. Submitting a booking or enquiry request costs nothing — you are never charged on this website at present, so there is nothing to refund yet. We publish the principles below in advance so you know exactly where you stand before any payment is ever taken.",
-    ],
-  },
-  {
-    id: "consultations",
-    heading: "Consultations — when payments open",
-    bullets: [
-      "<strong>Cancel or reschedule before the session is scheduled:</strong> full refund.",
-      "<strong>Cancel at least 24 hours before the confirmed session time:</strong> full refund.",
-      "<strong>Cancel within 24 hours of the confirmed session time:</strong> one free reschedule, or a refund of 50% of the fee.",
-      "<strong>After the session has started:</strong> no refund — the service has been delivered. If you feel a session was materially not delivered (for example, the astrologer was absent or the session was cut short by a technical failure on our side), tell us within 7 days and we will review it for a refund or a repeat session.",
-    ],
-    note: [
-      "We do not refund completed consultations merely for dissatisfaction with the astrologer’s interpretation — every astrologer’s reading is their professional opinion, and opinions differ. What we do guarantee is that the session you paid for actually happens, with the astrologer you chose.",
-    ],
-  },
-  {
-    id: "poojas",
-    heading: "Pooja bookings — when payments open",
-    bullets: [
-      "<strong>More than 48 hours before the scheduled pooja:</strong> full refund.",
-      "<strong>Between 24 and 48 hours before:</strong> refund less 20% — preparations and materials are already underway.",
-      "<strong>Within 24 hours of the scheduled pooja:</strong> no refund; you may reschedule once.",
-      "<strong>Once the ritual has begun:</strong> non-refundable, in line with standard practice — the service is being performed on your behalf and is complete in substance.",
-    ],
-  },
-  {
-    id: "by-us",
-    heading: "If we cancel",
-    paragraphs: [
-      "If we cannot deliver a service you paid for — an astrologer becomes unavailable, a slot falls through, the pooja cannot be performed — you choose: a full refund, or a rescheduled date. We bear the cost when we cause the cancellation, and we never levy a cancellation charge on you that we would not bear ourselves.",
-    ],
-  },
-  {
-    id: "failed-payments",
-    heading: "Failed or duplicate payments",
-    paragraphs: [
-      "If money is debited from you twice, or debited for a booking that failed, we reverse the excess in full. Payment-gateway technical failures on our side are always our cost, not yours.",
-    ],
-  },
-  {
-    id: "processing",
-    heading: "How refunds are processed",
-    bullets: [
-      "Refunds go back to the <strong>original payment method</strong> you used — never to a store wallet that locks the money in.",
-      "Once a refund is approved, we initiate it within 2 business days; it typically reflects within <strong>5–7 business days</strong>, depending on your bank or card issuer.",
-      "We reissue or adjust the GST invoice where one was issued.",
-      "Where a refund is triggered by our error, we absorb any payment-gateway processing charges rather than deducting them from you.",
-    ],
-  },
-  {
-    id: "non-refundable",
-    heading: "What is non-refundable",
-    bullets: [
-      "Completed consultations (except a materially undelivered session — see above).",
-      "Poojas whose ritual has begun.",
-      "No-shows without prior cancellation notice.",
-    ],
-  },
-  {
-    id: "how-to-request",
-    heading: "How to request a refund or cancellation",
-    paragraphs: [
-      'Email <a href="mailto:vyotish@gmail.com">vyotish@gmail.com</a> with your booking reference, the registered name, and what you are asking for. We acknowledge within 48 hours and give you a decision within 7 business days — well inside the one-month complaint redressal timeline required by the Consumer Protection (E-Commerce) Rules, 2020. Unresolved complaints go to our Grievance Officer as described on our <a href="/terms#grievance">Terms of Use</a> page.',
-    ],
-  },
-  {
-    id: "chargebacks",
-    heading: "Chargebacks",
-    paragraphs: [
-      "If you disagree with a charge, please contact us before raising a chargeback with your bank — it is almost always faster for everyone, and we would rather make it right than fight a dispute. We cooperate fully with lawful chargeback processes either way.",
-    ],
-  },
-  {
-    id: "changes",
-    heading: "Changes to this policy",
-    paragraphs: [
-      "When payments go live, we will publish any additions to this policy on this page — with the date — before they take effect, and these published terms govern every booking made after that point.",
-    ],
-  },
-];
+const t = REFUND[langFromPath(Astro.url.pathname)];
 ---
 
-<LegalPage
-  title="Refund & Cancellation | Vyotish"
-  heading="Refund & Cancellation"
-  intro="Our cancellation and refund commitments for consultations and poojas — published before payments even open, so you always know where you stand."
-  updated={UPDATED}
-  sections={sections}
-/>
+<LegalPage title={t.title} heading={t.heading} intro={t.intro} updated={t.updated} sections={t.sections} />

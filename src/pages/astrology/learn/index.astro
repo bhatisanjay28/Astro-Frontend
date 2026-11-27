@@ -1,33 +1,33 @@
 ---
 import { getCollection } from "astro:content";
 /** /astrology/learn/ — Learn hub (Epic 4.5): original articles from the
- * Astro content collection. */
+ * Astro content collection. S24: dict-driven chrome; /hi twin renders Hindi
+ * chrome around the same (original-language) article list. */
 import Base from "../../../layouts/Base.astro";
+import { langFromPath, withLang } from "../../../lib/i18n";
+import { LEARN_HUB, learnLede } from "../../../lib/i18n/learn";
 
+const lang = langFromPath(Astro.url.pathname);
+const t = LEARN_HUB[lang];
+const here = Astro.url.pathname;
 const articles = (await getCollection("learn")).sort((a, b) => a.data.order - b.data.order);
+const ledeHtml = learnLede(lang, withLang("/calculators", here));
 ---
 
-<Base
-  title="Learn Vedic Astrology — Original Articles | Vyotish"
-  description="Original Vedic astrology scholarship: the 12 rashis, Navagraha, 27 nakshatras, houses, panchang yogas, doshas and Vimshottari dasha."
->
+<Base title={t.title} description={t.description}>
   <section class="lrn">
-    <h1>Learn Vedic Astrology</h1>
-    <p class="lede">
-      Original, no-fear scholarship: what the classical system actually says, how
-      Vyotish computes it, and where interpretation schools differ. Pair the theory
-      with the <a href="/calculators">free calculators</a>.
-    </p>
+    <h1 class={lang === "hi" ? "hi-text" : ""}>{t.h1}</h1>
+    <p class="lede" set:html={ledeHtml} />
     <div class="grid">
       {
         articles.length === 0 ? (
-          <p class="lede">Articles are being prepared — please check back shortly.</p>
+          <p class="lede">{t.empty}</p>
         ) : (
           articles.map((a) => (
             <a class="card" href={`/astrology/learn/${a.id}`}>
               <span class="name">{a.data.title}</span>
               <span class="desc">{a.data.description}</span>
-              <span class="cta">Read →</span>
+              <span class="cta">{t.cta}</span>
             </a>
           ))
         )

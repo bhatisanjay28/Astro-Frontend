@@ -1,7 +1,11 @@
 ---
 import { type CollectionEntry, getCollection, render } from "astro:content";
-/** /astrology/learn/{slug} — article renderer (Epic 4.5). */
+/** /astrology/learn/{slug} — article renderer (Epic 4.5). Articles are
+ * original-language scholarship (blog policy): the body stays as authored;
+ * S24 localizes the chrome around it, and learn deep routes have no /hi twin. */
 import Base from "../../../layouts/Base.astro";
+import { langFromPath, withLang } from "../../../lib/i18n";
+import { LEARN_ART } from "../../../lib/i18n/learn";
 
 export async function getStaticPaths() {
   const articles = await getCollection("learn");
@@ -10,6 +14,8 @@ export async function getStaticPaths() {
 
 const { article } = Astro.props as { article: CollectionEntry<"learn"> };
 const { Content } = await render(article);
+const t = LEARN_ART[langFromPath(Astro.url.pathname)];
+const here = Astro.url.pathname;
 
 const others = (await getCollection("learn"))
   .filter((a) => a.id !== article.id)
@@ -23,7 +29,7 @@ const others = (await getCollection("learn"))
 >
   <article class="art">
     <nav class="crumbs" aria-label="Breadcrumb">
-      <a href="/astrology/learn/">Learn</a>
+      <a href={withLang("/astrology/learn/", here)}>{t.learnLabel}</a>
       <span>/</span>
       <span>{article.data.title}</span>
     </nav>
@@ -35,7 +41,7 @@ const others = (await getCollection("learn"))
     </div>
 
     <aside class="more">
-      <h2>Keep learning</h2>
+      <h2>{t.moreH}</h2>
       <ul>
         {
           others.map((o) => (
@@ -46,8 +52,7 @@ const others = (await getCollection("learn"))
         }
       </ul>
       <p>
-        Practice on the <a href="/calculators">free calculators</a> or generate your
-        <a href="/kundli">free kundli</a>.
+        {t.practicePre}<a href={withLang("/calculators", here)}>{t.calcLink}</a>{t.practiceMid}<a href={withLang("/kundli", here)}>{t.kundliLink}</a>{t.practicePost}
       </p>
     </aside>
   </article>

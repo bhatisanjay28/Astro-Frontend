@@ -1,13 +1,14 @@
 ---
 /**
- * Explore Vyotish — one tile per tab (PRD §6). Used on both homes; on the
- * Hindi home the horoscope tile links to /hi/horoscope (S22) and the other
- * tiles keep their EN hrefs (no hi twins yet — honest fallback).
+ * Explore Vyotish — one tile per tab (PRD §6). Used on both homes; on Hindi
+ * pages every tile links its /hi twin and renders the Hindi label +
+ * description (S24 — description_hi on each tab in navigation.ts).
  */
 import { NAV_TABS, withLang } from "../data/navigation";
+import type { Lang } from "../lib/i18n";
 
 interface Props {
-  lang?: "en" | "hi";
+  lang?: Lang;
 }
 const { lang = "en" } = Astro.props;
 const hi = lang === "hi";
@@ -24,7 +25,7 @@ const tileHref = (href: string) => withLang(href, hi ? "/hi/" : "/");
             {t.icon}
           </span>
           <span class="t-label">{hi ? t.label_hi : t.label}</span>
-          <span class="t-desc">{t.description}</span>
+          <span class="t-desc">{hi ? (t.description_hi ?? t.description) : t.description}</span>
         </a>
       ))
     }

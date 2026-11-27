@@ -12,15 +12,25 @@
  * Level-3 popover (hairline border, deep warm shadow, gold top hairline)
  * re-mapped to the site tokens. Desktop triggers carry no chevron: the 9-tab
  * row is already width-bound at the 1280px entry point.
+ *
+ * S24: withLang() (lib/i18n.ts) keeps EVERY twin route in the visitor's
+ * language — on /hi pages all tab/mega/drawer hrefs carry the /hi prefix and
+ * labels/descriptions render their Hindi twins (label_hi / hi / hi_desc /
+ * title_hi); on EN pages everything is unchanged.
  */
 import { NAV_TABS, withLang } from "../data/navigation";
+import type { Lang } from "../lib/i18n";
+import { BRAND_TAGLINE, HEADER } from "../lib/i18n/chrome";
 
 interface Props {
   currentPath?: string;
+  lang?: Lang;
 }
-const { currentPath = "/" } = Astro.props;
-// S22: on Hindi pages the horoscope tab/mega/drawer links carry the /hi
-// prefix (the only section with real hi twins); everything else stays EN.
+const { currentPath = "/", lang = "en" } = Astro.props;
+const t = HEADER[lang];
+const hi = lang === "hi";
+// S24: on Hindi pages every internal link carries the /hi prefix (all twin
+// routes exist now); on English pages hrefs pass through unchanged.
 const hp = (href: string) => withLang(href, currentPath);
 const isActive = (href: string) =>
   currentPath === href || (href !== "/" && currentPath.startsWith(href));
@@ -30,8 +40,16 @@ const navId = (href: string) => `mm-${href.replace(/\//g, "") || "home"}`;
 
 <header class="chrome-reset sticky top-0 z-40 bg-light-surface/95 dark:bg-dark-surface/95 backdrop-blur-sm border-b border-light-outline-variant/60 dark:border-dark-outline-variant/40">
   <div class="site-header-inner max-w-7xl mx-auto px-4 sm:px-8 py-3.5 flex items-center justify-between">
-    <!-- Brand & logo -->
-    <a href="/" class="flex items-center gap-2.5 group" aria-label="Vyotish Vedic Astrology &amp; Wisdom — home">
+    <!-- Brand & logo. Accessible name includes the visible brand + tagline
+         (axe label-content-name-mismatch: the name must contain the visible
+         text — the tagline flips to Hindi on /hi pages). -->
+    <a
+      href={hp("/")}
+      class="flex items-center gap-2.5 group"
+      aria-label={hi
+        ? `Vyotish ${BRAND_TAGLINE[lang]} — मुख्य पृष्ठ`
+        : `Vyotish ${BRAND_TAGLINE[lang]} — home`}
+    >
       <div class="w-9 h-9 rounded-lg bg-light-primary dark:bg-dark-primary flex items-center justify-center text-light-on-primary dark:text-dark-on-primary shadow-xs">
         <!-- Jyotish Vedic Mandala Symbol -->
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -41,18 +59,18 @@ const navId = (href: string) => `mm-${href.replace(/\//g, "") || "home"}`;
       </div>
       <div>
         <span class="font-display font-bold text-headline-sm text-light-on-surface dark:text-dark-on-surface block leading-tight">Vyotish</span>
-        <span class="font-body text-label-sm tracking-wider uppercase text-light-primary dark:text-dark-primary font-medium block">Vedic Astrology &amp; Wisdom</span>
+        <span class={`font-body text-label-sm tracking-wider uppercase text-light-primary dark:text-dark-primary font-medium block ${hi ? "hi-text" : ""}`}>{BRAND_TAGLINE[lang]}</span>
       </div>
     </a>
 
     <!-- 9 main tabs (desktop mega menu; hover-capable pointers ≥ 1280px) -->
-    <nav class="nav-mega font-title text-title-sm" aria-label="Main Navigation">
+    <nav class="nav-mega font-title text-title-sm" aria-label={t.mainNav}>
       <ul class="flex items-center gap-1">
         {
-          NAV_TABS.map((t) => {
-            const active = isActive(hp(t.href));
+          NAV_TABS.map((tab) => {
+            const active = isActive(hp(tab.href));
             const tone =
-              t.label === "Gemstones"
+              tab.label === "Gemstones"
                 ? "text-light-outline dark:text-dark-outline hover:text-light-on-surface dark:hover:text-dark-on-surface relative"
                 : active
                   ? "text-light-primary dark:text-dark-primary font-semibold bg-light-primary-container dark:bg-dark-primary-container"
@@ -60,33 +78,35 @@ const navId = (href: string) => `mm-${href.replace(/\//g, "") || "home"}`;
             return (
               <li class="mm-item" data-mm>
                 <a
-                  href={hp(t.href)}
+                  href={hp(tab.href)}
                   aria-current={active ? "page" : undefined}
-                  aria-expanded={t.menu ? "false" : undefined}
-                  aria-controls={t.menu ? navId(t.href) : undefined}
+                  aria-expanded={tab.menu ? "false" : undefined}
+                  aria-controls={tab.menu ? navId(tab.href) : undefined}
                   class={`nav-tab px-2.5 py-1.5 rounded font-medium whitespace-nowrap transition-colors ${tone}`}
-                  data-mm-trigger={t.menu ? "" : undefined}
+                  data-mm-trigger={tab.menu ? "" : undefined}
                 >
-                  {t.label}
-                  {t.label === "Gemstones" && (
-                    <span class="text-label-sm px-1.5 py-0.5 bg-light-primary-container text-light-primary dark:bg-dark-primary-container dark:text-dark-primary rounded-full font-label font-semibold ml-1">Soon</span>
+                  <span class={hi ? "hi-text" : undefined}>{hi ? tab.label_hi : tab.label}</span>
+                  {tab.label === "Gemstones" && (
+                    <span class="text-label-sm px-1.5 py-0.5 bg-light-primary-container text-light-primary dark:bg-dark-primary-container dark:text-dark-primary rounded-full font-label font-semibold ml-1">{hi ? "शीघ्र" : "Soon"}</span>
                   )}
                 </a>
-                {t.menu && (
-                  <div class="mm-panel" id={navId(t.href)} data-mm-panel hidden>
+                {tab.menu && (
+                  <div class="mm-panel" id={navId(tab.href)} data-mm-panel hidden>
                     <div class="mm-cols">
-                      {t.menu.map((g) => (
+                      {tab.menu.map((g) => (
                         <div class="mm-group" style={`--mm-cols:${g.cols ?? 1}`}>
-                          {g.title && <p class="mm-title">{g.title}</p>}
+                          {g.title && <p class={`mm-title ${hi ? "hi-text" : ""}`}>{hi ? (g.title_hi ?? g.title) : g.title}</p>}
                           <ul>
                             {g.links.map((l) => (
                               <li>
                                 <a class="mm-link" href={hp(l.href)}>
                                   <span class="mm-row">
-                                    <span class="mm-label">{l.label}</span>
-                                    {l.hi && <span class="mm-hi hi-text" lang="hi">{l.hi}</span>}
+                                    <span class={`mm-label ${hi ? "hi-text" : ""}`}>{hi ? (l.hi ?? l.label) : l.label}</span>
+                                    {!hi && l.hi && <span class="mm-hi hi-text" lang="hi">{l.hi}</span>}
                                   </span>
-                                  {l.desc && <span class="mm-desc">{l.desc}</span>}
+                                  {(hi ? l.hi_desc ?? l.desc : l.desc) && (
+                                    <span class={`mm-desc ${hi ? "hi-text" : ""}`}>{hi ? (l.hi_desc ?? l.desc) : l.desc}</span>
+                                  )}
                                 </a>
                               </li>
                             ))}
@@ -105,11 +125,11 @@ const navId = (href: string) => `mm-${href.replace(/\//g, "") || "home"}`;
 
     <!-- Primary action + mobile hamburger -->
     <div class="flex items-center gap-3">
-      <a href="/consultations" class="hidden sm:inline-flex items-center justify-center gap-2 px-4 py-2 bg-light-primary text-light-on-primary dark:bg-dark-primary dark:text-dark-on-primary rounded font-label text-label-md font-medium shadow-xs hover:opacity-95 transition-opacity">
+      <a href={hp("/consultations")} class="hidden sm:inline-flex items-center justify-center gap-2 px-4 py-2 bg-light-primary text-light-on-primary dark:bg-dark-primary dark:text-dark-on-primary rounded font-label text-label-md font-medium shadow-xs hover:opacity-95 transition-opacity">
         <span class="material-symbols-outlined text-title-md">support_agent</span>
-        <span>Talk to Astrologer</span>
+        <span class={hi ? "hi-text" : undefined}>{t.cta}</span>
       </a>
-      <button type="button" data-drawer-toggle aria-label="Open mobile menu" aria-expanded="false" aria-controls="mobile-drawer" class="nav-mobile-trigger p-2 rounded text-light-on-surface dark:text-dark-on-surface">
+      <button type="button" data-drawer-toggle aria-label={t.openMenu} aria-expanded="false" aria-controls="mobile-drawer" class="nav-mobile-trigger p-2 rounded text-light-on-surface dark:text-dark-on-surface">
         <span class="material-symbols-outlined text-headline-sm">menu</span>
       </button>
     </div>
@@ -117,41 +137,41 @@ const navId = (href: string) => `mm-${href.replace(/\//g, "") || "home"}`;
 
   <!-- Mobile drawer + accordion (hidden whenever the desktop mega menu is active) -->
   <div id="mobile-drawer" hidden class="nav-mobile-trigger border-t border-light-outline-variant/60 dark:border-dark-outline-variant/40 bg-light-surface dark:bg-dark-surface">
-    <nav class="max-w-7xl mx-auto px-4 py-3 flex flex-col gap-1 font-title text-title-sm" aria-label="Mobile Navigation">
+    <nav class="max-w-7xl mx-auto px-4 py-3 flex flex-col gap-1 font-title text-title-sm" aria-label={t.mobileNav}>
       {
-        NAV_TABS.map((t) => {
+        NAV_TABS.map((tab) => {
           const row = `flex items-center gap-2 px-3 py-3 rounded ${
-            isActive(hp(t.href))
+            isActive(hp(tab.href))
               ? "bg-light-primary-container text-light-primary dark:bg-dark-primary-container dark:text-dark-primary font-semibold"
               : "text-light-on-surface-variant dark:text-dark-on-surface-variant"
           }`;
           const icon = (
             <span class="material-symbols-outlined text-title-md text-light-primary dark:text-dark-primary" aria-hidden="true">
-              {t.icon}
+              {tab.icon}
             </span>
           );
-          const hi = (
+          const hiName = (
             <span class="ml-auto font-body text-body-sm text-light-outline dark:text-dark-outline hi-text" lang="hi">
-              {t.label_hi}
+              {tab.label_hi}
             </span>
           );
-          if (!t.menu) {
+          if (!tab.menu) {
             return (
-              <a href={hp(t.href)} class={row}>
+              <a href={hp(tab.href)} class={row}>
                 {icon}
-                <span>{t.label}</span>
-                {hi}
+                <span class={hi ? "hi-text" : undefined}>{hi ? tab.label_hi : tab.label}</span>
+                {!hi && hiName}
               </a>
             );
           }
-          const panelId = `acc-${navId(t.href)}`;
+          const panelId = `acc-${navId(tab.href)}`;
           return (
             <div class="acc" data-acc>
               <div class="flex items-center gap-1">
-                <a href={hp(t.href)} class={`${row} flex-1 min-w-0`}>
+                <a href={hp(tab.href)} class={`${row} flex-1 min-w-0`}>
                   {icon}
-                  <span>{t.label}</span>
-                  {hi}
+                  <span class={hi ? "hi-text" : undefined}>{hi ? tab.label_hi : tab.label}</span>
+                  {!hi && hiName}
                 </a>
                 <button
                   type="button"
@@ -159,19 +179,19 @@ const navId = (href: string) => `mm-${href.replace(/\//g, "") || "home"}`;
                   data-acc-toggle
                   aria-expanded="false"
                   aria-controls={panelId}
-                  aria-label={`${t.label} submenu`}
+                  aria-label={`${hi ? tab.label_hi : tab.label} ${t.submenu}`}
                 >
                   <span class="material-symbols-outlined text-title-md" aria-hidden="true">expand_more</span>
                 </button>
               </div>
               <div id={panelId} data-acc-panel hidden>
                 <ul class="acc-list">
-                  {t.menu.flatMap((g) =>
+                  {tab.menu.flatMap((g) =>
                     g.links.map((l) => (
                       <li>
                         <a href={hp(l.href)} class="acc-link">
-                          <span>{l.label}</span>
-                          {l.hi && <span class="hi-text" lang="hi">{l.hi}</span>}
+                          <span class={hi ? "hi-text" : undefined}>{hi ? (l.hi ?? l.label) : l.label}</span>
+                          {!hi && l.hi && <span class="hi-text" lang="hi">{l.hi}</span>}
                         </a>
                       </li>
                     )),

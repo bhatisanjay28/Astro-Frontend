@@ -2,7 +2,11 @@
  * Blog search island (Epic 6.3) — vanilla TS; queries the public
  * /api/v1/blog/posts endpoint and renders PostCard-style results without
  * reloading. Rendered markup mirrors the server card so both states agree.
+ * S24: status headings, card meta ("min read") and the date locale follow
+ * the page language (module script → dict import is safe; Base sets
+ * <html lang> before deferred module scripts run).
  */
+import { BLOG_CARD, BLOG_SEARCH } from "../lib/i18n/hubs";
 
 interface SearchPost {
   slug: string;
@@ -14,7 +18,11 @@ interface SearchPost {
   reading_minutes: number | null;
 }
 
-const dateFmt = new Intl.DateTimeFormat("en-IN", {
+const lang = document.documentElement.lang === "hi" ? "hi" : "en";
+const tSearch = BLOG_SEARCH[lang];
+const tCard = BLOG_CARD[lang];
+
+const dateFmt = new Intl.DateTimeFormat(tCard.locale, {
   day: "numeric",
   month: "short",
   year: "numeric",
@@ -26,7 +34,7 @@ function cardHtml(p: SearchPost): string {
     : "";
   const meta = [
     p.publish_at ? dateFmt.format(new Date(p.publish_at)) : "",
-    p.reading_minutes ? `${p.reading_minutes} min read` : "",
+    p.reading_minutes ? `${p.reading_minutes}${tCard.readSuf}` : "",
   ]
     .filter(Boolean)
     .map((s) => `<span>${s}</span>`)
@@ -57,7 +65,8 @@ export function initBlogSearch(root: HTMLElement): void {
     ev.preventDefault();
     const q = (form.elements.namedItem("q") as HTMLInputElement | null)?.value.trim() ?? "";
     if (!q) return;
-    heading.textContent = `Searching for “${esc(q)}”…`;
+    // textContent is entity-safe — no escaping needed here
+    heading.textContent = tSearch.searching(q);
     grid.innerHTML = "";
     results.removeAttribute("hidden");
     try {
@@ -67,12 +76,10 @@ export function initBlogSearch(root: HTMLElement): void {
       const body = (await res.json()) as { data?: { posts?: SearchPost[] } };
       const posts = body.data?.posts ?? [];
       heading.textContent =
-        posts.length > 0
-          ? `${posts.length} result${posts.length === 1 ? "" : "s"} for “${esc(q)}”`
-          : `No articles match “${esc(q)}” — try another word.`;
+        posts.length > 0 ? tSearch.results(posts.length, q) : tSearch.noMatch(q);
       grid.innerHTML = posts.map(cardHtml).join("");
     } catch {
-      heading.textContent = "Search is unavailable right now — please try again later.";
+      heading.textContent = tSearch.unavailable;
     }
   });
 
