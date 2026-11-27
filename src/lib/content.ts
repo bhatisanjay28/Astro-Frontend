@@ -346,6 +346,11 @@ export interface HoroscopePage {
   period: string;
   resolved_period: string;
   date_key: string;
+  /** the IST key the tab asked for — differs from date_key only when stale */
+  requested_date_key: string;
+  /** true → the newest window's rows are missing; content is the latest
+   * earlier window and the UI must label it (S23 "never a wrong date") */
+  stale: boolean;
   range: { start: string; end: string } | null;
   blocks: HoroscopeBlocks;
   row: HoroscopeSignRow | null;
@@ -362,6 +367,8 @@ export async function fetchHoroscopePage(
       period: string;
       resolved_period: string;
       date_key: string;
+      requested_date_key: string;
+      stale: boolean;
       range: { start: string; end: string } | null;
       blocks: HoroscopeBlocks;
       signs: HoroscopeSignRow[];
@@ -374,6 +381,8 @@ export async function fetchHoroscopePage(
     period: body.data.period,
     resolved_period: body.data.resolved_period,
     date_key: body.data.date_key,
+    requested_date_key: body.data.requested_date_key ?? body.data.date_key,
+    stale: body.data.stale ?? false,
     range: body.data.range,
     blocks: body.data.blocks ?? {},
     row: body.data.signs?.[0] ?? null,
