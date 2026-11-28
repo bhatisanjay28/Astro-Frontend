@@ -73,6 +73,10 @@ const defaults = {
 </Admin>
 
 <style>
+  /* #ro-note carries `hidden` but Admin.astro's global `.sub { display: block }`
+     author rule beats the UA [hidden] rule — the note rendered for everyone.
+     Explicit guard restores the hidden state (e2e finding, 2026-11-28). */
+  #ro-note[hidden] { display: none; }
   #legal-dlg {
     background: var(--a-panel);
     border: 1px solid var(--a-border);
