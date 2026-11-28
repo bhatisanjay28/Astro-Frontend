@@ -157,11 +157,26 @@ export async function requireSession(): Promise<boolean> {
       email?: string;
       role?: string;
       display_name?: string | null;
+      must_change_password?: boolean;
       capabilities?: string[];
     };
   }>("/api/v1/admin/me");
-  if (!res.ok) return false;
+  if (!res.ok) {
+    // Phase 5 — a direct-created account owes its first-login password set:
+    // every /admin/* route (including /admin/me) 403s with this code until
+    // POST /auth/change-password succeeds. The token stays valid (it came
+    // from the temp-password login), so send the tab to the reset form.
+    if (res.status === 403 && res.body.error?.code === "password_change_required") {
+      location.href = "/admin/first-login";
+      return false;
+    }
+    return false;
+  }
   const me = res.body.data ?? {};
+  if (me.must_change_password) {
+    location.href = "/admin/first-login";
+    return false;
+  }
   const email = el<HTMLSpanElement>("#admin-email");
   if (email) email.textContent = me.display_name || me.email || "";
   const role = el<HTMLSpanElement>("#admin-role");

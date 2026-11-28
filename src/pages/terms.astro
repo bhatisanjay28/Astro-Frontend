@@ -2,12 +2,15 @@
 /**
  * Terms of Use — Epic 7.3 final draft. S24: content moved to
  * src/lib/i18n/terms.ts (EN verified verbatim); the /hi twin renders Hindi.
+ * Phase 5: an admin-authored DB override (content_blocks legal.terms, edited
+ * at /admin/legal) wins at build time; the in-repo dict stays the fallback.
  */
 import LegalPage from "../components/LegalPage.astro";
 import { langFromPath } from "../lib/i18n";
 import { TERMS } from "../lib/i18n/terms";
+import { resolveLegalDoc } from "../lib/legal-content";
 
-const t = TERMS[langFromPath(Astro.url.pathname)];
+const t = await resolveLegalDoc("terms", langFromPath(Astro.url.pathname), TERMS);
 ---
 
 <LegalPage title={t.title} heading={t.heading} intro={t.intro} updated={t.updated} sections={t.sections} />

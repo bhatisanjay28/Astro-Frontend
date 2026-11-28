@@ -1,0 +1,358 @@
+---
+/** /admin/legal — Trust & Legal editor (Phase 5).
+ * The five LegalPage documents (privacy / terms / refund / disclaimer / about,
+ * EN + HI) are authored in-repo and stay the fallback. This page edits DB
+ * overrides — content_blocks rows under the `legal.` prefix, payload shaped
+ * like the LegalDoc dicts — via the admin content-blocks CRUD (same
+ * blocks.write capability as /admin/blocks; the server stays the real gate).
+ * Every legal.* write makes the backend ping the Pages deploy hook, so the
+ * static site re-bakes (~1 min) before the override becomes visitor-visible;
+ * without it the site keeps serving the previous build (which, fail-soft,
+ * is the in-repo document). About's eyebrow/note strips are page chrome and
+ * stay repo-authored. */
+import Admin from "../../layouts/Admin.astro";
+import { ABOUT } from "../../lib/i18n/about";
+import { DISCLAIMER } from "../../lib/i18n/disclaimer";
+import { PRIVACY } from "../../lib/i18n/privacy";
+import { REFUND } from "../../lib/i18n/refund";
+import { TERMS } from "../../lib/i18n/terms";
+
+// Build-time prefill source: no-override rows open the editor with the exact
+// in-repo document, so a first save is a true diff against the shipped copy.
+const defaults = {
+  privacy: PRIVACY,
+  terms: TERMS,
+  refund: REFUND,
+  disclaimer: DISCLAIMER,
+  about: ABOUT,
+};
+---
+
+<Admin title="Trust & Legal | Vyotish Admin" active="legal">
+  <h1>Trust &amp; Legal</h1>
+  <p style="color:var(--a-dim); font-size:13px; margin:0 0 4px">
+    The public Trust &amp; Legal pages (privacy, terms, refund, disclaimer, about — English and
+    Hindi). Content ships in the repo; an override saved here replaces it after the site
+    re-bakes (about a minute). Delete an override to restore the shipped document.
+  </p>
+  <p class="sub" style="margin:0 0 14px" id="ro-note" hidden>
+    Your role has read-only access here — editing needs the content-blocks write capability.
+  </p>
+  <table>
+    <thead>
+      <tr><th>Document</th><th>Lang</th><th>Source</th><th>Title served</th><th>Updated</th><th></th></tr>
+    </thead>
+    <tbody id="rows"><tr><td colspan="6" class="empty">Loading…</td></tr></tbody>
+  </table>
+
+  <dialog id="legal-dlg">
+    <h2 class="dlg-title" id="ld-doc">Edit document</h2>
+    <form id="ld-form" method="dialog">
+      <div class="grid2">
+        <div>
+          <label for="ld-title">Title (browser tab)</label>
+          <input id="ld-title" maxlength="200" required />
+        </div>
+        <div>
+          <label for="ld-updated">Updated line (shown as “Last updated: …”)</label>
+          <input id="ld-updated" maxlength="100" required />
+        </div>
+      </div>
+      <label for="ld-heading">Page heading</label>
+      <input id="ld-heading" maxlength="200" required />
+      <label for="ld-intro">Intro paragraph</label>
+      <textarea id="ld-intro" rows="3" maxlength="600"></textarea>
+      <div id="ld-sections"></div>
+      <p><button type="button" id="ld-add" class="btn ghost">+ Add section</button></p>
+      <div class="dlg-actions">
+        <button type="button" class="btn ghost" id="ld-cancel">Cancel</button>
+        <button type="submit" class="btn" id="ld-save">Save override</button>
+      </div>
+    </form>
+  </dialog>
+</Admin>
+
+<style>
+  #legal-dlg {
+    background: var(--a-panel);
+    border: 1px solid var(--a-border);
+    border-radius: 14px;
+    padding: 22px;
+    width: min(720px, 94vw);
+    max-height: 88vh;
+    overflow: auto;
+    color: var(--a-text);
+  }
+  #legal-dlg::backdrop { background: rgba(0, 0, 0, 0.6); }
+  #legal-dlg .dlg-actions { margin-top: 18px; }
+  .sec-card {
+    border: 1px solid var(--a-border);
+    border-radius: 10px;
+    padding: 12px 14px 14px;
+    margin: 12px 0 0;
+    background: rgba(36, 28, 19, 0.6);
+  }
+  .sec-head { display: flex; justify-content: space-between; align-items: center; }
+  .sec-head strong { color: var(--a-gold); font-size: 13px; }
+  .sec-hint { font-size: 11px; color: var(--a-dim); margin: 2px 0 0; }
+</style>
+
+<script define:vars={{ defaults }}>
+  window.__legalDefaults = defaults;
+</script>
+
+<script>
+  import { api, el, esc, fmtDate, requireSession, toast, logout } from "../../scripts/admin/api";
+  import { confirmDialog } from "../../scripts/admin/confirm";
+  import { parseLegalDoc } from "../../lib/legal-content";
+  import type { LegalDoc, LegalSection } from "../../lib/i18n/legal";
+
+  const DOCS = [
+    { doc: "privacy", label: "Privacy Policy", href: "/privacy" },
+    { doc: "terms", label: "Terms of Use", href: "/terms" },
+    { doc: "refund", label: "Refund & Cancellation", href: "/refund" },
+    { doc: "disclaimer", label: "Astrological Disclaimer", href: "/disclaimer" },
+    { doc: "about", label: "About Vyotish", href: "/about" },
+  ] as const;
+  const LANGS = ["en", "hi"] as const;
+
+  const w = window as unknown as {
+    __legalDefaults?: Record<string, Record<string, LegalDoc>>;
+    __vyotishAdmin?: { capabilities: string[] };
+  };
+  const defaults = w.__legalDefaults ?? {};
+  const canWrite = (): boolean => (w.__vyotishAdmin?.capabilities ?? []).includes("blocks.write");
+
+  interface BlockRow {
+    block_key: string;
+    lang: string;
+    status: string;
+    updated_at: string | null;
+    payload: Record<string, unknown>;
+  }
+
+  let blocks = new Map<string, BlockRow>(); // `${doc}|${lang}` → row
+
+  /** Effective doc for a (doc, lang): valid override wins, else the shipped dict
+   * (an invalid override row still shows as "DB override — invalid" and falls back). */
+  function effective(doc: string, lang: string): { doc: LegalDoc; fromDb: boolean; valid: boolean } {
+    const row = blocks.get(`${doc}|${lang}`);
+    const fallback =
+      defaults[doc]?.[lang] ?? { title: "(missing)", heading: "", intro: "", updated: "", sections: [] };
+    if (row) {
+      const parsed = parseLegalDoc(row.payload);
+      if (parsed) return { doc: parsed, fromDb: true, valid: true };
+      return { doc: fallback, fromDb: true, valid: false };
+    }
+    return { doc: fallback, fromDb: false, valid: true };
+  }
+
+  function rowHtml(d: (typeof DOCS)[number], lang: string): string {
+    const eff = effective(d.doc, lang);
+    const key = `legal.${d.doc}`;
+    const href = lang === "en" ? d.href : `/hi${d.href}`;
+    const pill = eff.fromDb
+      ? eff.valid
+        ? '<span class="pill pub">DB override</span>'
+        : '<span class="pill arch">DB override — invalid, site serves shipped copy</span>'
+      : '<span class="pill">in-repo default</span>';
+    const row = blocks.get(`${d.doc}|${lang}`);
+    const actions = canWrite()
+      ? `<button class="btn ghost" data-edit="${d.doc}" data-lang="${lang}">Edit</button>${
+          eff.fromDb
+            ? ` <button class="btn danger" data-reset="${d.doc}" data-lang="${lang}" data-key="${esc(key)}">Reset to default</button>`
+            : ""
+        }`
+      : '<span class="sub">read-only</span>';
+    return `<tr>
+      <td><strong>${esc(d.label)}</strong><br><a href="${esc(href)}" target="_blank" rel="noopener" style="color:var(--a-dim); font-size:11px">${esc(href)} ↗</a></td>
+      <td>${lang.toUpperCase()}</td>
+      <td>${pill}</td>
+      <td>${esc(eff.doc.title || "—")}</td>
+      <td>${row ? fmtDate(row.updated_at) : "—"}</td>
+      <td style="white-space:nowrap">${actions}</td>
+    </tr>`;
+  }
+
+  function renderTable(): void {
+    el<HTMLTableSectionElement>("#rows")!.innerHTML = DOCS.flatMap((d) => LANGS.map((l) => rowHtml(d, l))).join("");
+  }
+
+  async function load(): Promise<void> {
+    const res = await api<{ data?: { blocks?: BlockRow[] } }>("/api/v1/admin/content-blocks?prefix=legal.");
+    if (!res.ok) {
+      toast(res.body.error?.message ?? "Loading failed", true);
+      return;
+    }
+    blocks = new Map();
+    for (const b of res.body.data?.blocks ?? []) {
+      const doc = b.block_key.startsWith("legal.") ? b.block_key.slice("legal.".length) : "";
+      if (doc) blocks.set(`${doc}|${b.lang}`, b);
+    }
+    renderTable();
+  }
+
+  /* ------------------------------ editor ------------------------------ */
+
+  let editing: { doc: string; lang: string } | null = null;
+
+  const lines = (v: string): string[] =>
+    v.split("\n").map((s) => s.trim()).filter((s) => s.length > 0);
+
+  /** One editable section card; a section may carry paragraphs, bullets and/or notes. */
+  function sectionHtml(i: number, s: LegalSection): string {
+    return `<div class="sec-card">
+      <div class="sec-head">
+        <strong>Section ${i + 1}</strong>
+        <button type="button" class="btn danger" data-sec-del>Remove</button>
+      </div>
+      <div class="grid2">
+        <div>
+          <label>Anchor id (slug — TOC link target)</label>
+          <input class="sec-id" maxlength="80" value="${esc(s.id)}" />
+        </div>
+        <div>
+          <label>Heading</label>
+          <input class="sec-heading" maxlength="200" value="${esc(s.heading)}" />
+        </div>
+      </div>
+      <label>Paragraphs — one per line (inline &lt;strong&gt;, &lt;em&gt;, &lt;a href&gt; allowed)</label>
+      <textarea class="sec-paras" rows="4">${esc((s.paragraphs ?? []).join("\n"))}</textarea>
+      <label>Bullets — one per line</label>
+      <textarea class="sec-bullets" rows="3">${esc((s.bullets ?? []).join("\n"))}</textarea>
+      <label>Note lines — one per line</label>
+      <textarea class="sec-notes" rows="2">${esc((s.note ?? []).join("\n"))}</textarea>
+    </div>`;
+  }
+
+  function renderSections(sections: LegalSection[]): void {
+    el<HTMLDivElement>("#ld-sections")!.innerHTML =
+      sections.map((s, i) => sectionHtml(i, s)).join("") ||
+      '<p class="sub">No sections yet — add the first one.</p>';
+  }
+
+  function openEditor(doc: string, lang: string): void {
+    editing = { doc, lang };
+    const eff = effective(doc, lang);
+    const d = eff.doc;
+    el<HTMLHeadingElement>("#ld-doc")!.textContent = `Edit ${doc} (${lang.toUpperCase()})`;
+    el<HTMLInputElement>("#ld-title")!.value = d.title;
+    el<HTMLInputElement>("#ld-heading")!.value = d.heading;
+    el<HTMLTextAreaElement>("#ld-intro")!.value = d.intro;
+    el<HTMLInputElement>("#ld-updated")!.value = d.updated;
+    renderSections(d.sections);
+    const dlg = el<HTMLDialogElement>("#legal-dlg")!;
+    if (dlg.open) dlg.close();
+    dlg.showModal();
+  }
+
+  el<HTMLButtonElement>("#ld-add")!.addEventListener("click", () => {
+    const box = el<HTMLDivElement>("#ld-sections")!;
+    const wrap = document.createElement("div");
+    wrap.innerHTML = sectionHtml(box.querySelectorAll(".sec-card").length, {
+      id: "",
+      heading: "",
+    });
+    box.appendChild(wrap.firstElementChild as HTMLElement);
+    wrap.querySelector<HTMLInputElement>(".sec-id")?.focus();
+  });
+
+  el<HTMLDivElement>("#ld-sections")!.addEventListener("click", (ev) => {
+    const btn = (ev.target as HTMLElement).closest("button[data-sec-del]") as HTMLElement | null;
+    if (!btn) return;
+    const card = btn.closest(".sec-card");
+    if (card) card.remove();
+  });
+
+  el<HTMLButtonElement>("#ld-cancel")!.addEventListener("click", () => {
+    el<HTMLDialogElement>("#legal-dlg")!.close();
+  });
+
+  el<HTMLFormElement>("#ld-form")!.addEventListener("submit", async (ev) => {
+    ev.preventDefault();
+    if (!editing) return;
+    const title = el<HTMLInputElement>("#ld-title")!.value.trim();
+    const heading = el<HTMLInputElement>("#ld-heading")!.value.trim();
+    const intro = el<HTMLTextAreaElement>("#ld-intro")!.value.trim();
+    const updated = el<HTMLInputElement>("#ld-updated")!.value.trim();
+    if (!title || !heading || !updated) {
+      toast("Title, heading and updated line are required.", true);
+      return;
+    }
+    const sections: LegalSection[] = [];
+    for (const card of document.querySelectorAll<HTMLElement>("#ld-sections .sec-card")) {
+      const id = (card.querySelector<HTMLInputElement>(".sec-id")?.value ?? "").trim();
+      const secHeading = (card.querySelector<HTMLInputElement>(".sec-heading")?.value ?? "").trim();
+      if (!id || !secHeading) {
+        toast("Every section needs an anchor id and a heading.", true);
+        return;
+      }
+      const sec: LegalSection = { id, heading: secHeading };
+      const paras = lines(card.querySelector<HTMLTextAreaElement>(".sec-paras")?.value ?? "");
+      const bullets = lines(card.querySelector<HTMLTextAreaElement>(".sec-bullets")?.value ?? "");
+      const notes = lines(card.querySelector<HTMLTextAreaElement>(".sec-notes")?.value ?? "");
+      if (paras.some((p) => p.length > 5000) || bullets.some((b) => b.length > 1000) || notes.some((n) => n.length > 2000)) {
+        toast("A paragraph/bullet/note line exceeds its size limit (5000/1000/2000).", true);
+        return;
+      }
+      if (paras.length) sec.paragraphs = paras;
+      if (bullets.length) sec.bullets = bullets;
+      if (notes.length) sec.note = notes;
+      sections.push(sec);
+    }
+    if (sections.length === 0 || sections.length > 40) {
+      toast("The document needs 1–40 sections.", true);
+      return;
+    }
+
+    const res = await api(`/api/v1/admin/content-blocks/legal.${encodeURIComponent(editing.doc)}`, {
+      method: "PUT",
+      body: JSON.stringify({
+        lang: editing.lang,
+        status: "published",
+        payload: { title, heading, intro, updated, sections },
+      }),
+    });
+    if (!res.ok) {
+      toast(res.body.error?.message ?? "Save failed", true);
+      return;
+    }
+    el<HTMLDialogElement>("#legal-dlg")!.close();
+    toast("Override saved — vyotish.com re-bakes in about a minute, then serves this copy.");
+    await load();
+  });
+
+  document.querySelector("tbody")!.addEventListener("click", async (ev) => {
+    const t = ev.target as HTMLElement;
+    const editBtn = t.closest("button[data-edit]") as HTMLElement | null;
+    if (editBtn) {
+      openEditor(editBtn.dataset.edit ?? "", editBtn.dataset.lang ?? "en");
+      return;
+    }
+    const resetBtn = t.closest("button[data-reset]") as HTMLElement | null;
+    if (resetBtn) {
+      const key = resetBtn.dataset.key ?? "";
+      const lang = resetBtn.dataset.lang ?? "en";
+      const okGo = await confirmDialog({
+        title: "Reset to default",
+        message: `Delete the DB override for ${key} (${lang.toUpperCase()})? After the next site re-bake the shipped document is served again.`,
+        confirmText: "Delete override",
+        danger: true,
+        requireText: key,
+      });
+      if (!okGo) return;
+      const res = await api(
+        `/api/v1/admin/content-blocks/${encodeURIComponent(key)}?lang=${encodeURIComponent(lang)}`,
+        { method: "DELETE" },
+      );
+      toast(res.ok ? "Override deleted — the shipped copy returns after the re-bake." : res.body.error?.message ?? "Delete failed", !res.ok);
+      if (res.ok) await load();
+    }
+  });
+
+  document.getElementById("admin-logout")?.addEventListener("click", () => logout());
+  if (await requireSession()) {
+    if (!canWrite()) el<HTMLElement>("#ro-note")!.removeAttribute("hidden");
+    await load();
+  }
+</script>

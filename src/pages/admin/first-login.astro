@@ -1,0 +1,110 @@
+---
+/** Admin Phase 5 — first-login password set (standalone, like login.astro:
+ * no Admin chrome because requireSession would bounce — every /admin/* route
+ * 403s password_change_required until this form succeeds).
+ *
+ * Flow: direct-created account signs in with the one-time temp password the
+ * Super Admin shared → this page → POST /api/v1/auth/change-password (the
+ * temp session's bearer is the credential; Supabase stores the new hash) →
+ * flag cleared server-side → back to /admin/login to sign in with the new
+ * password. The password never passes through panel code again.
+ */
+import { API_BASE } from "../../scripts/admin/api";
+import "../../styles/fonts.css";
+---
+
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex" />
+    <title>Set your password | Vyotish Admin</title>
+    <style>
+      /* same standalone-page reset as login.astro (no preflight here) */
+      *, *::before, *::after { box-sizing: border-box; }
+      body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #14100c; color: #ece5d8; font: 14px/1.55 Poppins, sans-serif; padding: 16px; }
+      .card { width: min(380px, 100%); background: #1d1710; border: 1px solid #3a2f1f; border-radius: 14px; padding: 28px; }
+      h1 { font-size: 18px; color: #d4a843; margin: 0 0 6px; }
+      p { color: #9b8f7a; font-size: 12.5px; margin: 0 0 18px; }
+      label { display: block; font-size: 12px; color: #9b8f7a; margin: 12px 0 4px; }
+      input { width: 100%; background: #241c13; border: 1px solid #3a2f1f; color: #ece5d8; border-radius: 8px; padding: 9px 10px; font: inherit; }
+      button { width: 100%; margin-top: 18px; background: #d4a843; color: #1a1206; border: 0; border-radius: 8px; padding: 10px; font: inherit; font-weight: 600; cursor: pointer; }
+      button:disabled { opacity: 0.6; cursor: wait; }
+      .err { color: #e08a8a; font-size: 12.5px; margin-top: 12px; min-height: 16px; }
+      .rule { color: #9b8f7a; font-size: 11.5px; margin: 8px 0 0; }
+    </style>
+  </head>
+  <body>
+    <form class="card" id="pw-form" data-api-base={API_BASE}>
+      <h1>Set your password</h1>
+      <p>
+        For security you must replace the temporary password before using the
+        admin panel.
+      </p>
+      <label for="new-password">New password</label>
+      <input id="new-password" name="new_password" type="password" autocomplete="new-password" required minlength="12" />
+      <label for="confirm-password">Confirm new password</label>
+      <input id="confirm-password" type="password" autocomplete="new-password" required minlength="12" />
+      <p class="rule">At least 12 characters, including a letter and a digit.</p>
+      <button type="submit" id="go">Save password</button>
+      <div class="err" id="err" role="alert"></div>
+    </form>
+    <script>
+      const form = document.getElementById("pw-form") as HTMLFormElement;
+      const err = document.getElementById("err") as HTMLElement;
+      const btn = document.getElementById("go") as HTMLButtonElement;
+      const apiBase = form.dataset.apiBase || "";
+
+      // No token (or an expired one) → the temp-password login is the only way in.
+      const token = sessionStorage.getItem("vyotish.admin.token");
+      if (!token) location.href = "/admin/login";
+
+      form.addEventListener("submit", async (ev) => {
+        ev.preventDefault();
+        err.textContent = "";
+        const pw = (document.getElementById("new-password") as HTMLInputElement).value;
+        const confirm = (document.getElementById("confirm-password") as HTMLInputElement).value;
+        if (pw.length < 12 || !/[A-Za-z]/.test(pw) || !/[0-9]/.test(pw)) {
+          err.textContent = "At least 12 characters, including a letter and a digit.";
+          return;
+        }
+        if (pw !== confirm) {
+          err.textContent = "The two passwords do not match.";
+          return;
+        }
+        btn.disabled = true;
+        try {
+          const res = await fetch(apiBase + "/api/v1/auth/change-password", {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${sessionStorage.getItem("vyotish.admin.token") ?? ""}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ new_password: pw }),
+          });
+          const body = (await res.json().catch(() => ({}))) as {
+            error?: { code?: string; message?: string };
+          };
+          if (res.ok) {
+            sessionStorage.removeItem("vyotish.admin.token");
+            sessionStorage.removeItem("vyotish.admin.refresh");
+            sessionStorage.removeItem("vyotish.admin.email");
+            location.href = "/admin/login?reason=password_set";
+            return;
+          }
+          if (res.status === 401 || res.status === 403) {
+            // temp session expired/invalid — sign in with the temp password again
+            err.textContent = "Session expired — sign in again and retry.";
+            btn.disabled = false;
+            return;
+          }
+          err.textContent = body.error?.message ?? "Password update failed — try again.";
+          btn.disabled = false;
+        } catch {
+          err.textContent = "Network error — is the backend reachable?";
+          btn.disabled = false;
+        }
+      });
+    </script>
+  </body>
+</html>

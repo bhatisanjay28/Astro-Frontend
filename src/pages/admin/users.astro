@@ -1,7 +1,10 @@
 ---
 /** Admin Phase 1 — Users & roles (super_admin only, enforced by the API:
  * every /admin/users route 403s without users.manage). The UI hides the
- * controls for other roles but the server remains the real gate. */
+ * controls for other roles but the server remains the real gate.
+ * Phase 5 — adds direct creation (server-generated one-time temp password,
+ * the account is locked out of the panel until it sets a real password) and
+ * full editing (display name, email, role). */
 import Admin from "../../layouts/Admin.astro";
 ---
 
@@ -41,6 +44,38 @@ import Admin from "../../layouts/Admin.astro";
       <p class="hint">They receive a Supabase email with an accept link to set their password (requires project SMTP).</p>
     </div>
 
+    <div class="card">
+      <h2>Create user directly</h2>
+      <div class="invite">
+        <div>
+          <label for="cr-email">Email</label>
+          <input id="cr-email" type="email" autocomplete="off" placeholder="name@vyotish.com" />
+        </div>
+        <div>
+          <label for="cr-name">Display name (optional)</label>
+          <input id="cr-name" type="text" autocomplete="off" />
+        </div>
+        <div>
+          <label for="cr-role">Role</label>
+          <select id="cr-role">
+            <option value="viewer">viewer — read-only panel access</option>
+            <option value="booking_manager">booking manager — inbox, bookings, exports</option>
+            <option value="content_editor">content editor — blog, media, horoscopes</option>
+            <option value="admin">admin — everything except users &amp; engine</option>
+            <option value="super_admin">super admin — all capabilities</option>
+          </select>
+        </div>
+        <div class="invite-actions">
+          <button type="button" id="create-btn" class="btn">Create user</button>
+        </div>
+      </div>
+      <p class="hint">
+        No email is sent — you get a one-time temporary password to share with
+        them securely (chat/in person). They must set a real password at first
+        login before the panel opens for them.
+      </p>
+    </div>
+
     <h2>Admin accounts</h2>
     <table>
       <thead>
@@ -64,6 +99,50 @@ import Admin from "../../layouts/Admin.astro";
   <p id="no-access" class="empty-note" hidden>
     Your role does not include user management. Ask a super admin for access.
   </p>
+
+  <dialog id="created-dlg" style="background:#1d1710; color:#ece5d8; border:1px solid #3a2f1f; border-radius:14px; padding:22px; max-width:560px; width:92vw">
+    <h2 style="margin:0 0 6px; font-size:16px">User created</h2>
+    <p class="hint" style="margin:0 0 12px">
+      Share this temporary password with <strong id="cd-email"></strong> through a secure
+      channel. It is shown <strong>once</strong> — it cannot be retrieved again.
+      They sign in with it and must set a real password before the panel opens.
+    </p>
+    <div class="copy-row">
+      <input id="cd-password" readonly aria-label="Temporary password" />
+      <button type="button" id="cd-copy" class="btn ghost">Copy</button>
+    </div>
+    <div class="dlg-actions">
+      <button type="button" id="cd-done" class="btn">Done</button>
+    </div>
+  </dialog>
+
+  <dialog id="edit-dlg" style="background:#1d1710; color:#ece5d8; border:1px solid #3a2f1f; border-radius:14px; padding:22px; max-width:560px; width:92vw">
+    <h2 style="margin:0 0 6px; font-size:16px">Edit admin</h2>
+    <p class="hint" style="margin:0 0 12px" id="ed-sub"></p>
+    <div class="ed-grid">
+      <div>
+        <label for="ed-name">Display name</label>
+        <input id="ed-name" type="text" autocomplete="off" />
+      </div>
+      <div>
+        <label for="ed-email">Email (login identity)</label>
+        <input id="ed-email" type="email" autocomplete="off" />
+      </div>
+      <div>
+        <label for="ed-role">Role</label>
+        <select id="ed-role"></select>
+      </div>
+    </div>
+    <p class="hint">
+      Changing the email changes how they sign in (takes effect immediately); a failed
+      email change is reported and nothing else is modified.
+    </p>
+    <div class="dlg-actions">
+      <button type="button" id="ed-cancel" class="btn ghost">Cancel</button>
+      <button type="button" id="ed-save" class="btn">Save changes</button>
+    </div>
+    <div class="err" id="ed-errors" role="alert"></div>
+  </dialog>
 </Admin>
 
 <script>
@@ -76,11 +155,19 @@ import Admin from "../../layouts/Admin.astro";
     role: string;
     is_active: boolean;
     display_name: string | null;
+    must_change_password?: boolean;
     created_at: string;
     last_sign_in_at: string | null;
   }
 
   const ROLES = ["super_admin", "admin", "content_editor", "booking_manager", "viewer"] as const;
+  const ROLE_LABELS: Record<string, string> = {
+    viewer: "viewer — read-only panel access",
+    booking_manager: "booking manager — inbox, bookings, exports",
+    content_editor: "content editor — blog, media, horoscopes",
+    admin: "admin — everything except users & engine",
+    super_admin: "super admin — all capabilities",
+  };
 
   function me(): { userId: string; role: string; capabilities: string[] } {
     return (
@@ -88,6 +175,9 @@ import Admin from "../../layouts/Admin.astro";
         .__vyotishAdmin ?? { userId: "", role: "", capabilities: [] }
     );
   }
+
+  /** Row objects by id — the Edit dialog re-reads from here (no DOM scraping). */
+  let usersById = new Map<string, AdminUser>();
 
   async function load(): Promise<void> {
     const res = await api<{ data?: AdminUser[] }>("/api/v1/admin/users");
@@ -97,7 +187,9 @@ import Admin from "../../layouts/Admin.astro";
       return;
     }
     const my = me();
-    renderRows<AdminUser>("#users-tbody", res.body.data, (u) => {
+    const rows = res.body.data ?? [];
+    usersById = new Map(rows.map((u) => [u.user_id, u]));
+    renderRows<AdminUser>("#users-tbody", rows, (u) => {
       const self = u.user_id === my.userId;
       const roleSel = `<select data-role-for="${esc(u.user_id)}" aria-label="Role for ${esc(u.email)}"${
         self ? " disabled" : ""
@@ -107,9 +199,13 @@ import Admin from "../../layouts/Admin.astro";
       const status = u.is_active
         ? '<span class="pill pub">active</span>'
         : '<span class="pill" style="color:#e08a8a;border-color:#7a2f2f">deactivated</span>';
+      const pending = u.must_change_password
+        ? ' <span class="pill" style="color:#e7c46a;border-color:#7a5c1f">first login pending</span>'
+        : "";
       const actions = self
         ? '<span class="pill">you</span>'
         : `<div class="row-actions">
+             <button type="button" class="btn ghost" data-act="edit" data-id="${esc(u.user_id)}">Edit</button>
              <button type="button" class="btn ghost" data-act="save-role" data-id="${esc(u.user_id)}">Save role</button>
              <button type="button" class="btn danger" data-act="toggle-active" data-id="${esc(u.user_id)}" data-active="${u.is_active ? "1" : "0"}">${
                u.is_active ? "Deactivate" : "Reactivate"
@@ -119,7 +215,7 @@ import Admin from "../../layouts/Admin.astro";
         <td>${esc(u.display_name || "—")}</td>
         <td>${esc(u.email)}</td>
         <td>${roleSel}</td>
-        <td>${status}</td>
+        <td>${status}${pending}</td>
         <td>${fmtDate(u.last_sign_in_at)}</td>
         <td>${actions}</td>
       </tr>`;
@@ -150,6 +246,106 @@ import Admin from "../../layouts/Admin.astro";
     const invName = el<HTMLInputElement>("#inv-name");
     if (invEmail) invEmail.value = "";
     if (invName) invName.value = "";
+    await load();
+  }
+
+  /* ------------------------- direct creation (Phase 5) ------------------------- */
+
+  async function createUser(): Promise<void> {
+    const email = el<HTMLInputElement>("#cr-email")?.value.trim() ?? "";
+    const displayName = el<HTMLInputElement>("#cr-name")?.value.trim() ?? "";
+    const role = el<HTMLSelectElement>("#cr-role")?.value ?? "";
+    if (!email) {
+      toast("Enter an email to create.", true);
+      return;
+    }
+    const btn = el<HTMLButtonElement>("#create-btn");
+    if (btn) btn.disabled = true;
+    const res = await api<{
+      data?: { email: string; temporary_password: string };
+    }>("/api/v1/admin/users", {
+      method: "POST",
+      body: JSON.stringify({ email, role, display_name: displayName }),
+    });
+    if (btn) btn.disabled = false;
+    if (!res.ok) {
+      toast(res.body.error?.message ?? "Could not create the user.", true);
+      return;
+    }
+    const crEmail = el<HTMLInputElement>("#cr-email");
+    const crName = el<HTMLInputElement>("#cr-name");
+    if (crEmail) crEmail.value = "";
+    if (crName) crName.value = "";
+    // One-time display: the backend returns the temp password exactly once and
+    // never persists it — closing this dialog loses it forever.
+    const dlg = el<HTMLDialogElement>("#created-dlg");
+    const pw = el<HTMLInputElement>("#cd-password");
+    const who = el<HTMLElement>("#cd-email");
+    if (pw) pw.value = res.body.data?.temporary_password ?? "";
+    if (who) who.textContent = res.body.data?.email ?? email;
+    dlg?.showModal();
+    await load();
+  }
+
+  /* ------------------------------ edit (Phase 5) ------------------------------ */
+
+  let editId = "";
+
+  function openEditor(u: AdminUser, self: boolean): void {
+    editId = u.user_id;
+    const dlg = el<HTMLDialogElement>("#edit-dlg");
+    const sub = el<HTMLElement>("#ed-sub");
+    const name = el<HTMLInputElement>("#ed-name");
+    const email = el<HTMLInputElement>("#ed-email");
+    const role = el<HTMLSelectElement>("#ed-role");
+    if (sub) sub.textContent = self ? "You can only change your own display name here." : u.email;
+    if (name) name.value = u.display_name ?? "";
+    if (email) {
+      email.value = u.email;
+      email.disabled = self;
+    }
+    if (role) {
+      role.innerHTML = ROLES.map(
+        (r) => `<option value="${r}"${u.role === r ? " selected" : ""}>${esc(ROLE_LABELS[r] ?? r)}</option>`,
+      ).join("");
+      role.disabled = self;
+    }
+    const errors = el<HTMLElement>("#ed-errors");
+    if (errors) errors.textContent = "";
+    dlg?.showModal();
+  }
+
+  async function saveEdit(): Promise<void> {
+    const u = usersById.get(editId);
+    if (!u) return;
+    const name = el<HTMLInputElement>("#ed-name")?.value.trim() ?? "";
+    const email = el<HTMLInputElement>("#ed-email")?.value.trim() ?? "";
+    const role = el<HTMLSelectElement>("#ed-role")?.value ?? "";
+    // Only CHANGED fields go on the wire — a same-value email would be a no-op
+    // upstream, and untouched fields must never overwrite a concurrent change.
+    const body: Record<string, string> = {};
+    if ((u.display_name ?? "") !== name) body.display_name = name;
+    if (email && email !== u.email) body.email = email;
+    if (role && role !== u.role) body.role = role;
+    if (Object.keys(body).length === 0) {
+      el<HTMLDialogElement>("#edit-dlg")?.close();
+      toast("Nothing changed.");
+      return;
+    }
+    const btn = el<HTMLButtonElement>("#ed-save");
+    if (btn) btn.disabled = true;
+    const res = await api<{ data?: AdminUser }>(`/api/v1/admin/users/${encodeURIComponent(editId)}`, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    });
+    if (btn) btn.disabled = false;
+    if (!res.ok) {
+      const errors = el<HTMLElement>("#ed-errors");
+      if (errors) errors.textContent = res.body.error?.message ?? "Update failed.";
+      return;
+    }
+    el<HTMLDialogElement>("#edit-dlg")?.close();
+    toast("Admin updated.");
     await load();
   }
 
@@ -199,11 +395,38 @@ import Admin from "../../layouts/Admin.astro";
     if (canManage) {
       if (manage) manage.removeAttribute("hidden");
       el<HTMLButtonElement>("#invite-btn")?.addEventListener("click", () => void invite());
+      el<HTMLButtonElement>("#create-btn")?.addEventListener("click", () => void createUser());
+
+      const cdCopy = el<HTMLButtonElement>("#cd-copy");
+      cdCopy?.addEventListener("click", async () => {
+        const pw = el<HTMLInputElement>("#cd-password")?.value ?? "";
+        try {
+          await navigator.clipboard.writeText(pw);
+          toast("Temporary password copied.");
+        } catch {
+          toast("Copy failed — select the text manually.", true);
+        }
+      });
+      el<HTMLButtonElement>("#cd-done")?.addEventListener("click", () => {
+        const pw = el<HTMLInputElement>("#cd-password");
+        if (pw) pw.value = ""; // gone for good once the dialog closes
+        el<HTMLDialogElement>("#created-dlg")?.close();
+      });
+
+      el<HTMLButtonElement>("#ed-cancel")?.addEventListener("click", () =>
+        el<HTMLDialogElement>("#edit-dlg")?.close(),
+      );
+      el<HTMLButtonElement>("#ed-save")?.addEventListener("click", () => void saveEdit());
+
       const tbody = el<HTMLTableSectionElement>("#users-tbody");
       tbody?.addEventListener("click", (e) => {
         const btn = (e.target as HTMLElement).closest("button[data-act]");
         if (!(btn instanceof HTMLElement)) return;
         const id = btn.dataset.id ?? "";
+        if (btn.dataset.act === "edit") {
+          const u = usersById.get(id);
+          if (u) openEditor(u, id === me().userId);
+        }
         if (btn.dataset.act === "save-role") void saveRole(id);
         if (btn.dataset.act === "toggle-active") void toggleActive(id, btn.dataset.active === "1");
       });
@@ -219,5 +442,12 @@ import Admin from "../../layouts/Admin.astro";
   .empty-note { color: var(--a-dim); }
   .invite { display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px; }
   .invite-actions { display: flex; align-items: flex-end; padding-bottom: 2px; }
+  .copy-row { display: flex; gap: 8px; }
+  .copy-row input { flex: 1; font-family: ui-monospace, monospace; letter-spacing: 1px; }
+  .dlg-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+  .ed-grid { display: grid; grid-template-columns: 1fr; gap: 8px; }
+  .ed-grid label { display: block; font-size: 12px; color: var(--a-dim); margin: 6px 0 4px; }
+  .ed-grid input, .ed-grid select { width: 100%; }
+  .err { color: #e08a8a; font-size: 12.5px; margin-top: 10px; min-height: 16px; }
   @media (max-width: 800px) { .invite { grid-template-columns: 1fr; } }
 </style>

@@ -45,8 +45,12 @@ const turnstileSitekey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY ?? "";
       // Auth goes through the backend proxy (D4): the browser never talks to
       // Supabase directly and never sees a Supabase key.
       const notice = document.getElementById("notice") as HTMLElement;
-      if (new URLSearchParams(location.search).get("reason") === "idle") {
+      const reason = new URLSearchParams(location.search).get("reason");
+      if (reason === "idle") {
         notice.textContent = "You were signed out after 30 minutes of inactivity.";
+        notice.hidden = false;
+      } else if (reason === "password_set") {
+        notice.textContent = "Password set. Sign in with your new password.";
         notice.hidden = false;
       }
       const form = document.getElementById("login-form") as HTMLFormElement;

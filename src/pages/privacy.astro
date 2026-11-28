@@ -3,12 +3,16 @@
  * Privacy Policy — Epic 7.3 final draft (DPDP Act 2023 + DPDP Rules 2025 grounded).
  * S24: content moved to src/lib/i18n/privacy.ts (EN verified verbatim against
  * this file's pre-S24 draft); the /hi twin renders the Hindi document.
+ * Phase 5: an admin-authored DB override (content_blocks legal.privacy, edited
+ * at /admin/legal) wins at build time; the in-repo dict stays the fail-soft
+ * fallback.
  */
 import LegalPage from "../components/LegalPage.astro";
 import { langFromPath } from "../lib/i18n";
 import { PRIVACY } from "../lib/i18n/privacy";
+import { resolveLegalDoc } from "../lib/legal-content";
 
-const t = PRIVACY[langFromPath(Astro.url.pathname)];
+const t = await resolveLegalDoc("privacy", langFromPath(Astro.url.pathname), PRIVACY);
 ---
 
 <LegalPage title={t.title} heading={t.heading} intro={t.intro} updated={t.updated} sections={t.sections} />

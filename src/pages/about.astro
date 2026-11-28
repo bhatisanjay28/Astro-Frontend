@@ -9,20 +9,26 @@
  * data per PRD §15. No invented numbers, no invented credentials.
  * S24: prose lives in the ABOUT dict; the /hi twin renders this same body
  * via the page path with fully translated sections.
+ * Phase 5: an admin-authored DB override (content_blocks legal.about, edited
+ * at /admin/legal) wins for the document body at build time; eyebrow/note are
+ * chrome and stay repo-authored, the in-repo dict stays the fallback.
  */
 import LegalPage from "../components/LegalPage.astro";
 import { langFromPath } from "../lib/i18n";
 import { ABOUT } from "../lib/i18n/about";
+import { resolveLegalDoc } from "../lib/legal-content";
 
-const t = ABOUT[langFromPath(Astro.url.pathname)];
+const lang = langFromPath(Astro.url.pathname);
+const t = await resolveLegalDoc("about", lang, ABOUT);
+const chrome = ABOUT[lang];
 ---
 
 <LegalPage
   title={t.title}
   heading={t.heading}
-  eyebrow={t.eyebrow}
+  eyebrow={chrome.eyebrow}
   intro={t.intro}
   updated={t.updated}
   sections={t.sections}
-  note={t.note}
+  note={chrome.note}
 />
